@@ -1,13 +1,17 @@
+<<<<<<< HEAD
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 
+=======
+>>>>>>> 8bd75f3ef64f53299f59c6f0678a6d210db7c437
 from alembic import context
 from app.core.config import settings
 from app.db.base import Base
 
 config = context.config
 
+<<<<<<< HEAD
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -110,3 +114,11 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+=======
+config.set_main_option(
+    "sqlalchemy.url",
+    settings.DATABASE_URL
+)
+
+target_metadata = Base.metadata
+>>>>>>> 8bd75f3ef64f53299f59c6f0678a6d210db7c437
