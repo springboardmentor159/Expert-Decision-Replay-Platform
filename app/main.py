@@ -1,15 +1,16 @@
-from fastapi import Depends, FastAPI, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import FastAPI
 
 from app.core.config import settings
-from app.db.database import get_db
-from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse
+from app.routers.user import router as user_router
+
 
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
 )
+
+
+app.include_router(user_router)
 
 
 @app.get("/health")
@@ -18,20 +19,3 @@ def health_check():
         "status": "ok",
         "service": settings.app_name,
     }
-
-
-@app.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user.email).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    db_user = User(
-        full_name=user.full_name,
-        email=str(user.email),
-        role=user.role,
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
