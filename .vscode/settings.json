@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python -m uvicorn app\\.main:app --reload --host 127\\.0\\.0\\.1 --port 8000 --help$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
