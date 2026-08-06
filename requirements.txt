@@ -7,3 +7,5 @@ pydantic-settings
 python-dotenv
 alembic
 email-validator
+passlib
+bcrypt
