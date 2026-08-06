@@ -10,6 +10,7 @@ from app.schemas.user import (
     UserUpdate,
     UserResponse
 )
+from app.utils.security import hash_password
 
 router = APIRouter(
     prefix="/users",
@@ -27,10 +28,15 @@ def create_user(
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
+    # Hash the password before storing it
+    hashed_password = hash_password(user.password)
+
+    # Create a new user
     new_user = User(
         full_name=user.full_name,
         email=user.email,
-        role=user.role
+        role=user.role,
+        password=hashed_password
     )
 
     db.add(new_user)
