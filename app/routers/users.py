@@ -1,6 +1,3 @@
-
-
-
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,6 +10,7 @@ from app.schemas.user import (
     UserUpdate,
     UserResponse
 )
+from app.core.security import hash_password
 
 router = APIRouter(
     prefix="/users",
@@ -31,10 +29,11 @@ def create_user(
     db: Session = Depends(get_db)
 ):
     new_user = User(
-        full_name=user.full_name,
-        email=user.email,
-        role=user.role
-    )
+    full_name=user.full_name,
+    email=user.email,
+    role=user.role,
+    password=hash_password(user.password)
+)
 
     db.add(new_user)
     db.commit()
