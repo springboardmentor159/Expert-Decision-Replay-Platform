@@ -7,12 +7,14 @@ class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     role: str
+    password: str
 
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[str] = None
+    password: Optional[str] = None
 
 
 class UserResponse(BaseModel):

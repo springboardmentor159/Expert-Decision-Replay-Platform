@@ -10,6 +10,7 @@ from app.schemas.user import (
     UserUpdate,
     UserResponse
 )
+from app.services.security import hash_password
 
 router = APIRouter(
     prefix="/users",
@@ -27,10 +28,20 @@ def create_user(
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
+    # Check if email already exists
+    existing_user = db.query(User).filter(User.email == user.email).first()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
     new_user = User(
         full_name=user.full_name,
         email=user.email,
-        role=user.role
+        role=user.role,
+        password=hash_password(user.password)
     )
 
     db.add(new_user)
@@ -64,7 +75,7 @@ def get_user(
 
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
 
@@ -85,7 +96,7 @@ def update_user(
 
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
 
@@ -93,10 +104,25 @@ def update_user(
         user.full_name = user_data.full_name
 
     if user_data.email is not None:
+        existing_user = (
+            db.query(User)
+            .filter(User.email == user_data.email, User.id != user_id)
+            .first()
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
         user.email = user_data.email
 
     if user_data.role is not None:
         user.role = user_data.role
+
+    if user_data.password is not None:
+        user.password = hash_password(user_data.password)
 
     db.commit()
     db.refresh(user)
@@ -116,7 +142,7 @@ def delete_user(
 
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
 
