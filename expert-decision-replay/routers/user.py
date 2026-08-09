@@ -1,4 +1,3 @@
-
 from typing import List
 
 from fastapi import APIRouter, Depends, status
@@ -7,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
+from app.core.security import hash_password
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -23,10 +23,12 @@ def get_users(db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
 )
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    hashed_password = hash_password(user.password)
+
     new_user = User(
-        full_name=user.full_name,
+        username=user.username,
         email=user.email,
-        role=user.role,
+        password=hashed_password,
     )
 
     db.add(new_user)

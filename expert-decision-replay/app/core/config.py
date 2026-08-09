@@ -7,7 +7,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     APP_NAME: str = "Expert Decision Replay Platform"
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:1234@localhost:5432/expert_decision_replay"
+    DATABASE_URL: str = "postgresql+psycopg2://postgres:1255@localhost:5432/expert_decision_replay"
 
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),
