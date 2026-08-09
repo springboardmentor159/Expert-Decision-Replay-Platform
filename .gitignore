@@ -1,0 +1,19 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Node
+node_modules/
+
+# AI Agent files/config
+.agents/
+.kilo/
+.kilocode/
+agent_info.txt
+AGENTS.md
+GEMINI.md
+skills-lock.json
