@@ -1,14 +1,13 @@
-
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
+from app.utilis.security import hash_password
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import (
     UserCreate,
-    UserUpdate,
+    UserUpdate, 
     UserResponse
 )
 
@@ -31,7 +30,8 @@ def create_user(
     new_user = User(
         full_name=user.full_name,
         email=user.email,
-        role=user.role
+        role=user.role,
+        password=hash_password(user.password)
     )
 
     db.add(new_user)
