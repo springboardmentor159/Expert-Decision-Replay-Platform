@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import (
@@ -31,7 +32,7 @@ def create_user(
         full_name=user.full_name,
         email=user.email,
         role=user.role,
-        password=user.password
+        password=hash_password(user.password)
     )
 
     db.add(new_user)
@@ -98,6 +99,9 @@ def update_user(
 
     if user_data.role is not None:
         user.role = user_data.role
+
+    if user_data.password is not None:
+        user.password = hash_password(user_data.password)
 
     db.commit()
     db.refresh(user)
