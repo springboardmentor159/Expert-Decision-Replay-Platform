@@ -3,6 +3,7 @@ venv/
 __pycache__/
 *.pyc
 
+
 # Environment
 .env
 
@@ -17,3 +18,4 @@ agent_info.txt
 AGENTS.md
 GEMINI.md
 skills-lock.json
+run.bat
