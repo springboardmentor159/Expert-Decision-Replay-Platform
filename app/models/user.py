@@ -10,4 +10,5 @@ class User(Base):
     full_name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False, index=True)
     role = Column(String, nullable=False, default="Employee")  # Employee/Reviewer/Manager/Administrator
+    password = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
