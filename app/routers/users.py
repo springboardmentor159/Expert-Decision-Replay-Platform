@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
+from app.core.security import hash_password
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
@@ -30,7 +31,8 @@ def create_user(
     new_user = User(
         full_name=user.full_name,
         email=user.email,
-        role=user.role
+        role=user.role,
+        hashed_password=hash_password(user.password)
     )
 
     db.add(new_user)
