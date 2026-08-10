@@ -12,3 +12,4 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
 
     role = Column(String, nullable=False)
+    password = Column(String, nullable=False)
