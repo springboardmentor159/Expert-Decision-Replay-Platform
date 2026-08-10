@@ -9,5 +9,12 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False)
+
     role = Column(String, nullable=False)
+
     hashed_password = Column(String, nullable=False)
+
+    employee_id = Column(String, unique=True, nullable=False)
+    department = Column(String, nullable=False)
+    designation = Column(String, nullable=False)
+    phone_number = Column(String, nullable=False)
