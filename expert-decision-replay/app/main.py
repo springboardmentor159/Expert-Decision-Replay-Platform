@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
@@ -44,7 +45,11 @@ def create_user(
 
     db_user = User(
         full_name=user.full_name,
+        employee_id=user.employee_id,
         email=str(user.email),
+        department=user.department,
+        designation=user.designation,
+        phone_number=user.phone_number,
         role=user.role,
         password=hash_password(user.password),
     )
