@@ -8,8 +8,9 @@ from app.models.user import User
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
-    UserResponse
+    UserResponse,
 )
+from app.utils.security import hash_password
 
 router = APIRouter(
     prefix="/users",
@@ -27,10 +28,22 @@ def create_user(
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
+    # ensure unique email
+    existing = db.query(User).filter(User.email == user.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    hashed = hash_password(user.password)
+
     new_user = User(
         full_name=user.full_name,
         email=user.email,
-        role=user.role
+        password=hashed,
+        role=user.role,
+        employee_id=user.employee_id,
+        department=user.department,
+        designation=user.designation,
+        phone_number=user.phone_number,
     )
 
     db.add(new_user)
@@ -97,6 +110,21 @@ def update_user(
 
     if user_data.role is not None:
         user.role = user_data.role
+
+    if user_data.password is not None:
+        user.password = hash_password(user_data.password)
+
+    if user_data.employee_id is not None:
+        user.employee_id = user_data.employee_id
+
+    if user_data.department is not None:
+        user.department = user_data.department
+
+    if user_data.designation is not None:
+        user.designation = user_data.designation
+
+    if user_data.phone_number is not None:
+        user.phone_number = user_data.phone_number
 
     db.commit()
     db.refresh(user)

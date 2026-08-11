@@ -11,4 +11,13 @@ class User(Base):
 
     email = Column(String, unique=True, nullable=False)
 
+    # store hashed password
+    password = Column(String, nullable=True)
+
     role = Column(String, nullable=False)
+
+    # professional profile fields
+    employee_id = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    designation = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
