@@ -16,6 +16,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: UserRole
     password: str
+    employee_id: str
+    department: str
+    designation: str
+    phone_number: str
 
 
 class UserUpdate(BaseModel):
@@ -23,6 +27,10 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
     password: Optional[str] = None
+    employee_id: Optional[str] = None
+    department: Optional[str] = None
+    designation: Optional[str] = None
+    phone_number: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -30,6 +38,10 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     role: UserRole
+     employee_id: str
+    department: str
+    designation: str
+    phone_number: str
 
     class Config:
         from_attributes = True
