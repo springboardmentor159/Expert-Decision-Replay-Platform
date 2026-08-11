@@ -32,7 +32,11 @@ def create_user(
         full_name=user.full_name,
         email=user.email,
         role=user.role,
-        hashed_password=hash_password(user.password)
+        hashed_password=hash_password(user.password),
+        employee_id=user.employee_id,
+        department=user.department,
+        designation=user.designation,
+        phone_number=user.phone_number
     )
 
     db.add(new_user)
@@ -99,6 +103,18 @@ def update_user(
 
     if user_data.role is not None:
         user.role = user_data.role
+
+    if user_data.employee_id is not None:
+        user.employee_id = user_data.employee_id
+
+    if user_data.department is not None:
+        user.department = user_data.department
+
+    if user_data.designation is not None:
+        user.designation = user_data.designation
+
+    if user_data.phone_number is not None:
+        user.phone_number = user_data.phone_number
 
     db.commit()
     db.refresh(user)

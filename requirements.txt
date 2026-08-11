@@ -8,4 +8,5 @@ python-dotenv
 alembic
 email-validator
 passlib
-bcrypt
+bcrypt==4.0.1
+python-jose[cryptography]
