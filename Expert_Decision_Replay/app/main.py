@@ -1,12 +1,28 @@
+# from fastapi import FastAPI
+
+# from app.core.config import settings
+
+
+# app = FastAPI(
+#     title=settings.app_name,
+#     version="1.0.0"
+# )
+
+
+# @app.get("/health")
+# def health_check():
+#     return {
+#         "status": "ok",
+#         "service": settings.app_name
+#     }
+
+
 from fastapi import FastAPI
-from app.database import engine, Base
-import app.models.user as models  # <--- MUST import models before create_all!
 
-# Create tables in PostgreSQL
-Base.metadata.create_all(bind=engine)
+from app.routers.users import router as user_router
 
-app = FastAPI(title="Expert Decision Replay Platform")
+app = FastAPI(
+    title="Expert Decision Replay Platform"
+)
 
-# Include your router
-from app.routers import users
-app.include_router(users.router)
+app.include_router(user_router)
