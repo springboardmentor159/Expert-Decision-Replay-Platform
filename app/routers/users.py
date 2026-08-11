@@ -38,7 +38,7 @@ def create_user(
     designation=user.designation,
     phone_number=user.phone_number
 )
-    )
+    
 
     db.add(new_user)
     db.commit()
@@ -109,16 +109,17 @@ def update_user(
         user.password = hash_password(user_data.password)
 
     if user_data.employee_id is not None:
-    user.employee_id = user_data.employee_id
+
+        user.employee_id = user_data.employee_id
 
     if user_data.department is not None:
-    user.department = user_data.department
+        user.department = user_data.department
 
     if user_data.designation is not None:
-    user.designation = user_data.designation
+        user.designation = user_data.designation
 
     if user_data.phone_number is not None:
-    user.phone_number = user_data.phone_number    
+        user.phone_number = user_data.phone_number    
 
     db.commit()
     db.refresh(user)

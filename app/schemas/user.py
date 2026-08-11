@@ -38,7 +38,7 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     role: UserRole
-     employee_id: str
+    employee_id: str
     department: str
     designation: str
     phone_number: str
