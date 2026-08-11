@@ -1,16 +1,29 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, Form, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse
-from app.utils.security import verify_password, hash_password
+from app.utils.security import verify_password
 from app.utils.jwt import create_access_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+# ── Custom form: only username + password shown in Swagger ────────────────────
+class SimpleLoginForm:
+    """Custom OAuth2 form that shows ONLY username and password in Swagger UI.
+    Removes grant_type, scope, client_id, client_secret clutter."""
+
+    def __init__(
+        self,
+        username: str = Form(..., description="Enter your email address"),
+        password: str = Form(..., description="Enter your password"),
+    ):
+        self.username = username
+        self.password = password
 
 
 # ── OAuth2 form-based login (Swagger Authorize button compatible) ─────────────
@@ -19,11 +32,11 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     summary="Login via OAuth2 form (use for Swagger Authorize 🔒)"
 )
 def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    form_data: SimpleLoginForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    """Accepts email as 'username'. Returns a Bearer JWT.
-    Use this with the Swagger Authorize button."""
+    """Accepts your **email** as username and **password**.
+    Returns a Bearer JWT — use this with the Swagger Authorize button."""
     user = db.query(User).filter(User.email == form_data.username).first()
 
     if not user or not user.password_hash:
