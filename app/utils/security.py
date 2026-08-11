@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 
+from fastapi.security import HTTPBearer
 from jose import JWTError, jwt
 
 
 SECRET_KEY = "your-secret-key-change-this"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+security = HTTPBearer()
 
 
 def create_access_token(data: dict):

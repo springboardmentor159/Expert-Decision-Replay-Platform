@@ -1,6 +1,13 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status
+)
+from fastapi.security import HTTPAuthorizationCredentials
+
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -11,6 +18,8 @@ from app.schemas.user import (
     UserResponse
 )
 from app.utils.password import hash_password
+from app.utils.security import security, verify_token
+
 
 router = APIRouter(
     prefix="/users",
@@ -18,7 +27,24 @@ router = APIRouter(
 )
 
 
-# CREATE USER
+# JWT AUTHENTICATION
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials
+
+    payload = verify_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+
+    return payload
+
+
+# CREATE USER / REGISTER
 @router.post(
     "",
     response_model=UserResponse,
@@ -29,16 +55,15 @@ def create_user(
     db: Session = Depends(get_db)
 ):
     new_user = User(
-    full_name=user.full_name,
-    email=user.email,
-    role=user.role,
-    password=hash_password(user.password),
-    employee_id=user.employee_id,
-    department=user.department,
-    designation=user.designation,
-    phone_number=user.phone_number
-)
-    
+        full_name=user.full_name,
+        email=user.email,
+        role=user.role,
+        password=hash_password(user.password),
+        employee_id=user.employee_id,
+        department=user.department,
+        designation=user.designation,
+        phone_number=user.phone_number
+    )
 
     db.add(new_user)
     db.commit()
@@ -47,25 +72,27 @@ def create_user(
     return new_user
 
 
-# GET ALL USERS
+# GET ALL USERS - PROTECTED
 @router.get(
     "",
     response_model=List[UserResponse]
 )
 def get_users(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
     return db.query(User).all()
 
 
-# GET USER BY ID
+# GET USER BY ID - PROTECTED
 @router.get(
     "/{user_id}",
     response_model=UserResponse
 )
 def get_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -78,7 +105,7 @@ def get_user(
     return user
 
 
-# UPDATE USER
+# UPDATE USER - PROTECTED
 @router.put(
     "/{user_id}",
     response_model=UserResponse
@@ -86,7 +113,8 @@ def get_user(
 def update_user(
     user_id: int,
     user_data: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -109,7 +137,6 @@ def update_user(
         user.password = hash_password(user_data.password)
 
     if user_data.employee_id is not None:
-
         user.employee_id = user_data.employee_id
 
     if user_data.department is not None:
@@ -119,7 +146,7 @@ def update_user(
         user.designation = user_data.designation
 
     if user_data.phone_number is not None:
-        user.phone_number = user_data.phone_number    
+        user.phone_number = user_data.phone_number
 
     db.commit()
     db.refresh(user)
@@ -127,13 +154,14 @@ def update_user(
     return user
 
 
-# DELETE USER
+# DELETE USER - PROTECTED
 @router.delete(
     "/{user_id}"
 )
 def delete_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
