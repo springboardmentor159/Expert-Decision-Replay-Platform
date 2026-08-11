@@ -27,3 +27,5 @@ typing_extensions==4.16.0
 PyJWT==2.13.0
 pytest==9.1.1
 uvicorn==0.52.1
+httpx==0.28.1
+
