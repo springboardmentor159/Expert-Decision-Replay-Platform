@@ -1,23 +1,32 @@
-from typing import Optional, Literal
+from typing import Optional
+from enum import Enum
 
 from pydantic import BaseModel, EmailStr
 
 
 # Controlled role values — only these four are accepted
-RoleType = Literal["Employee", "Reviewer", "Manager", "Administrator"]
+# Using Enum (from Jamuna Rani) for strong type safety in Swagger UI
+class UserRole(str, Enum):
+    EMPLOYEE = "Employee"
+    REVIEWER = "Reviewer"
+    MANAGER = "Manager"
+    ADMINISTRATOR = "Administrator"
 
-# Controlled department values — extend this list as new departments are onboarded
-DepartmentType = Literal["IT", "CAC"]
+
+# Controlled department values
+class UserDepartment(str, Enum):
+    IT = "IT"
+    CAC = "CAC"
 
 
 class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     password: str
-    role: RoleType
+    role: UserRole
 
     employee_id: Optional[str] = None
-    department: Optional[DepartmentType] = None
+    department: Optional[UserDepartment] = None
     designation: Optional[str] = None
     phone: Optional[str] = None
 
@@ -26,10 +35,10 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
-    role: Optional[RoleType] = None
+    role: Optional[UserRole] = None
 
     employee_id: Optional[str] = None
-    department: Optional[DepartmentType] = None
+    department: Optional[UserDepartment] = None
     designation: Optional[str] = None
     phone: Optional[str] = None
 
@@ -38,7 +47,7 @@ class UserResponse(BaseModel):
     id: int
     full_name: str
     email: EmailStr
-    role: RoleType
+    role: UserRole
 
     employee_id: Optional[str] = None
     department: Optional[str] = None
