@@ -19,32 +19,52 @@ router = APIRouter(
 )
 
 
-# CREATE USER
+# ─── GET /users/me — Protected: returns the authenticated user's profile ──────
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get current authenticated user"
+)
+def get_me(current_user: User = Depends(get_current_user)):
+    """Returns the profile of the currently authenticated user.
+    Requires a valid Bearer JWT. Never returns password or password_hash."""
+    return current_user
+
+
+# ─── POST /users — Create a new user ─────────────────────────────────────────
 @router.post(
     "",
     response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user"
 )
 def create_user(
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
-    # ensure unique email
-    existing = db.query(User).filter(User.email == user.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # Check for duplicate email — 409 Conflict
+    if db.query(User).filter(User.email == user.email).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists"
+        )
 
-    hashed = hash_password(user.password)
+    # Check for duplicate employee_id — 409 Conflict
+    if user.employee_id and db.query(User).filter(User.employee_id == user.employee_id).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this employee ID already exists"
+        )
 
     new_user = User(
         full_name=user.full_name,
         email=user.email,
-        password=hashed,
+        password_hash=hash_password(user.password),   # hash before storing
         role=user.role,
         employee_id=user.employee_id,
         department=user.department,
         designation=user.designation,
-        phone_number=user.phone_number,
+        phone=user.phone,
     )
 
     db.add(new_user)
@@ -54,10 +74,11 @@ def create_user(
     return new_user
 
 
-# GET ALL USERS
+# ─── GET /users — List all users (authenticated) ─────────────────────────────
 @router.get(
     "",
-    response_model=List[UserResponse]
+    response_model=List[UserResponse],
+    summary="List all users"
 )
 def get_users(
     db: Session = Depends(get_db),
@@ -66,10 +87,11 @@ def get_users(
     return db.query(User).all()
 
 
-# GET USER BY ID
+# ─── GET /users/{user_id} — Get user by ID (authenticated) ───────────────────
 @router.get(
     "/{user_id}",
-    response_model=UserResponse
+    response_model=UserResponse,
+    summary="Get user by ID"
 )
 def get_user(
     user_id: int,
@@ -77,20 +99,19 @@ def get_user(
     current_user: User = Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
-
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-
     return user
 
 
-# UPDATE USER
+# ─── PUT /users/{user_id} — Update user (authenticated) ──────────────────────
 @router.put(
     "/{user_id}",
-    response_model=UserResponse
+    response_model=UserResponse,
+    summary="Update user by ID"
 )
 def update_user(
     user_id: int,
@@ -99,10 +120,9 @@ def update_user(
     current_user: User = Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
-
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
 
@@ -116,7 +136,7 @@ def update_user(
         user.role = user_data.role
 
     if user_data.password is not None:
-        user.password = hash_password(user_data.password)
+        user.password_hash = hash_password(user_data.password)  # always hash
 
     if user_data.employee_id is not None:
         user.employee_id = user_data.employee_id
@@ -127,8 +147,8 @@ def update_user(
     if user_data.designation is not None:
         user.designation = user_data.designation
 
-    if user_data.phone_number is not None:
-        user.phone_number = user_data.phone_number
+    if user_data.phone is not None:
+        user.phone = user_data.phone
 
     db.commit()
     db.refresh(user)
@@ -136,9 +156,10 @@ def update_user(
     return user
 
 
-# DELETE USER
+# ─── DELETE /users/{user_id} — Delete user (authenticated) ───────────────────
 @router.delete(
-    "/{user_id}"
+    "/{user_id}",
+    summary="Delete user by ID"
 )
 def delete_user(
     user_id: int,
@@ -146,16 +167,13 @@ def delete_user(
     current_user: User = Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
-
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
 
     db.delete(user)
     db.commit()
 
-    return {
-        "message": "User deleted successfully"
-    }
+    return {"message": "User deleted successfully"}

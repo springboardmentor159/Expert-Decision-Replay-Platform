@@ -9,15 +9,15 @@ class User(Base):
 
     full_name = Column(String, nullable=False)
 
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False, index=True)
 
-    # store hashed password
-    password = Column(String, nullable=True)
+    # Stores the bcrypt-hashed password — NEVER the plaintext password
+    password_hash = Column(String, nullable=True)
 
     role = Column(String, nullable=False)
 
-    # professional profile fields
-    employee_id = Column(String, nullable=True)
+    # Professional profile fields
+    employee_id = Column(String, unique=True, nullable=True, index=True)
     department = Column(String, nullable=True)
     designation = Column(String, nullable=True)
-    phone_number = Column(String, nullable=True)
+    phone = Column(String, nullable=True)

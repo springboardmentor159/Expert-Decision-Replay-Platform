@@ -3,8 +3,11 @@ from typing import Optional, Literal
 from pydantic import BaseModel, EmailStr
 
 
-# restrict roles to these values
+# Controlled role values — only these four are accepted
 RoleType = Literal["Employee", "Reviewer", "Manager", "Administrator"]
+
+# Controlled department values — extend this list as new departments are onboarded
+DepartmentType = Literal["IT", "CAC"]
 
 
 class UserCreate(BaseModel):
@@ -14,9 +17,9 @@ class UserCreate(BaseModel):
     role: RoleType
 
     employee_id: Optional[str] = None
-    department: Optional[str] = None
+    department: Optional[DepartmentType] = None
     designation: Optional[str] = None
-    phone_number: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -26,9 +29,9 @@ class UserUpdate(BaseModel):
     role: Optional[RoleType] = None
 
     employee_id: Optional[str] = None
-    department: Optional[str] = None
+    department: Optional[DepartmentType] = None
     designation: Optional[str] = None
-    phone_number: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -40,7 +43,9 @@ class UserResponse(BaseModel):
     employee_id: Optional[str] = None
     department: Optional[str] = None
     designation: Optional[str] = None
-    phone_number: Optional[str] = None
+    phone: Optional[str] = None
+
+    # password and password_hash are intentionally excluded from this schema
 
     class Config:
         from_attributes = True
