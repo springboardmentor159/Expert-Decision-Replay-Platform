@@ -14,3 +14,11 @@ class User(Base):
     role = Column(String, nullable=False)
 
     password = Column(String, nullable=False)
+
+    employee_id = Column(String, unique=True, nullable=False)
+
+    department = Column(String, nullable=False)
+
+    designation = Column(String, nullable=False)
+
+    phone_number = Column(String, nullable=False)
