@@ -4,6 +4,10 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+
+from app.db.database import get_db
+from app.models.user import User
 
 
 pwd_context = CryptContext(
@@ -11,11 +15,9 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
-
 SECRET_KEY = "change-this-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login"
@@ -67,7 +69,8 @@ def verify_token(token: str):
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme)
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
 ):
     payload = verify_token(token)
 
@@ -78,4 +81,24 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return payload
+    user_id = payload.get("sub")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = db.query(User).filter(
+        User.id == int(user_id)
+    ).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
