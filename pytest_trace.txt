@@ -1,0 +1,167 @@
+﻿...F
+================================== FAILURES ===================================
+___________________ test_login_and_protected_users_endpoint ___________________
+
+    def test_login_and_protected_users_endpoint():
+        from fastapi.testclient import TestClient
+        from app.main import app
+        from uuid import uuid4
+    
+        client = TestClient(app)
+        unique_email = f"user_{uuid4().hex}@example.com"
+        create_payload = {
+            "full_name": "Test User",
+            "email": unique_email,
+            "role": "Administrator",
+            "employee_id": "E12345",
+            "department": "Engineering",
+            "designation": "Senior Engineer",
+            "phone_number": "+1234567890",
+            "password": "super-secret",
+        }
+    
+        response = client.post("/users", json=create_payload)
+        assert response.status_code == 201
+    
+        login_response = client.post(
+            "/token",
+            data={"username": unique_email, "password": "super-secret"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert login_response.status_code == 200
+        token_data = login_response.json()
+        assert token_data["token_type"] == "bearer"
+        assert "access_token" in token_data
+    
+        bearer_token = token_data["access_token"]
+>       protected_response = client.get(
+            "/users",
+            headers={"Authorization": f"Bearer {bearer_token}"},
+        )
+
+tests\test_password_flow.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\starlette\testclient.py:482: in get
+    return super().get(
+venv\Lib\site-packages\httpx2\_client.py:1120: in get
+    return self.request(
+venv\Lib\site-packages\starlette\testclient.py:454: in request
+    return super().request(
+venv\Lib\site-packages\httpx2\_client.py:804: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\httpx2\_client.py:987: in send
+    response = self._send_handling_auth(
+venv\Lib\site-packages\httpx2\_client.py:1015: in _send_handling_auth
+    response = self._send_handling_redirects(
+venv\Lib\site-packages\httpx2\_client.py:1050: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\httpx2\_client.py:1083: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\starlette\testclient.py:356: in handle_request
+    raise exc
+venv\Lib\site-packages\starlette\testclient.py:353: in handle_request
+    portal.call(self.app, scope, receive, send)
+C:\Users\Asus\Desktop\web\Ritik_Raj\venv\Lib\site-packages\anyio\from_thread.py:338: in call
+    ???
+C:\Python314\Lib\concurrent\futures\_base.py:450: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Python314\Lib\concurrent\futures\_base.py:395: in __get_result
+    raise self._exception
+C:\Users\Asus\Desktop\web\Ritik_Raj\venv\Lib\site-packages\anyio\from_thread.py:263: in _call_func
+    ???
+venv\Lib\site-packages\fastapi\applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+venv\Lib\site-packages\starlette\applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+venv\Lib\site-packages\starlette\routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+venv\Lib\site-packages\fastapi\routing.py:2734: in app
+    await route.handle(scope, receive, send)
+venv\Lib\site-packages\fastapi\routing.py:1281: in handle
+    await super().handle(scope, receive, send)
+venv\Lib\site-packages\starlette\routing.py:276: in handle
+    await self.app(scope, receive, send)
+venv\Lib\site-packages\fastapi\routing.py:158: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+venv\Lib\site-packages\fastapi\routing.py:144: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\fastapi\routing.py:727: in app
+    content = await serialize_response(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+field = ModelField(field_info=FieldInfo(annotation=list[UserResponse], required=True), name='Response_get_users_users_get', mode='serialization', config=None)
+response_content = [<app.models.user.User object at 0x0000021434D22FD0>, <app.models.user.User object at 0x0000021434D23100>, <app.models...D69480>, <app.models.user.User object at 0x0000021434D69590>, <app.models.user.User object at 0x0000021434DC8250>, ...]
+include = None, exclude = None, by_alias = True, exclude_unset = False
+exclude_defaults = False, exclude_none = False, is_coroutine = False
+endpoint_ctx = {'file': 'C:\\Users\\Asus\\Desktop\\web\\expert-decision-replay\\app\\main.py', 'line': 89, 'function': 'get_users', 'path': 'GET /users'}
+dump_json = True
+
+    async def serialize_response(
+        *,
+        field: ModelField | None = None,
+        response_content: Any,
+        include: IncEx | None = None,
+        exclude: IncEx | None = None,
+        by_alias: bool = True,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        is_coroutine: bool = True,
+        endpoint_ctx: EndpointContext | None = None,
+        dump_json: bool = False,
+    ) -> Any:
+        if field:
+            if is_coroutine:
+                value, errors = field.validate(response_content, {}, loc=("response",))
+            else:
+                value, errors = await run_in_threadpool(
+                    field.validate, response_content, {}, loc=("response",)
+                )
+            if errors:
+                ctx = endpoint_ctx or EndpointContext()
+>               raise ResponseValidationError(
+                    errors=errors,
+                    body=response_content,
+                    endpoint_ctx=ctx,
+                )
+E               fastapi.exceptions.ResponseValidationError: 4 validation errors:
+E                 {'type': 'enum', 'loc': ('response', 0, 'role'), 'msg': "Input should be 'Employee', 'Reviewer', 'Manager' or 'Administrator'", 'input': 'admin', 'ctx': {'expected': "'Employee', 'Reviewer', 'Manager' or 'Administrator'"}}
+E                 {'type': 'enum', 'loc': ('response', 1, 'role'), 'msg': "Input should be 'Employee', 'Reviewer', 'Manager' or 'Administrator'", 'input': 'string', 'ctx': {'expected': "'Employee', 'Reviewer', 'Manager' or 'Administrator'"}}
+E                 {'type': 'enum', 'loc': ('response', 2, 'role'), 'msg': "Input should be 'Employee', 'Reviewer', 'Manager' or 'Administrator'", 'input': 'user', 'ctx': {'expected': "'Employee', 'Reviewer', 'Manager' or 'Administrator'"}}
+E                 {'type': 'enum', 'loc': ('response', 3, 'role'), 'msg': "Input should be 'Employee', 'Reviewer', 'Manager' or 'Administrator'", 'input': 'user', 'ctx': {'expected': "'Employee', 'Reviewer', 'Manager' or 'Administrator'"}}
+E               
+E                 File "C:\Users\Asus\Desktop\web\expert-decision-replay\app\main.py", line 89, in get_users
+E                   GET /users
+
+venv\Lib\site-packages\fastapi\routing.py:324: ResponseValidationError
+============================== warnings summary ===============================
+tests/test_password_flow.py::test_login_and_protected_users_endpoint
+  C:\Users\Asus\Desktop\web\expert-decision-replay\app\core\security.py:24: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_password_flow.py::test_login_and_protected_users_endpoint
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 3 passed, 1 warning in 2.72s
