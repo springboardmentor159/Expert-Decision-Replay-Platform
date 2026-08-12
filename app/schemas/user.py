@@ -1,26 +1,45 @@
 from typing import Optional
+from enum import Enum
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
+
+
+class UserRole(str, Enum):
+    EMPLOYEE = "Employee"
+    REVIEWER = "Reviewer"
+    MANAGER = "Manager"
+    ADMINISTRATOR = "Administrator"
 
 
 class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
-    role: str
+    role: UserRole
     password: str
+    employee_id: str
+    department: str
+    designation: str
+    phone_number: str
 
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
-    role: Optional[str] = None
+    role: Optional[UserRole] = None
+    employee_id: Optional[str] = None
+    department: Optional[str] = None
+    designation: Optional[str] = None
+    phone_number: Optional[str] = None
 
 
 class UserResponse(BaseModel):
     id: int
     full_name: str
     email: EmailStr
-    role: str
+    role: UserRole
+    employee_id: str
+    department: str
+    designation: str
+    phone_number: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
