@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
-from app.core.security import hash_password
+from app.core.security import hash_password, get_current_user
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
@@ -52,7 +52,8 @@ def create_user(
     response_model=List[UserResponse]
 )
 def get_users(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     return db.query(User).all()
 
@@ -64,7 +65,8 @@ def get_users(
 )
 def get_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -85,7 +87,8 @@ def get_user(
 def update_user(
     user_id: int,
     user_data: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -128,7 +131,8 @@ def update_user(
 )
 def delete_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
