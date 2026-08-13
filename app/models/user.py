@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from app.db.base import Base
+from sqlalchemy.orm import relationship
 
 
 class User(Base):
@@ -22,3 +23,8 @@ class User(Base):
     designation = Column(String, nullable=False)
 
     phone_number = Column(String, nullable=False)
+
+    decisions = relationship(
+    "Decision",
+    back_populates="user"
+    )
