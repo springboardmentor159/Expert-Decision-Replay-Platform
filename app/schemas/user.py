@@ -15,7 +15,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: UserRole
     password: str
-    employee_id: str
+    employee_id: str | None = None
     department: str | None = None
     designation: str | None = None
     phone_number: str | None = None
@@ -26,7 +26,7 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     role: UserRole
-    employee_id: str
+    employee_id: str | None = None
     department: str | None = None
     designation: str | None = None
     phone_number: str | None = None
