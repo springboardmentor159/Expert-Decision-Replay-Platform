@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.core.security import hash_password , get_current_user
 from app.models.user import User
 from app.schemas.user import (
     UserCreate,
@@ -11,13 +12,17 @@ from app.schemas.user import (
     UserResponse,
 )
 
+
 router = APIRouter(
     prefix="/users",
     tags=["Users"],
 )
 
 
+# =========================
 # CREATE USER
+# =========================
+
 @router.post(
     "",
     response_model=UserResponse,
@@ -27,10 +32,45 @@ def create_user(
     user: UserCreate,
     db: Session = Depends(get_db),
 ):
+    # Check if email already exists
+    existing_email = (
+        db.query(User)
+        .filter(User.email == user.email)
+        .first()
+    )
+
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered",
+        )
+
+    # Check if employee ID already exists
+    existing_employee = (
+        db.query(User)
+        .filter(User.employee_id == user.employee_id)
+        .first()
+    )
+
+    if existing_employee:
+        raise HTTPException(
+            status_code=400,
+            detail="Employee ID already exists",
+        )
+
+    # Hash password
+    hashed_password = hash_password(user.password)
+
     new_user = User(
         full_name=user.full_name,
         email=user.email,
         role=user.role,
+        password=hashed_password,
+
+        employee_id=user.employee_id,
+        department=user.department,
+        designation=user.designation,
+        phone_number=user.phone_number,
     )
 
     db.add(new_user)
@@ -40,18 +80,25 @@ def create_user(
     return new_user
 
 
+# =========================
 # GET ALL USERS
+# =========================
+
 @router.get(
     "",
     response_model=List[UserResponse],
 )
 def get_users(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     return db.query(User).all()
 
 
+# =========================
 # GET USER BY ID
+# =========================
+
 @router.get(
     "/{user_id}",
     response_model=UserResponse,
@@ -59,8 +106,13 @@ def get_users(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
 
     if not user:
         raise HTTPException(
@@ -71,7 +123,10 @@ def get_user(
     return user
 
 
+# =========================
 # UPDATE USER
+# =========================
+
 @router.put(
     "/{user_id}",
     response_model=UserResponse,
@@ -80,8 +135,13 @@ def update_user(
     user_id: int,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
 
     if not user:
         raise HTTPException(
@@ -98,19 +158,39 @@ def update_user(
     if user_data.role is not None:
         user.role = user_data.role
 
+    if user_data.employee_id is not None:
+        user.employee_id = user_data.employee_id
+
+    if user_data.department is not None:
+        user.department = user_data.department
+
+    if user_data.designation is not None:
+        user.designation = user_data.designation
+
+    if user_data.phone_number is not None:
+        user.phone_number = user_data.phone_number
+
     db.commit()
     db.refresh(user)
 
     return user
 
 
+# =========================
 # DELETE USER
+# =========================
+
 @router.delete("/{user_id}")
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
 
     if not user:
         raise HTTPException(
