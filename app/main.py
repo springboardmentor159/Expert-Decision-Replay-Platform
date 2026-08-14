@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.auth import router as auth_router
 from app.routers.users import router as user_router
+from app.routers.decisions import router as decisions_router
 
 app = FastAPI(
     title="Expert Decision Replay Platform",
@@ -20,3 +21,4 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(user_router)
+app.include_router(decisions_router)
