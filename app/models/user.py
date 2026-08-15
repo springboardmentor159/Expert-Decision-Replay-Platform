@@ -1,4 +1,7 @@
-from sqlalchemy import Column, Integer, String
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 
@@ -7,12 +10,25 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+
     full_name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+
+    email = Column(String, nullable=False, unique=True)
+
     role = Column(String, nullable=False)
+
+    employee_id = Column(String, nullable=True, unique=True, index=True)
+
+    department = Column(String, nullable=True)
+
+    designation = Column(String, nullable=True)
+
+    phone_number = Column(String(20), nullable=True)
+
     password = Column(String, nullable=False)
 
-    employee_id = Column(String, unique=True, index=True, nullable=True)
-    department = Column(String, nullable=True)
-    designation = Column(String, nullable=True)
-    phone_number = Column(String(20), nullable=True)
+    decisions = relationship(
+        "Decision",
+        back_populates="creator"
+    )
+    
