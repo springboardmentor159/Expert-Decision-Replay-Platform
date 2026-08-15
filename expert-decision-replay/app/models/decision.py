@@ -1,13 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
-    DateTime,
-    ForeignKey
-)
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -16,32 +9,15 @@ from app.db.base import Base
 class Decision(Base):
     __tablename__ = "decisions"
 
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
+    id = Column(Integer, primary_key=True, index=True)
 
-    title = Column(
-        String,
-        nullable=False
-    )
+    title = Column(String, nullable=False)
 
-    problem_statement = Column(
-        Text,
-        nullable=False
-    )
+    problem_statement = Column(Text, nullable=False)
 
-    category = Column(
-        String,
-        nullable=False
-    )
+    category = Column(String, nullable=False)
 
-    status = Column(
-        String,
-        nullable=False,
-        default="Draft"
-    )
+    status = Column(String, nullable=False, default="Draft")
 
     created_by = Column(
         Integer,
