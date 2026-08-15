@@ -1,6 +1,6 @@
 from datetime import datetime
-
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
+from app.core.enums import DecisionStatus
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -17,7 +17,15 @@ class Decision(Base):
 
     category = Column(String, nullable=False)
 
-    status = Column(String, nullable=False, default="Draft")
+    status = Column(
+    Enum(
+        DecisionStatus,
+        name="decision_status",
+        values_callable=lambda enum: [item.value for item in enum]
+    ),
+    nullable=False,
+    default=DecisionStatus.DRAFT
+)
 
     created_by = Column(
         Integer,
