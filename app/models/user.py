@@ -1,4 +1,6 @@
 from sqlalchemy import Column, Integer, String, Enum
+from sqlalchemy.orm import relationship
+
 from app.core.enums import UserRole
 from app.db.base import Base
 
@@ -26,3 +28,8 @@ class User(Base):
     designation = Column(String, nullable=True)
 
     phone_number = Column(String, nullable=True)
+
+    decisions = relationship(
+        "Decision",
+        back_populates="creator"
+    )
