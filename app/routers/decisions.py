@@ -1,13 +1,19 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.db.database import get_db
 from app.models.decision import Decision
 from app.models.user import User
-from app.schemas.decision import DecisionCreate, DecisionResponse
+from app.schemas.decision import (
+    DecisionCreate,
+    DecisionResponse,
+    DecisionUpdate,
+    DecisionStatusUpdate,
+    DecisionStatus
+)
 
 router = APIRouter(
     prefix="/decisions",
@@ -41,10 +47,17 @@ def create_decision(
     response_model=List[DecisionResponse]
 )
 def get_decisions(
+    status: Optional[DecisionStatus] = Query(None),
+    category: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(Decision).all()
+    query = db.query(Decision)
+    if status:
+        query = query.filter(Decision.status == status.value)
+    if category:
+        query = query.filter(Decision.category == category)
+    return query.all()
 
 @router.get(
     "/{decision_id}",
@@ -61,4 +74,52 @@ def get_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
+    return decision
+
+@router.put(
+    "/{decision_id}",
+    response_model=DecisionResponse
+)
+def update_decision(
+    decision_id: int,
+    decision_update: DecisionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+    
+    decision.title = decision_update.title
+    decision.problem_statement = decision_update.problem_statement
+    decision.category = decision_update.category
+    
+    db.commit()
+    db.refresh(decision)
+    return decision
+
+@router.patch(
+    "/{decision_id}/status",
+    response_model=DecisionResponse
+)
+def update_decision_status(
+    decision_id: int,
+    status_update: DecisionStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+    
+    decision.status = status_update.status.value
+    
+    db.commit()
+    db.refresh(decision)
     return decision

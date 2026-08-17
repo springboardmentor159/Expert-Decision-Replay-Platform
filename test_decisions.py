@@ -84,6 +84,60 @@ def run_tests():
     assert status == 404, f"Expected 404, got {status}"
     print("Received 404 Not Found as expected.")
     
+    print("\n--- Additional Sprint 5 Part 2 Tests ---")
+    
+    # 7. Update an Existing Decision (PUT)
+    print("\n7. Update an Existing Decision")
+    update_data = {
+        "title": "Move to PostgreSQL (Updated)",
+        "problem_statement": "Updated problem description",
+        "category": "Technology"
+    }
+    status_code, response = make_request("PUT", f"/decisions/{decision_id}", data=update_data, token=token)
+    assert status_code == 200, f"Failed to update decision: {response}"
+    assert response["title"] == "Move to PostgreSQL (Updated)", "Title was not updated"
+    print("Decision updated successfully.")
+    
+    # 8. Create a Status Update API (PATCH) & Invalid Status Test
+    print("\n8. Change Status and Test Invalid Status")
+    invalid_status_data = {
+        "status": "Completed"
+    }
+    status_code, response = make_request("PATCH", f"/decisions/{decision_id}/status", data=invalid_status_data, token=token)
+    assert status_code == 422, f"Expected 422 Validation Error for invalid status, got {status_code}"
+    print("Received 422 for invalid status as expected.")
+    
+    valid_status_data = {
+        "status": "Under Review"
+    }
+    status_code, response = make_request("PATCH", f"/decisions/{decision_id}/status", data=valid_status_data, token=token)
+    assert status_code == 200, f"Failed to update status: {response}"
+    assert response["status"] == "Under Review", "Status was not updated"
+    print("Status updated successfully to 'Under Review'.")
+    
+    # Create another decision with a different category and status to test filtering properly
+    decision_data_2 = {
+        "title": "Adopt GraphQL",
+        "problem_statement": "Need flexible queries",
+        "category": "Architecture"
+    }
+    make_request("POST", "/decisions", data=decision_data_2, token=token)
+    
+    # 9. Implement Decision Filtering
+    print("\n9. Filter by Status")
+    status_code, response = make_request("GET", "/decisions?status=Under%20Review", token=token)
+    assert status_code == 200, f"Failed to filter by status: {response}"
+    for dec in response:
+        assert dec["status"] == "Under Review", f"Filtered status incorrect: {dec['status']}"
+    print("Filtered by Status successfully.")
+    
+    print("\n10. Filter by Category")
+    status_code, response = make_request("GET", "/decisions?category=Architecture", token=token)
+    assert status_code == 200, f"Failed to filter by category: {response}"
+    for dec in response:
+        assert dec["category"] == "Architecture", f"Filtered category incorrect: {dec['category']}"
+    print("Filtered by Category successfully.")
+    
     print("\n--- All tests passed! ---")
 
 if __name__ == "__main__":
