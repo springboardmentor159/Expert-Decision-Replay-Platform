@@ -1,5 +1,6 @@
 from typing import Optional
 from enum import Enum
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, ConfigDict
 
@@ -41,5 +42,24 @@ class UserResponse(BaseModel):
     department: str
     designation: str
     phone_number: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DecisionCreate(BaseModel):
+    title: str
+    problem_statement: str
+    category: str
+
+
+class DecisionResponse(BaseModel):
+    id: int
+    title: str
+    problem_statement: str
+    category: str
+    status: str
+    created_by: int
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
