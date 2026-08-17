@@ -12,6 +12,16 @@ class DecisionCreate(BaseModel):
     category: str
 
 
+class DecisionUpdate(BaseModel):
+    title: str
+    problem_statement: str
+    category: str
+
+
+class DecisionStatusUpdate(BaseModel):
+    status: DecisionStatus
+
+
 class DecisionResponse(BaseModel):
     id: int
     title: str
