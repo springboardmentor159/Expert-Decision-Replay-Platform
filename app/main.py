@@ -2,27 +2,33 @@ from datetime import timedelta
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.core.auth import get_current_user, get_user_by_email, oauth2_scheme
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
-    decode_access_token,
     hash_password,
     verify_password,
 )
 from app.db.database import get_db
 from app.models.user import User
-from app.schemas.user import Token, TokenData, UserCreate, UserResponse
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+from app.schemas.user import (
+    Token,
+    UserCreate,
+    UserResponse,
+    Role,
+)
+from routers.decision import router as decisions_router
 
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
 )
+
+# Include routers
+app.include_router(decisions_router)
 
 
 @app.get("/health")
@@ -33,37 +39,12 @@ def health_check():
     }
 
 
-def get_user_by_email(db: Session, email: str) -> Optional[User]:
-    return db.query(User).filter(User.email == email).first()
-
-
 def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     user = get_user_by_email(db, email)
     if not user:
         return None
     if not verify_password(password, user.password):
         return None
-    return user
-
-
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = decode_access_token(token)
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-        token_data = TokenData(email=email)
-    except JWTError:
-        raise credentials_exception
-
-    user = get_user_by_email(db, token_data.email)
-    if user is None:
-        raise credentials_exception
     return user
 
 

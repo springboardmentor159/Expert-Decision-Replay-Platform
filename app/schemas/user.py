@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class Role(str, Enum):
+    """Enum for User role values"""
     Employee = "Employee"
     Reviewer = "Reviewer"
     Manager = "Manager"
@@ -11,6 +12,7 @@ class Role(str, Enum):
 
 
 class UserCreate(BaseModel):
+    """Schema for creating a new user"""
     full_name: str
     email: EmailStr
     role: Role
@@ -22,6 +24,7 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
+    """Schema for user response"""
     id: int
     full_name: str
     email: EmailStr
@@ -34,7 +37,13 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TokenData(BaseModel):
+    """Schema for token data"""
+    email: str | None = None
+
+
 class Token(BaseModel):
+    """Schema for token response"""
     access_token: str
     token_type: str
 
