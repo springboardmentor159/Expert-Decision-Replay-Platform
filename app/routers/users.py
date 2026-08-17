@@ -2,7 +2,10 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
+from app.core.dependencies import (
+    get_current_user,
+    require_admin
+)
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import (
@@ -28,15 +31,20 @@ def create_user(
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
-    # Hash the password before storing it
+    # Hash password
     hashed_password = hash_password(user.password)
 
-    # Create a new user
+    # Create user
     new_user = User(
         full_name=user.full_name,
         email=user.email,
         role=user.role,
-        password=hashed_password
+        password=hashed_password,
+
+        employee_id=user.employee_id,
+        department=user.department,
+        designation=user.designation,
+        phone_number=user.phone_number
     )
 
     db.add(new_user)
@@ -45,14 +53,14 @@ def create_user(
 
     return new_user
 
-
 # GET ALL USERS
 @router.get(
     "",
     response_model=List[UserResponse]
 )
 def get_users(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     return db.query(User).all()
 
@@ -64,7 +72,8 @@ def get_users(
 )
 def get_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -85,7 +94,8 @@ def get_user(
 def update_user(
     user_id: int,
     user_data: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -104,6 +114,18 @@ def update_user(
     if user_data.role is not None:
         user.role = user_data.role
 
+    if user_data.employee_id is not None:
+        user.employee_id = user_data.employee_id
+
+    if user_data.department is not None:
+        user.department = user_data.department
+
+    if user_data.designation is not None:
+        user.designation = user_data.designation
+
+    if user_data.phone_number is not None:
+        user.phone_number = user_data.phone_number
+        
     db.commit()
     db.refresh(user)
 
@@ -116,7 +138,8 @@ def update_user(
 )
 def delete_user(
     user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
