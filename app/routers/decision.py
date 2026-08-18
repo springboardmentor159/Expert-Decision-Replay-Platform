@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.database import get_db
 from app.models.decision import Decision
+from app.models.enums import DecisionStatus
 from app.models.user import User
 from app.schemas.decision import DecisionCreate, DecisionResponse, DecisionStatusUpdate, DecisionUpdate
 
@@ -46,10 +47,20 @@ def create_decision(
     response_model=List[DecisionResponse]
 )
 def get_decisions(
+    status: Optional[DecisionStatus] = None,
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    decisions = db.query(Decision).all()
+    query = db.query(Decision)
+
+    if status is not None:
+        query = query.filter(Decision.status == status.value)
+
+    if category is not None:
+        query = query.filter(Decision.category == category)
+
+    decisions = query.all()
     return decisions
 
 
