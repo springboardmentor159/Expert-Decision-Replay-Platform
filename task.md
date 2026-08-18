@@ -191,3 +191,160 @@ pre-existing `employee_live_new@example.com` user remains).
 
 Status transition workflow (who can approve, which transitions between statuses are legal),
 updated_at/audit timestamps beyond current behavior. Next on the roadmap.
+
+---
+
+## Sprint 5 — Part 2: SIGN-OFF — COMPLETE (2026-08-18)
+
+Final verification pass. No code changed this session — full behavior confirmed against
+real PostgreSQL. This section is the record that Sprint 5 Part 2 is done and ready for
+Part 3 (Approval Workflow) to build on.
+
+### Decision endpoints + auth requirement
+
+| Method | Endpoint | Auth | Behavior |
+| --- | --- | --- | --- |
+| POST | `/decisions` | JWT (`get_current_user`) | 201; forces status `"Draft"`, created_by = authed user; client `created_by`/`status` ignored |
+| GET | `/decisions` | JWT | 200 list of ALL decisions (no per-user scoping); optional `?status=` (enum-validated → 422 on bad value) and `?category=` (free string), composed with AND |
+| GET | `/decisions/{id}` | JWT | 200 record or 404 `{"detail": "Decision not found"}` |
+| PUT | `/decisions/{id}` | JWT | 200 update title/problem_statement/category (only non-None fields); id/created_by/created_at unchanged; `updated_at` bumped; 404 if missing |
+| PATCH | `/decisions/{id}/status` | JWT | 200 status change (any valid -> any valid, no workflow rules); `updated_at` bumped; 404 if missing; 422 on invalid enum value |
+
+### Task 1 finding — role-based authorization: ROLE-AGNOSTIC (confirmed)
+
+Tested with two freshly-created users, an **Employee** (id 23) and an **Administrator**
+(id 24), each logged in with their own JWT:
+
+- Employee: POST → 201, created_by=23, status Draft. PUT own → 200. PATCH status own → 200.
+- Administrator: POST → 201, created_by=24, status Draft. PUT own → 200. PATCH status own → 200.
+- Cross-user: **Administrator PATCHed the Employee's decision → 200**; **Employee PUT the
+  Administrator's decision → 200**. No ownership check exists.
+- Filters behave identically for both roles.
+
+**Conclusion: access is currently role-agnostic — any authenticated user, regardless of
+role, can perform any Decision action (create/read/update/change-status) on any decision,
+including decisions created by others. No incidental role or ownership differentiation
+exists.** This is expected for this sprint; role-based restrictions belong to Part 3
+(Approval Workflow), which is out of scope here.
+
+### Task 2 — full regression results (continuous pass, real PostgreSQL)
+
+| Test case | Result |
+| --- | --- |
+| `python -m pytest` (full suite) | PASS — 29 passed, 0 failed |
+| Login → JWT | PASS — 200, token acquired |
+| POST /decisions (valid) | PASS — 201, status `"Draft"`, created_by = authed user |
+| POST body with created_by/status | PASS — ignored; DB kept server-set values |
+| GET /decisions (list) | PASS — 200, includes created decision |
+| GET /decisions/{id} | PASS — 200, correct record |
+| GET /decisions/{invalid_id} | PASS — 404 `{"detail": "Decision not found"}` |
+| PUT /decisions/{id} | PASS — 200; id/created_by/created_at unchanged; `updated_at` bumped (20:21:18.18 → .21) |
+| PUT /decisions/{invalid_id} | PASS — 404 |
+| PATCH /decisions/{id}/status (valid) | PASS — 200, status changed |
+| PATCH /decisions/{id}/status (invalid `"Completed"`) | PASS — 422 enum error |
+| PATCH /decisions/{invalid_id}/status | PASS — 404 |
+| GET /decisions?status=<valid> | PASS — 200, only matching statuses |
+| GET /decisions?category=<value> | PASS — 200, only matching categories |
+| GET /decisions?status=<x>&category=<y> | PASS — 200, AND logic (every row matches both) |
+| GET /decisions?status=invalid | PASS — 422 enum error |
+| GET/POST/PUT/PATCH without token | PASS — all 401 `{"detail": "Not authenticated"}` |
+
+One note: the combined-filter spot check `?status=Approved&category=Finance` matched TWO
+rows (the regression decision AND the Administrator's Finance/Approved decision) because
+`GET /decisions` returns all decisions across users by design. Every returned row satisfied
+both filters, so AND logic is correct — an earlier assertion assuming only the
+Employee-created row matched was the bug in the check script, not in the endpoint.
+
+### PostgreSQL check (expert_decision_replay)
+
+- Columns/types: id integer PK · title/problem_statement/category/status varchar · created_by
+  integer · created_at/updated_at timestamptz — all NOT NULL. PASS.
+- Constraints present: `decisions_pkey` (PK), `decisions_created_by_fkey` (FK created_by →
+  users), `check_valid_status`
+  (`status IN ('Draft','Under Review','Approved','Rejected','Archived')`), plus per-column
+  NOT NULL constraints. PASS.
+- Spot-check of rows mid-run confirmed correct persisted values: e.g. row 21
+  `'Regression Updated'` status `'Under Review'` created_by 23; row 20 `'Adm Edited By Emp'`
+  status `'Approved'` created_by 24. PASS.
+
+### Post-verification state
+
+Test users (Employee + Administrator) deleted via DELETE /users (cascade removed their
+decisions). Postgres confirmed clean: `decisions` = 0 rows, `users` = 1 (only pre-existing
+`employee_live_new@example.com` remains). Working tree clean; no code changes this session.
+
+## Out of scope (Part 3 / next) — do NOT touch
+
+Approval Workflow: role-based restrictions on who can create/update/change status, reviewer
+and manager approval chains, transition rules between statuses. Decisions module is
+otherwise complete through filtering.
+
+---
+
+## Part 6a: Alternative entity (create + read) — COMPLETE (2026-08-18)
+
+### Changes
+
+- `app/models/alternative.py` — new SQLAlchemy `Alternative` model:
+  `id`, `decision_id` (FK → decisions.id, indexed), `name` (NOT NULL), `description`, `pros`,
+  `cons`, `risk_level` (String, nullable), `estimated_cost`, `feasibility_score` (Integer,
+  nullable — **no range/enum validation yet, by design, deferred to Part 6b**), `created_at`,
+  `updated_at`. Relationship `alternative.decision` ↔ `decision.alternatives`
+  (`cascade="all, delete-orphan"`), mirroring the User → Decisions pattern.
+- `app/models/decision.py` — added `alternatives` relationship (cascade delete-orphan).
+- `app/models/__init__.py` — `Alternative` registered.
+- `alembic/env.py` — imports `Alternative` so it's in target metadata.
+- `alembic/versions/56c656d0956d_create_alternatives_table.py` — migration generated via
+  `alembic revision --autogenerate`, reviewed (only adds `alternatives` table + FK + indexes,
+  no unexpected changes), then `alembic upgrade head` applied. `alembic current` = head.
+- `app/schemas/alternative.py` — `AlternativeCreate` (name, description, pros, cons,
+  estimated_cost, feasibility_score, risk_level ONLY — no id/decision_id/timestamps accepted;
+  decision_id comes from the URL) and `AlternativeResponse` (full model incl. id, decision_id,
+  timestamps).
+- `app/routers/alternative.py` — 3 endpoints, all using existing `get_current_user` JWT:
+  - `POST /decisions/{decision_id}/alternatives` → 201; checks Decision exists first
+    (404 `{"detail": "Decision not found"}` — no orphan rows), ties to `decision_id` from URL
+  - `GET /decisions/{decision_id}/alternatives` → 200 list (also 404s if the Decision
+    doesn't exist, consistent with POST)
+  - `GET /alternatives/{alternative_id}` → 200 or 404 `{"detail": "Alternative not found"}`
+  Registered via two routers (`/decisions` prefix router + `/alternatives` prefix router) so
+  paths match spec exactly.
+- `app/main.py` — both alternative routers registered.
+- `tests/test_alternative.py` — 9 tests (create, 404 on missing decision + no orphan row,
+  body-injected decision_id/id/created_at ignored, list by decision, 404 on missing decision
+  for list, get by id, 404, no-token 401, multiple alternatives → same decision in DB).
+
+### Verification results (real PostgreSQL `expert_decision_replay`)
+
+| Check | Result |
+| --- | --- |
+| Login → JWT | PASS — 200, token acquired |
+| POST /decisions | PASS — 201, decision id 23 |
+| POST 3 alternatives (PostgreSQL/MySQL/MongoDB) | PASS — all 201, `decision_id` = 23 in each response |
+| POST /decisions/99999999/alternatives | PASS — 404 `{"detail": "Decision not found"}`; 0 rows in DB for decision 99999999 (no orphan) |
+| GET /decisions/23/alternatives | PASS — 200, exactly 3 rows (PostgreSQL, MySQL, MongoDB), all decision_id 23 |
+| GET /alternatives/{id} | PASS — 200, correct record (id 1, PostgreSQL) |
+| GET /alternatives/99999999 | PASS — 404 `{"detail": "Alternative not found"}` |
+| POST/GET list/GET single without token | PASS — all 401 `{"detail": "Not authenticated"}` |
+| `python -m pytest` | PASS — 38 passed (29 existing + 9 new) |
+
+### Postgres DB-level verification
+
+Columns: id (integer PK, indexed), decision_id (integer, NOT NULL, indexed), name (varchar,
+NOT NULL), description/pros/cons/risk_level (varchar, nullable), estimated_cost/
+feasibility_score (integer, nullable), created_at/updated_at (timestamptz, NOT NULL,
+default now()).
+
+Constraints: `alternatives_pkey` (PK id), `alternatives_decision_id_fkey`
+(FK decision_id → decisions.id), per-column NOT NULL constraints. No `check_valid_*`
+constraints on alternatives yet (risk_level/feasibility_score validation deferred to 6b).
+
+Confirmed 3 alternatives all reference decision_id=23, and zero alternatives reference a
+missing decision. Test data cleaned up afterward (alternatives 0 rows, decisions 0 rows;
+only pre-existing `employee_live_new@example.com` user remains).
+
+## Out of scope (Part 6b / next) — do NOT touch
+
+Alternative update/delete endpoints, `feasibility_score` range validation and `risk_level`
+enum enforcement (DB CHECK + Pydantic), approval workflow. The 6a endpoints intentionally
+accept these as basic int/string types.
