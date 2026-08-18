@@ -20,3 +20,4 @@ class Decision(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     creator = relationship("User", back_populates="decisions")
+    alternatives = relationship("Alternative", back_populates="decision")
