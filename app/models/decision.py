@@ -9,14 +9,45 @@ class Decision(Base):
     __tablename__ = "decisions"
 
     id = Column(Integer, primary_key=True, index=True)
+
     title = Column(String, nullable=False)
+
     problem_statement = Column(Text, nullable=False)
+
     category = Column(String, nullable=False)
-    status = Column(String, nullable=False, default="Draft")
 
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(
+        String,
+        nullable=False,
+        default="Draft"
+    )
 
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_by = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
 
-    user = relationship("User", back_populates="decisions")
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    user = relationship(
+        "User",
+        back_populates="decisions"
+    )
+
+    alternatives = relationship(
+        "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
