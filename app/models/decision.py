@@ -19,3 +19,4 @@ class Decision(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     creator = relationship("User", back_populates="decisions")
+    alternatives = relationship("Alternative", back_populates="decision", cascade="all, delete-orphan")

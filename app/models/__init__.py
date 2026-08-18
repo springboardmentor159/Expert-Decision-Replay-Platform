@@ -1,4 +1,5 @@
 from app.models.user import User
-from .decision import Decision
+from app.models.decision import Decision
+from app.models.alternative import Alternative
 
-__all__ = ["User", "Decision"]
+__all__ = ["User", "Decision", "Alternative"]
