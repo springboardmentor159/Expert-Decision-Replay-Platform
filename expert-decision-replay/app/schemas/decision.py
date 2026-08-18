@@ -1,4 +1,3 @@
-from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
@@ -33,9 +32,9 @@ class DecisionResponse(BaseModel):
     title: str
     problem_statement: str
     category: str
-    status: DecisionStatus
+    status: str
     created_by: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: object
+    updated_at: object
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,7 +1,6 @@
-from datetime import datetime, timezone
-
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+from datetime import datetime, timezone
 
 from app.db.base import Base
 
@@ -27,15 +26,18 @@ class Decision(Base):
 
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
     )
 
     updated_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
     )
 
+    # Many Decisions -> One User
     user = relationship(
         "User",
         back_populates="decisions"

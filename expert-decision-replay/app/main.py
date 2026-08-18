@@ -13,6 +13,7 @@ from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 
+# Decision router
 from routers import decision
 
 
@@ -22,23 +23,23 @@ app = FastAPI(
 )
 
 
-# ==================================================
-# DECISION ROUTER
-# ==================================================
+# -------------------------
+# Decision Router
+# -------------------------
 
 app.include_router(decision.router)
 
 
-# ==================================================
-# BEARER TOKEN SECURITY
-# ==================================================
+# -------------------------
+# Bearer Token Security
+# -------------------------
 
 security = HTTPBearer()
 
 
-# ==================================================
-# HEALTH CHECK
-# ==================================================
+# -------------------------
+# Health Check
+# -------------------------
 
 @app.get("/health")
 def health_check():
@@ -48,9 +49,9 @@ def health_check():
     }
 
 
-# ==================================================
-# CREATE USER
-# ==================================================
+# -------------------------
+# Create User
+# -------------------------
 
 @app.post(
     "/users",
@@ -104,9 +105,9 @@ def create_user(
     return db_user
 
 
-# ==================================================
-# LOGIN
-# ==================================================
+# -------------------------
+# Login
+# -------------------------
 
 @app.post("/login")
 def login(
@@ -151,9 +152,9 @@ def login(
     }
 
 
-# ==================================================
-# PROTECTED USER PROFILE
-# ==================================================
+# -------------------------
+# Protected API
+# -------------------------
 
 @app.get("/users/me")
 def get_my_profile(

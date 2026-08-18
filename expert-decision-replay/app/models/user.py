@@ -7,9 +7,16 @@ from app.db.base import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
-    full_name = Column(String, nullable=False)
+    full_name = Column(
+        String,
+        nullable=False
+    )
 
     employee_id = Column(
         String,
@@ -24,15 +31,30 @@ class User(Base):
         nullable=False
     )
 
-    department = Column(String, nullable=False)
+    department = Column(
+        String,
+        nullable=False
+    )
 
-    designation = Column(String, nullable=False)
+    designation = Column(
+        String,
+        nullable=False
+    )
 
-    phone_number = Column(String, nullable=False)
+    phone_number = Column(
+        String,
+        nullable=False
+    )
 
-    role = Column(String, nullable=False)
+    role = Column(
+        String,
+        nullable=False
+    )
 
-    password = Column(String, nullable=False)
+    password = Column(
+        String,
+        nullable=False
+    )
 
     # One User -> Many Decisions
     decisions = relationship(
