@@ -6,3 +6,4 @@ class DecisionStatus(str, enum.Enum):
     UNDER_REVIEW = "Under Review"
     APPROVED = "Approved"
     REJECTED = "Rejected"
+    ARCHIVED = "Archived"
