@@ -9,6 +9,7 @@ Role = Literal[
     "Reviewer",
     "Manager",
     "Administrator",
+    "HR",
 ]
 
 
