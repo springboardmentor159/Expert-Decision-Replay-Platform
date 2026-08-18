@@ -2,6 +2,7 @@ from enum import Enum
 
 from sqlalchemy import Column, Integer, String
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 
@@ -68,4 +69,9 @@ class User(Base):
     phone_number = Column(
         String,
         nullable=True
+    )
+
+    decisions = relationship(
+        "Decision",
+        back_populates="user"
     )

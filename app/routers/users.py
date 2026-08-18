@@ -4,14 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
     UserResponse
 )
-from app.services.security import hash_password
 from app.services.auth import get_current_user
+from app.services.authorization import require_roles
+from app.services.security import hash_password
 
 
 router = APIRouter(
@@ -33,7 +34,6 @@ def create_user(
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
-    # Check whether email already exists
     existing_user = (
         db.query(User)
         .filter(User.email == user.email)
@@ -46,7 +46,6 @@ def create_user(
             detail="Email already registered"
         )
 
-    # Check whether employee ID already exists
     if user.employee_id:
         existing_employee = (
             db.query(User)
@@ -80,7 +79,7 @@ def create_user(
 
 # ============================================================
 # GET ALL USERS
-# Protected endpoint
+# Manager and Administrator only
 # ============================================================
 
 @router.get(
@@ -89,14 +88,20 @@ def create_user(
 )
 def get_users(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(
+        require_roles(
+            UserRole.MANAGER,
+            UserRole.ADMINISTRATOR
+        )
+    )
 ):
     return db.query(User).all()
 
 
 # ============================================================
 # GET USER BY ID
-# Protected endpoint
+# Users can view themselves.
+# Managers and Administrators can view anyone.
 # ============================================================
 
 @router.get(
@@ -120,12 +125,25 @@ def get_user(
             detail="User not found"
         )
 
+    # A user can view their own profile
+    if current_user.id == user_id:
+        return user
+
+    # Managers and Administrators can view other users
+    if current_user.role not in (
+        UserRole.MANAGER,
+        UserRole.ADMINISTRATOR
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view this user"
+        )
+
     return user
 
 
 # ============================================================
 # UPDATE USER
-# Protected endpoint
 # ============================================================
 
 @router.put(
@@ -150,11 +168,54 @@ def update_user(
             detail="User not found"
         )
 
+    # --------------------------------------------------------
+    # Permission check
+    # --------------------------------------------------------
+
+    is_own_profile = current_user.id == user_id
+
+    if not is_own_profile:
+        if current_user.role not in (
+            UserRole.MANAGER,
+            UserRole.ADMINISTRATOR
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to edit this user"
+            )
+
+    # --------------------------------------------------------
+    # Role change protection
+    # --------------------------------------------------------
+
+    if user_data.role is not None:
+
+        # Users cannot change their own role
+        if is_own_profile:
+            if user_data.role != current_user.role:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You cannot change your own role"
+                )
+
+        # Only Administrator can change another user's role
+        elif current_user.role != UserRole.ADMINISTRATOR:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only an Administrator can change user roles"
+            )
+
+    # --------------------------------------------------------
     # Update full name
+    # --------------------------------------------------------
+
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
 
+    # --------------------------------------------------------
     # Update email
+    # --------------------------------------------------------
+
     if user_data.email is not None:
 
         existing_user = (
@@ -174,11 +235,17 @@ def update_user(
 
         user.email = user_data.email
 
+    # --------------------------------------------------------
     # Update role
+    # --------------------------------------------------------
+
     if user_data.role is not None:
         user.role = user_data.role
 
+    # --------------------------------------------------------
     # Update employee ID
+    # --------------------------------------------------------
+
     if user_data.employee_id is not None:
 
         existing_employee = (
@@ -198,19 +265,31 @@ def update_user(
 
         user.employee_id = user_data.employee_id
 
+    # --------------------------------------------------------
     # Update department
+    # --------------------------------------------------------
+
     if user_data.department is not None:
         user.department = user_data.department
 
+    # --------------------------------------------------------
     # Update designation
+    # --------------------------------------------------------
+
     if user_data.designation is not None:
         user.designation = user_data.designation
 
+    # --------------------------------------------------------
     # Update phone number
+    # --------------------------------------------------------
+
     if user_data.phone_number is not None:
         user.phone_number = user_data.phone_number
 
+    # --------------------------------------------------------
     # Update password
+    # --------------------------------------------------------
+
     if user_data.password is not None:
         user.password = hash_password(
             user_data.password
@@ -224,7 +303,7 @@ def update_user(
 
 # ============================================================
 # DELETE USER
-# Protected endpoint
+# Administrator only
 # ============================================================
 
 @router.delete(
@@ -233,7 +312,11 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(
+        require_roles(
+            UserRole.ADMINISTRATOR
+        )
+    )
 ):
     user = (
         db.query(User)
@@ -245,6 +328,14 @@ def delete_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
+        )
+
+    # Prevent Administrator from accidentally deleting
+    # their own account.
+    if current_user.id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account"
         )
 
     db.delete(user)
