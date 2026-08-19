@@ -272,9 +272,54 @@ def run_comprehensive_endpoint_checks():
     record_result("/users/9999999", "PUT", "Return 404 Not Found when updating non-existent user", res.status_code, passed)
 
     # -------------------------------------------------------------
-    # 7. USER DELETION (DELETE /users/{id})
+    # 7. DECISIONS ENDPOINTS (POST /decisions, GET /decisions, GET /decisions/{id})
     # -------------------------------------------------------------
-    print("\n--- 7. User Deletion (DELETE /users/{id}) ---")
+    print("\n--- 7. Decisions Endpoints ---")
+    
+    # 7.1. Create a decision
+    decision_payload = {
+        "title": "Adopt FastAPI",
+        "problem_statement": "Need a modern, fast async framework.",
+        "category": "Technology"
+    }
+    res = client.post("/decisions", json=decision_payload, headers=emp_headers)
+    dec_data = res.json() if res.status_code == 201 else {}
+    dec_id = dec_data.get("id")
+    passed = (res.status_code == 201 and dec_data.get("status") == "Draft" and dec_data.get("created_by") == emp_id)
+    record_result("/decisions", "POST", "Create decision with Draft status and mapped created_by (201)", res.status_code, passed)
+    
+    # 7.2. Get all decisions
+    res = client.get("/decisions", headers=emp_headers)
+    dec_list = res.json() if res.status_code == 200 else []
+    passed = (res.status_code == 200 and isinstance(dec_list, list) and len(dec_list) >= 1)
+    record_result("/decisions", "GET", "Fetch all decisions (200)", res.status_code, passed)
+    
+    # 7.3. Get decision by ID
+    res = client.get(f"/decisions/{dec_id}", headers=emp_headers)
+    passed = (res.status_code == 200 and res.json().get("id") == dec_id)
+    record_result(f"/decisions/{dec_id}", "GET", f"Fetch decision by ID ({dec_id}) (200)", res.status_code, passed)
+    
+    # 7.4. Request invalid decision ID
+    res = client.get("/decisions/9999999", headers=emp_headers)
+    passed = (res.status_code == 404)
+    record_result("/decisions/9999999", "GET", "Return 404 Not Found for non-existent decision", res.status_code, passed)
+    
+    # 7.5. Try accessing the API without authentication
+    res = client.get("/decisions")
+    passed = (res.status_code == 401)
+    record_result("/decisions", "GET", "Reject unauthenticated request to decisions (401)", res.status_code, passed)
+
+    # Clean up decisions created during test to avoid foreign key constraint on user deletion
+    db = SessionLocal()
+    from app.models.decision import Decision
+    db.query(Decision).filter(Decision.created_by == emp_id).delete(synchronize_session=False)
+    db.commit()
+    db.close()
+
+    # -------------------------------------------------------------
+    # 8. USER DELETION (DELETE /users/{id})
+    # -------------------------------------------------------------
+    print("\n--- 8. User Deletion (DELETE /users/{id}) ---")
 
     # DELETE non-existent user (404) while token is still active
     res = client.delete("/users/9999999", headers=emp_headers)
