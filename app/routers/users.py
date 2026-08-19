@@ -166,8 +166,23 @@ def update_user(
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
 
-    if user_data.email is not None:
+    if user_data.email is not None and user_data.email != user.email:
+        existing_user = db.query(User).filter(User.email == user_data.email, User.id != user_id).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
         user.email = user_data.email
+
+    if user_data.employee_id is not None and user_data.employee_id != user.employee_id:
+        existing_emp = db.query(User).filter(User.employee_id == user_data.employee_id, User.id != user_id).first()
+        if existing_emp:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Employee ID already registered"
+            )
+        user.employee_id = user_data.employee_id
 
     if user_data.role is not None:
         user.role = user_data.role.value if hasattr(user_data.role, "value") else str(user_data.role)
@@ -175,8 +190,6 @@ def update_user(
     if user_data.password is not None:
         user.hashed_password = hash_password(user_data.password)
 
-    if user_data.employee_id is not None:
-        user.employee_id = user_data.employee_id
 
     if user_data.department is not None:
         user.department = user_data.department
