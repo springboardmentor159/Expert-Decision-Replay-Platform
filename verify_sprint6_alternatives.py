@@ -33,8 +33,11 @@ def run_verification():
     test_password = "SecurePassword123!"
 
     db = SessionLocal()
-    db.query(User).filter(User.email == test_email).delete(synchronize_session=False)
-    db.commit()
+    existing_user = db.query(User).filter(User.email == test_email).first()
+    if existing_user:
+        db.query(Decision).filter(Decision.created_by == existing_user.id).delete(synchronize_session=False)
+        db.query(User).filter(User.id == existing_user.id).delete(synchronize_session=False)
+        db.commit()
     db.close()
 
     reg_payload = {
