@@ -9,6 +9,12 @@ from app.db.base import Base
 class Decision(Base):
     __tablename__ = "decisions"
 
+    alternatives = relationship(
+    "Alternative",
+    back_populates="decision",
+    cascade="all, delete-orphan"
+)
+
     id = Column(Integer, primary_key=True, index=True)
 
     title = Column(String, nullable=False)
