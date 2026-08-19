@@ -307,9 +307,108 @@ def run_comprehensive_endpoint_checks():
     # 7.5. Try accessing the API without authentication
     res = client.get("/decisions")
     passed = (res.status_code == 401)
-    record_result("/decisions", "GET", "Reject unauthenticated request to decisions (401)", res.status_code, passed)
+    # -------------------------------------------------------------
+    # 8. ALTERNATIVE ANALYSIS ENDPOINTS (Sprint 6)
+    # -------------------------------------------------------------
+    print("\n--- 8. Alternative Analysis Endpoints (Sprint 6) ---")
 
-    # Clean up decisions created during test to avoid foreign key constraint on user deletion
+    # 8.1. Create Alternative for Decision (PostgreSQL)
+    alt_payload_pg = {
+        "name": "PostgreSQL",
+        "description": "Primary relational store",
+        "pros": "Reliable, mature, SQL compliant",
+        "cons": "Requires schema migrations",
+        "estimated_cost": 5000.0,
+        "feasibility_score": 5,
+        "risk_level": "Low"
+    }
+    res = client.post(f"/decisions/{dec_id}/alternatives", json=alt_payload_pg, headers=emp_headers)
+    passed = (res.status_code == 201 and res.json().get("name") == "PostgreSQL" and res.json().get("feasibility_score") == 5)
+    alt_id = res.json().get("id") if res.status_code == 201 else None
+    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Create alternative (PostgreSQL) (201)", res.status_code, passed)
+
+    # 8.2. Create Alternative (MySQL)
+    alt_payload_mysql = {
+        "name": "MySQL",
+        "description": "Secondary relational store",
+        "pros": "Fast reads, popular",
+        "cons": "Limited extensions",
+        "estimated_cost": 4500.0,
+        "feasibility_score": 4,
+        "risk_level": "Low"
+    }
+    res = client.post(f"/decisions/{dec_id}/alternatives", json=alt_payload_mysql, headers=emp_headers)
+    passed = (res.status_code == 201 and res.json().get("name") == "MySQL")
+    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Create alternative (MySQL) (201)", res.status_code, passed)
+
+    # 8.3. Feasibility score validation failure (Score = 10 -> 422)
+    bad_score_payload = {
+        "name": "Bad Score",
+        "description": "Invalid score",
+        "pros": "None",
+        "cons": "None",
+        "estimated_cost": 1000.0,
+        "feasibility_score": 10,
+        "risk_level": "Low"
+    }
+    res = client.post(f"/decisions/{dec_id}/alternatives", json=bad_score_payload, headers=emp_headers)
+    passed = (res.status_code == 422)
+    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Reject invalid feasibility score > 5 (422)", res.status_code, passed)
+
+    # 8.4. Risk level validation failure (Risk = 'Extreme' -> 422)
+    bad_risk_payload = {
+        "name": "Bad Risk",
+        "description": "Invalid risk",
+        "pros": "None",
+        "cons": "None",
+        "estimated_cost": 1000.0,
+        "feasibility_score": 3,
+        "risk_level": "Extreme"
+    }
+    res = client.post(f"/decisions/{dec_id}/alternatives", json=bad_risk_payload, headers=emp_headers)
+    passed = (res.status_code == 422)
+    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Reject invalid risk level (422)", res.status_code, passed)
+
+    # 8.5. Create alternative for non-existent decision (404)
+    res = client.post("/decisions/9999999/alternatives", json=alt_payload_pg, headers=emp_headers)
+    passed = (res.status_code == 404)
+    record_result("/decisions/9999999/alternatives", "POST", "Reject alternative creation for non-existent decision (404)", res.status_code, passed)
+
+    # 8.6. Get all alternatives for decision
+    res = client.get(f"/decisions/{dec_id}/alternatives", headers=emp_headers)
+    passed = (res.status_code == 200 and len(res.json()) >= 2)
+    record_result(f"/decisions/{dec_id}/alternatives", "GET", "Fetch all alternatives for decision (200)", res.status_code, passed)
+
+    # 8.7. Get alternative by ID
+    res = client.get(f"/alternatives/{alt_id}", headers=emp_headers)
+    passed = (res.status_code == 200 and res.json().get("id") == alt_id)
+    record_result(f"/alternatives/{alt_id}", "GET", f"Fetch alternative by ID ({alt_id}) (200)", res.status_code, passed)
+
+    # 8.8. Update alternative by ID
+    update_alt_payload = {
+        "name": "PostgreSQL Enterprise",
+        "description": "Upgraded enterprise relational store",
+        "pros": "High performance, reliability",
+        "cons": "Schema migrations",
+        "estimated_cost": 5500.0,
+        "feasibility_score": 5,
+        "risk_level": "Low"
+    }
+    res = client.put(f"/alternatives/{alt_id}", json=update_alt_payload, headers=emp_headers)
+    passed = (res.status_code == 200 and res.json().get("name") == "PostgreSQL Enterprise" and res.json().get("estimated_cost") == 5500.0)
+    record_result(f"/alternatives/{alt_id}", "PUT", f"Update alternative ({alt_id}) (200)", res.status_code, passed)
+
+    # 8.9. Compare alternatives
+    res = client.get(f"/decisions/{dec_id}/alternatives/compare", headers=emp_headers)
+    passed = (res.status_code == 200 and res.json().get("decision_id") == dec_id and len(res.json().get("alternatives")) >= 2)
+    record_result(f"/decisions/{dec_id}/alternatives/compare", "GET", "Compare alternatives for decision (200)", res.status_code, passed)
+
+    # 8.10. Unauthenticated access check (401)
+    res = client.get(f"/decisions/{dec_id}/alternatives")
+    passed = (res.status_code == 401)
+    record_result(f"/decisions/{dec_id}/alternatives", "GET", "Reject unauthenticated alternatives access (401)", res.status_code, passed)
+
+    # Clean up decisions & alternatives created during test
     db = SessionLocal()
     from app.models.decision import Decision
     db.query(Decision).filter(Decision.created_by == emp_id).delete(synchronize_session=False)
@@ -317,9 +416,9 @@ def run_comprehensive_endpoint_checks():
     db.close()
 
     # -------------------------------------------------------------
-    # 8. USER DELETION (DELETE /users/{id})
+    # 9. USER DELETION (DELETE /users/{id})
     # -------------------------------------------------------------
-    print("\n--- 8. User Deletion (DELETE /users/{id}) ---")
+    print("\n--- 9. User Deletion (DELETE /users/{id}) ---")
 
     # DELETE non-existent user (404) while token is still active
     res = client.delete("/users/9999999", headers=emp_headers)
