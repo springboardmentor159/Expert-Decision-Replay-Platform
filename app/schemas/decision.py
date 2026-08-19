@@ -1,13 +1,32 @@
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
+
+
+class DecisionStatus(str, Enum):
+    DRAFT = "Draft"
+    UNDER_REVIEW = "Under Review"
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+    ARCHIVED = "Archived"
 
 
 class DecisionCreate(BaseModel):
     title: str
     problem_statement: str
     category: str
+
+
+class DecisionUpdate(BaseModel):
+    title: str
+    problem_statement: str
+    category: str
+
+
+class DecisionStatusUpdate(BaseModel):
+    status: DecisionStatus
 
 
 class DecisionResponse(BaseModel):
