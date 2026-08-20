@@ -5,6 +5,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Float,
     DateTime,
     ForeignKey
 )
@@ -13,8 +14,8 @@ from sqlalchemy.orm import relationship
 from app.db.database import Base
 
 
-class Decision(Base):
-    __tablename__ = "decisions"
+class Alternative(Base):
+    __tablename__ = "alternatives"
 
     id = Column(
         Integer,
@@ -22,30 +23,44 @@ class Decision(Base):
         index=True
     )
 
-    title = Column(
+    decision_id = Column(
+        Integer,
+        ForeignKey("decisions.id"),
+        nullable=False
+    )
+
+    name = Column(
         String,
         nullable=False
     )
 
-    problem_statement = Column(
+    description = Column(
         Text,
         nullable=False
     )
 
-    category = Column(
-        String,
+    pros = Column(
+        Text,
         nullable=False
     )
 
-    status = Column(
-        String,
-        nullable=False,
-        default="Draft"
+    cons = Column(
+        Text,
+        nullable=False
     )
 
-    created_by = Column(
+    estimated_cost = Column(
+        Float,
+        nullable=False
+    )
+
+    feasibility_score = Column(
         Integer,
-        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    risk_level = Column(
+        String,
         nullable=False
     )
 
@@ -62,12 +77,7 @@ class Decision(Base):
         nullable=False
     )
 
-    creator = relationship(
-        "User",
-        back_populates="decisions"
-    )
-    alternatives = relationship(
-        "Alternative",
-        back_populates="decision",
-        cascade="all, delete-orphan"
+    decision = relationship(
+        "Decision",
+        back_populates="alternatives"
     )

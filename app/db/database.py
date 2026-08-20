@@ -1,12 +1,20 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 from app.core.config import settings
 
 
-engine = create_engine(settings.DATABASE_URL)
+# SQLAlchemy Base
+Base = declarative_base()
 
 
+# Database engine
+engine = create_engine(
+    settings.DATABASE_URL
+)
+
+
+# Database session
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -14,8 +22,10 @@ SessionLocal = sessionmaker(
 )
 
 
+# Database dependency
 def get_db():
     db = SessionLocal()
+
     try:
         yield db
     finally:
