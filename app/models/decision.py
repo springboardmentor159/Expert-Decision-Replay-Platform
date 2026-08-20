@@ -28,3 +28,4 @@ class Decision(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="decisions")
+    alternatives: Mapped[list["Alternative"]] = relationship(back_populates="decision", cascade="all, delete-orphan")
