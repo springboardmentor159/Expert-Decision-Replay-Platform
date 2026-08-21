@@ -21,6 +21,7 @@ if config.config_file_name is not None:
 from app.db.base import Base
 from app.models.user import User
 from app.models.decision import Decision
+from app.models.alternative import Alternative
 from app.core.config import settings
 
 
