@@ -29,12 +29,22 @@ class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
 
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
+
+
+class DecisionRationaleResponse(BaseModel):
+    decision_id: int
+    rationale: Optional[str] = None
+
+
 class DecisionResponse(BaseModel):
     id: int
     title: str
     problem_statement: str
     category: str
     status: str
+    rationale: Optional[str] = None
     created_by: int
     created_at: datetime
     updated_at: datetime

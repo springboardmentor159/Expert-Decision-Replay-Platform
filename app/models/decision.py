@@ -14,9 +14,13 @@ class Decision(Base):
     problem_statement = Column(String, nullable=False)
     category = Column(String, nullable=False)
     status = Column(String, default="Draft", nullable=False)
+    rationale = Column(String, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     creator = relationship("User", back_populates="decisions")
     alternatives = relationship("Alternative", back_populates="decision", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="decision", cascade="all, delete-orphan")
+    threads = relationship("DiscussionThread", back_populates="decision", cascade="all, delete-orphan")
+    meeting_notes = relationship("MeetingNote", back_populates="decision", cascade="all, delete-orphan")

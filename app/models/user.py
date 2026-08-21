@@ -18,3 +18,4 @@ class User(Base):
     phone_number = Column(String, nullable=True)
 
     decisions = relationship("Decision", back_populates="creator")
+    comments = relationship("Comment", back_populates="user")
