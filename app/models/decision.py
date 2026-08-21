@@ -35,6 +35,11 @@ class Decision(Base):
         nullable=False
     )
 
+    rationale = Column(
+    Text,
+    nullable=True
+    )
+    
     category = Column(
         String,
         nullable=False
@@ -76,8 +81,23 @@ class Decision(Base):
         back_populates="decisions"
     )
     
+    meeting_notes = relationship(
+    "MeetingNote",
+    back_populates="decision"
+    )
+    
+    comments = relationship(
+    "Comment",
+    back_populates="decision"
+    )
+    
+    discussion_threads = relationship(
+    "DiscussionThread",
+    back_populates="decision"
+    )
+    
     alternatives = relationship(
     "Alternative",
     back_populates="decision",
     cascade="all, delete-orphan"
-)
+    )

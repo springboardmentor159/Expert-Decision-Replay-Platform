@@ -9,6 +9,12 @@ from app.db.base import Base
 import app.models.user
 import app.models.decision
 import app.models.alternative
+from app.models.user import User
+from app.models.decision import Decision
+from app.models.alternative import Alternative
+from app.models.comment import Comment
+from app.models.thread import DiscussionThread
+from app.models.meeting_note import MeetingNote
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

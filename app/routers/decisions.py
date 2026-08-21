@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.decision import (
     DecisionCreate,
     DecisionResponse,
+    DecisionRationaleUpdate,
     DecisionStatusUpdate,
     DecisionUpdate
 )
@@ -45,8 +46,6 @@ def create_decision(
     return decision
 
 
-# Get all decisions
-# Get all decisions with optional filters
 # Get all decisions with optional filters
 @router.get(
     "",
@@ -80,6 +79,38 @@ def get_decisions(
     )
 
     return decisions
+
+
+# Update decision rationale
+@router.put(
+    "/{decision_id}/rationale",
+    response_model=DecisionResponse
+)
+def update_decision_rationale(
+    decision_id: int,
+    rationale_data: DecisionRationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    decision.rationale = rationale_data.rationale
+
+    db.commit()
+    db.refresh(decision)
+
+    return decision
+
 
 # Get decision by ID
 @router.get(
