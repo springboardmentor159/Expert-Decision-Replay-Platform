@@ -35,8 +35,19 @@ class DecisionResponse(BaseModel):
     problem_statement: str
     category: str
     status: str
+    rationale: Optional[str] = None
     created_by: int
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
+
+
+class DecisionRationaleResponse(BaseModel):
+    decision_id: int
+    rationale: Optional[str] = None
+

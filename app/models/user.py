@@ -18,3 +18,6 @@ class User(Base):
     phone_number = Column(String, nullable=True)
 
     decisions = relationship("Decision", back_populates="creator")
+    comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan")
+    threads = relationship("DiscussionThread", back_populates="creator", cascade="all, delete-orphan")
+    meeting_notes = relationship("MeetingNote", back_populates="creator", cascade="all, delete-orphan")

@@ -2,7 +2,15 @@
 Schemas Package Initializer
 """
 from app.schemas.user import UserCreate, UserResponse, UserRole
-from app.schemas.decision import DecisionCreate, DecisionResponse, DecisionUpdate, DecisionStatusUpdate, DecisionStatus
+from app.schemas.decision import (
+    DecisionCreate,
+    DecisionResponse,
+    DecisionUpdate,
+    DecisionStatusUpdate,
+    DecisionStatus,
+    DecisionRationaleUpdate,
+    DecisionRationaleResponse,
+)
 from app.schemas.alternative import (
     RiskLevel,
     AlternativeBase,
@@ -12,6 +20,9 @@ from app.schemas.alternative import (
     AlternativeCompareItem,
     AlternativeComparisonResponse,
 )
+from app.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
+from app.schemas.discussion_thread import ThreadCreate, ThreadUpdate, ThreadResponse, ThreadDetailResponse
+from app.schemas.meeting_note import MeetingNoteCreate, MeetingNoteUpdate, MeetingNoteResponse
 
 __all__ = [
     "UserCreate",
@@ -22,6 +33,8 @@ __all__ = [
     "DecisionUpdate",
     "DecisionStatusUpdate",
     "DecisionStatus",
+    "DecisionRationaleUpdate",
+    "DecisionRationaleResponse",
     "RiskLevel",
     "AlternativeBase",
     "AlternativeCreate",
@@ -29,4 +42,15 @@ __all__ = [
     "AlternativeResponse",
     "AlternativeCompareItem",
     "AlternativeComparisonResponse",
+    "CommentCreate",
+    "CommentUpdate",
+    "CommentResponse",
+    "ThreadCreate",
+    "ThreadUpdate",
+    "ThreadResponse",
+    "ThreadDetailResponse",
+    "MeetingNoteCreate",
+    "MeetingNoteUpdate",
+    "MeetingNoteResponse",
 ]
+

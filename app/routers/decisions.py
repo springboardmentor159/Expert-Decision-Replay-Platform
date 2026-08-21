@@ -12,8 +12,11 @@ from app.schemas.decision import (
     DecisionResponse,
     DecisionUpdate,
     DecisionStatusUpdate,
-    DecisionStatus
+    DecisionStatus,
+    DecisionRationaleUpdate,
+    DecisionRationaleResponse,
 )
+
 
 router = APIRouter(
     prefix="/decisions",
@@ -123,3 +126,60 @@ def update_decision_status(
     db.commit()
     db.refresh(decision)
     return decision
+
+
+@router.put(
+    "/{decision_id}/rationale",
+    response_model=DecisionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Record or update decision rationale"
+)
+def update_decision_rationale(
+    decision_id: int,
+    rationale_update: DecisionRationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    # Authorization check: only decision creator, Administrator, or Manager can update rationale
+    if decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update rationale for this decision"
+        )
+
+    decision.rationale = rationale_update.rationale
+    db.commit()
+    db.refresh(decision)
+    return decision
+
+
+@router.get(
+    "/{decision_id}/rationale",
+    response_model=DecisionRationaleResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get decision rationale"
+)
+def get_decision_rationale(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    return DecisionRationaleResponse(
+        decision_id=decision.id,
+        rationale=decision.rationale
+    )
+

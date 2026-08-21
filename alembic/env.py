@@ -7,7 +7,7 @@ from alembic import context
 
 from app.core.config import settings
 from app.db.base import Base
-from app.models import User, Decision, Alternative
+from app.models import User, Decision, Alternative, Comment, DiscussionThread, MeetingNote
 
 config = context.config
 
