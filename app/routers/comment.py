@@ -1,0 +1,210 @@
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.db.database import get_db
+from app.models.comment import Comment
+from app.models.decision import Decision
+from app.schemas.comment import (
+    CommentCreate,
+    CommentUpdate,
+    CommentResponse,
+)
+from app.core.dependencies import get_current_user
+
+
+router = APIRouter(
+    tags=["Comments"],
+    dependencies=[Depends(get_current_user)]
+)
+
+
+# =========================================================
+# CREATE COMMENT
+# =========================================================
+
+@router.post(
+    "/decisions/{decision_id}/comments",
+    response_model=CommentResponse,
+    status_code=201
+)
+def create_comment(
+    decision_id: int,
+    comment_data: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    user_id = int(current_user["sub"])
+
+    new_comment = Comment(
+        decision_id=decision_id,
+        user_id=user_id,
+        content=comment_data.content
+    )
+
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    return new_comment
+
+
+# =========================================================
+# GET ALL COMMENTS FOR A DECISION
+# =========================================================
+
+@router.get(
+    "/decisions/{decision_id}/comments",
+    response_model=List[CommentResponse]
+)
+def get_comments(
+    decision_id: int,
+    db: Session = Depends(get_db)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    comments = (
+        db.query(Comment)
+        .filter(Comment.decision_id == decision_id)
+        .all()
+    )
+
+    return comments
+
+
+# =========================================================
+# GET COMMENT BY ID
+# =========================================================
+
+@router.get(
+    "/comments/{comment_id}",
+    response_model=CommentResponse
+)
+def get_comment(
+    comment_id: int,
+    db: Session = Depends(get_db)
+):
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
+        .first()
+    )
+
+    if not comment:
+        raise HTTPException(
+            status_code=404,
+            detail="Comment not found"
+        )
+
+    return comment
+
+
+# =========================================================
+# UPDATE COMMENT
+# =========================================================
+
+@router.put(
+    "/comments/{comment_id}",
+    response_model=CommentResponse
+)
+def update_comment(
+    comment_id: int,
+    comment_data: CommentUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    # Find comment
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
+        .first()
+    )
+
+    if not comment:
+        raise HTTPException(
+            status_code=404,
+            detail="Comment not found"
+        )
+
+    # Get authenticated user's ID
+    user_id = int(current_user["sub"])
+
+    # Ownership check
+    if comment.user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not allowed to update this comment"
+        )
+
+    # Update only content
+    comment.content = comment_data.content
+
+    db.commit()
+    db.refresh(comment)
+
+    return comment
+# =========================================================
+# DELETE COMMENT
+# =========================================================
+
+@router.delete(
+    "/comments/{comment_id}"
+)
+def delete_comment(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    # Find comment
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
+        .first()
+    )
+
+    if not comment:
+        raise HTTPException(
+            status_code=404,
+            detail="Comment not found"
+        )
+
+    # Get authenticated user's ID
+    user_id = int(current_user["sub"])
+
+    # Ownership check
+    if comment.user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not allowed to delete this comment"
+        )
+
+    # Delete comment
+    db.delete(comment)
+    db.commit()
+
+    return {
+        "message": "Comment deleted successfully"
+    }

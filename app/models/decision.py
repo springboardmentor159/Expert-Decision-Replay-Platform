@@ -35,3 +35,13 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+    comments = relationship(
+    "Comment",
+    back_populates="decision",
+    cascade="all, delete-orphan"
+)
+    discussion_threads = relationship(
+    "DiscussionThread",
+    back_populates="decision",
+    cascade="all, delete-orphan"
+)
