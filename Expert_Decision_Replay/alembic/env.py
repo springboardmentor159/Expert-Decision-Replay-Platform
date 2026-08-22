@@ -1,27 +1,23 @@
 import sys
 from pathlib import Path
 
-# Add the actual application folder to Python path
+# Add inner Expert_Decision_Replay folder to Python path
 sys.path.insert(
     0,
-    str(
-        Path(__file__).resolve().parents[1]
-        / "Expert_Decision_Replay"
-        / "Expert_Decision_Replay"
-    )
+    str(Path(__file__).resolve().parents[1] / "Expert_Decision_Replay")
 )
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
-from app.database import Base
+from app.base import Base
 
-# Import all SQLAlchemy models so Alembic can detect them
+# Import all models so Alembic can detect their tables
 from app.models.user import User
 from app.models.decision import Decision
 from app.models.alternative import Alternative
-
+from app.models.comment import Comment
 
 config = context.config
 
@@ -31,13 +27,10 @@ config.set_main_option(
     settings.DATABASE_URL.replace("%", "%%")
 )
 
-# SQLAlchemy metadata used by Alembic
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in offline mode."""
-
     url = config.get_main_option("sqlalchemy.url")
 
     context.configure(
@@ -52,8 +45,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in online mode."""
-
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
