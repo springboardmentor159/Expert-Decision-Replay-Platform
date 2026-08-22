@@ -31,12 +31,26 @@ class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
 
+# Sprint 7: Decision Rationale
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
+
+
+class DecisionRationaleResponse(BaseModel):
+    decision_id: int
+    rationale: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class DecisionResponse(BaseModel):
     id: int
     title: str
     problem_statement: str
     category: str
     status: DecisionStatus
+    rationale: Optional[str] = None
     created_by: int
     created_at: datetime
     updated_at: datetime

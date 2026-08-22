@@ -12,6 +12,8 @@ from app.schemas.decision import (
     DecisionUpdate,
     DecisionStatus,
     DecisionStatusUpdate,
+    DecisionRationaleUpdate,
+    DecisionRationaleResponse,
 )
 from app.utils.security import get_current_user
 from app.models.user import User
@@ -175,3 +177,66 @@ def update_decision_status(
     db.refresh(decision)
 
     return decision
+
+
+# Sprint 7: SET / UPDATE DECISION RATIONALE
+@router.put(
+    "/{decision_id}/rationale",
+    response_model=DecisionRationaleResponse
+)
+def update_decision_rationale(
+    decision_id: int,
+    data: DecisionRationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    decision.rationale = data.rationale
+    decision.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(decision)
+
+    return DecisionRationaleResponse(
+        decision_id=decision.id,
+        rationale=decision.rationale
+    )
+
+
+# Sprint 7: GET DECISION RATIONALE
+@router.get(
+    "/{decision_id}/rationale",
+    response_model=DecisionRationaleResponse
+)
+def get_decision_rationale(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    return DecisionRationaleResponse(
+        decision_id=decision.id,
+        rationale=decision.rationale
+    )

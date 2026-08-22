@@ -18,6 +18,9 @@ class Decision(Base):
 
     status = Column(String, nullable=False, default="Draft")
 
+    # Sprint 7: preserves *why* a decision was made.
+    rationale = Column(Text, nullable=True)
+
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -30,3 +33,28 @@ class Decision(Base):
     )
 
     creator = relationship("User", back_populates="decisions")
+
+    alternatives = relationship(
+        "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    # Sprint 7: Discussion & Collaboration Module
+    comments = relationship(
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    threads = relationship(
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    meeting_notes = relationship(
+        "MeetingNote",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
