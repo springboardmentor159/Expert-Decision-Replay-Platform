@@ -40,14 +40,32 @@ class Decision(Base):
         onupdate=datetime.utcnow,
         nullable=False
     )
+    rationale = Column(Text, nullable=True)
 
     user = relationship(
         "User",
         back_populates="decisions"
     )
 
+    comments = relationship(
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+    meeting_notes = relationship(
+    "MeetingNote",
+    back_populates="decision",
+    cascade="all, delete-orphan"
+    )
+
     alternatives = relationship(
         "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    discussion_threads = relationship(
+        "DiscussionThread",
         back_populates="decision",
         cascade="all, delete-orphan"
     )
