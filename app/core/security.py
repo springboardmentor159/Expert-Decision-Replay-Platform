@@ -59,13 +59,18 @@ def get_current_user(
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
         )
+
         user_id = payload.get("sub")
 
         if user_id is None:
             raise unauthorized
 
-        user = db.query(User).filter(User.id == int(user_id)).first()
-    except (InvalidTokenError, ValueError):
+        user = db.query(User).filter(
+            User.id == int(user_id)
+        ).first()
+
+    except (InvalidTokenError, ValueError) as e:
+        print("JWT ERROR:", repr(e))
         raise unauthorized
 
     if user is None:

@@ -15,9 +15,9 @@ class Decision(Base):
     problem_statement = Column(Text, nullable=False)
 
     category = Column(String, nullable=False)
-
     status = Column(String, nullable=False, default="Draft")
 
+    rationale = Column(Text, nullable=True)
     created_by = Column(
         Integer,
         ForeignKey("users.id"),
@@ -41,8 +41,32 @@ class Decision(Base):
         "User",
         back_populates="decisions"
     )
+
     alternatives = relationship(
-    "Alternative",
+        "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    comments = relationship(
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    discussion_threads = relationship(
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    versions = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+    meeting_notes = relationship(
+    "MeetingNote",
     back_populates="decision",
     cascade="all, delete-orphan"
 )
