@@ -2,7 +2,8 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
 from app.core.enums import DecisionStatus
 from sqlalchemy.orm import relationship
-
+from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy.sql import func
 from app.db.base import Base
 
 
@@ -20,6 +21,10 @@ class Decision(Base):
     title = Column(String, nullable=False)
 
     problem_statement = Column(Text, nullable=False)
+    rationale = Column(
+    Text,
+    nullable=True
+)
 
     category = Column(String, nullable=False)
 
@@ -46,13 +51,21 @@ class Decision(Base):
     )
 
     updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        nullable=False
-    )
+    DateTime(timezone=True),
+    server_default=func.now(),
+    onupdate=func.now(),
+    nullable=False
+)
 
     creator = relationship(
         "User",
         back_populates="decisions"
     )
+    comments = relationship(
+    "Comment",
+    back_populates="decision"
+)
+    meeting_notes = relationship(
+    "MeetingNote",
+    back_populates="decision"
+)

@@ -20,11 +20,14 @@ class DecisionUpdate(BaseModel):
 class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
 
 class DecisionResponse(BaseModel):
     id: int
     title: str
     problem_statement: str
+    rationale: str | None = None
     category: str
     status: DecisionStatus
     created_by: int

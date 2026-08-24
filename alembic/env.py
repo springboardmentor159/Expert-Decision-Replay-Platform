@@ -3,12 +3,13 @@ from app.models.decision import Decision
 from app.models.alternative import Alternative
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
+from app.models.comment import Comment
 from alembic import context
 from app.core.config import settings
 from app.db.base import Base
 from app.models.user import User
-
+from app.models.discussion_thread import DiscussionThread
+from app.models.meeting_note import MeetingNote
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

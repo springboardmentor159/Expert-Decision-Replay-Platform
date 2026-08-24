@@ -33,3 +33,11 @@ class User(Base):
         "Decision",
         back_populates="creator"
     )
+    comments = relationship(
+    "Comment",
+    back_populates="user"
+)
+    meeting_notes = relationship(
+    "MeetingNote",
+    back_populates="creator"
+)
