@@ -10,6 +10,7 @@ from app.schemas.decision import (
     DecisionResponse,
     DecisionStatusUpdate,
     DecisionUpdate,
+    RationaleUpdate,
 )
 from app.core.security import get_current_user
 
@@ -163,3 +164,37 @@ def update_decision_status(
     db.refresh(decision)
 
     return decision
+
+# UPDATE DECISION RATIONALE
+
+@router.put(
+    "/{decision_id}/rationale"
+)
+def update_decision_rationale(
+    decision_id: int,
+    rationale_data: RationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    decision.rationale = rationale_data.rationale
+
+    db.commit()
+    db.refresh(decision)
+
+    return {
+        "message": "Decision rationale updated successfully",
+        "decision_id": decision.id,
+        "rationale": decision.rationale
+    }

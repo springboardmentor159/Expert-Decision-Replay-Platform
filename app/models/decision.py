@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
+
 from app.db.base import Base
 
 
@@ -14,6 +15,8 @@ class Decision(Base):
     problem_statement = Column(Text, nullable=False)
 
     category = Column(String, nullable=False)
+
+    rationale = Column(Text, nullable=True)
 
     status = Column(String, nullable=False, default="Draft")
 
@@ -36,9 +39,25 @@ class Decision(Base):
         nullable=False
     )
 
-    user = relationship("User", back_populates="decisions")
+    user = relationship(
+        "User",
+        back_populates="decisions"
+    )
+
     alternatives = relationship(
-    "Alternative",
-    back_populates="decision",
-    cascade="all, delete-orphan"
-)
+        "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    comments = relationship(
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    threads = relationship(
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )

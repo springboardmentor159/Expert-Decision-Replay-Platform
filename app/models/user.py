@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
+
 from app.db.base import Base
 
 
@@ -27,4 +28,10 @@ class User(Base):
     decisions = relationship(
         "Decision",
         back_populates="user"
+    )
+
+    comments = relationship(
+        "Comment",
+        back_populates="user",
+        cascade="all, delete-orphan"
     )

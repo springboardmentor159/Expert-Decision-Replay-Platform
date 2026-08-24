@@ -27,6 +27,8 @@ class DecisionUpdate(BaseModel):
 class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
+class RationaleUpdate(BaseModel):
+    rationale: str
 
 class DecisionResponse(BaseModel):
     id: int
@@ -34,6 +36,7 @@ class DecisionResponse(BaseModel):
     problem_statement: str
     category: str
     status: str
+    rationale: str | None
     created_by: int
     created_at: datetime
     updated_at: datetime
