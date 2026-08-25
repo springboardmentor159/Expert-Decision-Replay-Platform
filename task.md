@@ -779,6 +779,124 @@ tests\test_user_enhancements.py ........                                 [100%]
 - `decisions` table: **0 rows**
 - `users` table: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
 
+---
+
+## Sprint 7: Collaboration, Discussion & Decision Rationale — FINAL SIGN-OFF — COMPLETE (2026-08-25)
+
+Final verification pass for the entire Sprint 7 suite (Comments, Discussion Threads, Thread Replies, Meeting Notes, and Decision Rationale). All 17 endpoints, JWT authentication requirements, consistent Author OR Administrator ownership enforcement, schema contracts, database migrations, and relationship integrity have been verified against real PostgreSQL (`expert_decision_replay`).
+
+### 1. Module Inventory & Files Touched
+
+| Component | Files Touched / Created | Purpose |
+| --- | --- | --- |
+| **Comments** | `app/models/comment.py`, `app/schemas/comment.py`, `app/routers/comment.py` | Comment CRUD on decisions; supports direct comments and thread replies via nullable `thread_id` |
+| **Discussion Threads** | `app/models/discussion_thread.py`, `app/schemas/discussion_thread.py`, `app/routers/discussion_thread.py` | Thread CRUD on decisions; `POST /threads/{id}/comments` for discussion thread replies |
+| **Meeting Notes** | `app/models/meeting_note.py`, `app/schemas/meeting_note.py`, `app/routers/meeting_note.py` | Meeting notes CRUD on decisions with `meeting_date` |
+| **Decision Rationale** | `app/models/decision.py`, `app/schemas/decision.py`, `app/routers/decision.py` | `rationale` nullable column on `decisions` table, `PUT /decisions/{id}/rationale`, retrieved via `GET /decisions/{id}` |
+| **Migrations** | `alembic/versions/72f74061fb2d_create_comments_table.py`<br>`alembic/versions/a9b7255d0c2f_create_discussion_threads_table.py`<br>`alembic/versions/85a9d7f952e2_create_meeting_notes_table.py`<br>`alembic/versions/3013a5847f8d_add_rationale_column_to_decisions.py` | All migrations generated, reviewed, and applied (`alembic upgrade head`; current head: `3013a5847f8d`) |
+| **App Routing** | `app/main.py` | Registered all routers (`comment_router`, `comments_router`, `thread_router`, `threads_router`, `meeting_note_router`, `meeting_notes_router`) |
+
+---
+
+### 2. Universal Ownership Enforcement Policy
+
+- **Policy Enforced Across All Sprint 7 Resources**: **Author / Creator OR Administrator**
+- **Rationale**: Original authors retain full authority to edit and delete their own contributions (comments, discussion threads, thread replies, meeting notes, decision rationale). Users with the `Administrator` role retain system-wide administrative and moderation capability to edit or delete any contribution. Any authenticated user who is neither the original author nor an Administrator attempting to update or delete a resource receives **403 Forbidden** (`{"detail": "Not authorized to ..."}`).
+
+---
+
+### 3. Comprehensive Endpoint & Auth/Ownership Matrix (17 Endpoints)
+
+| Method | Endpoint | Auth | Ownership Rule | Expected Status |
+| --- | --- | --- | --- | --- |
+| POST | `/decisions/{id}/comments` | JWT | Any Authed User | 201 (sets `user_id` from JWT; 404 if decision missing) |
+| GET | `/decisions/{id}/comments` | JWT | Any Authed User | 200 list (404 if decision missing) |
+| GET | `/comments/{id}` | JWT | Any Authed User | 200 record (404 if missing) |
+| PUT | `/comments/{id}` | JWT | Author or Administrator | 200 update (403 if non-owner; 404 if missing) |
+| DELETE | `/comments/{id}` | JWT | Author or Administrator | 200 delete (403 if non-owner; 404 if missing) |
+| POST | `/decisions/{id}/threads` | JWT | Any Authed User | 201 (sets `created_by` from JWT; 404 if decision missing) |
+| GET | `/decisions/{id}/threads` | JWT | Any Authed User | 200 list (404 if decision missing) |
+| GET | `/threads/{id}` | JWT | Any Authed User | 200 record (404 if missing) |
+| PUT | `/threads/{id}` | JWT | Author or Administrator | 200 update (403 if non-owner; 404 if missing) |
+| DELETE | `/threads/{id}` | JWT | Author or Administrator | 200 delete (403 if non-owner; 404 if missing) |
+| POST | `/threads/{id}/comments` | JWT | Any Authed User | 201 reply (sets `thread_id` + inherits `decision_id`; 404 if thread missing) |
+| POST | `/decisions/{id}/meeting-notes` | JWT | Any Authed User | 201 (sets `created_by` from JWT; 404 if decision missing) |
+| GET | `/decisions/{id}/meeting-notes` | JWT | Any Authed User | 200 list (404 if decision missing) |
+| GET | `/meeting-notes/{id}` | JWT | Any Authed User | 200 record (404 if missing) |
+| PUT | `/meeting-notes/{id}` | JWT | Author or Administrator | 200 update (403 if non-owner; 404 if missing) |
+| DELETE | `/meeting-notes/{id}` | JWT | Author or Administrator | 200 delete (403 if non-owner; 404 if missing) |
+| PUT | `/decisions/{id}/rationale` | JWT | Creator or Administrator | 200 update (403 if non-owner; 404 if missing; verified via `GET /decisions/{id}`) |
+
+---
+
+### 4. Continuous E2E Workflow Demonstration (Real PostgreSQL)
+
+| Step | Action | Actual Result | Status |
+| :--- | :--- | :--- | :--- |
+| 1 | Login User A, User B, Admin | 200, JWT tokens acquired | **PASS** |
+| 2 | POST `/decisions` | 201 Created (ID=29, status="Draft", created_by=34) | **PASS** |
+| 3 | Create 3 Comments as User A | 201 Created for all 3 | **PASS** |
+| 4 | GET `/decisions/29/comments` | 200 OK, returned 3 comments | **PASS** |
+| 5 | GET `/comments/{id}` | 200 OK, returned single record | **PASS** |
+| 6 | PUT `/comments/{id}` as owner / non-owner / admin | Owner: 200; Non-owner: 403 Forbidden; Admin: 200 OK | **PASS** |
+| 7 | DELETE `/comments/{id}` as non-owner / owner / admin | Non-owner: 403 Forbidden; Owner: 200 OK; Admin: 200 OK | **PASS** |
+| 8 | POST `/decisions/29/threads` | 201 Created (ID=1, title="Latency vs Consistency Tradeoff") | **PASS** |
+| 9 | POST `/threads/1/comments` × 2 (replies from User A & User B) | 201 Created for both; `thread_id=1` and `decision_id=29` stored | **PASS** |
+| 10 | POST `/decisions/29/meeting-notes` | 201 Created (ID=4, title="Consensus Protocol Review Meeting") | **PASS** |
+| 11 | PUT `/decisions/29/rationale` as owner | 200 OK; rationale set and returned in `DecisionResponse` | **PASS** |
+| 12 | GET `/decisions/29` | 200 OK; confirmed `rationale` retrieved in response body | **PASS** |
+| 13 | PUT `/decisions/29/rationale` as non-owner (User B) | 403 Forbidden (`{"detail": "Not authorized to modify this decision rationale"}`) | **PASS** |
+| 14 | PUT `/decisions/29/rationale` as Administrator | 200 OK; updated to "Admin Approved Rationale" | **PASS** |
+| 15 | Test all 17 endpoints without JWT | 401 Unauthorized (`{"detail": "Not authenticated"}`) across all 17 | **PASS** |
+| 16 | Confirm Decision & Alternative APIs unaffected | POST alternative → 201; GET compare → 200 (1 alternative returned) | **PASS** |
+
+---
+
+### 5. PostgreSQL Database Verification
+
+Direct SQL verification via `psycopg2` on live database `expert_decision_replay`:
+- **`decisions`**: Confirmed `rationale` column present, updated to `"Admin Approved Rationale"`.
+- **`comments`**: Confirmed 3 rows (`thread_id=NULL` for direct comments, `thread_id=1` for thread replies).
+- **`discussion_threads`**: Confirmed thread row tied to `decision_id=29` and `created_by=34`.
+- **`meeting_notes`**: Confirmed note row tied to `decision_id=29` with valid `meeting_date`.
+- **Foreign Keys & Cascade Deletes**: Verified cascading delete constraints.
+
+---
+
+### 6. Full Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 113 items
+
+tests\test_alternative.py .........................                      [ 22%]
+tests\test_auth.py ...                                                   [ 24%]
+tests\test_comment.py ................                                   [ 38%]
+tests\test_decision_filtering.py ......                                  [ 44%]
+tests\test_decision_status.py .............                              [ 55%]
+tests\test_meeting_note.py ..................                            [ 71%]
+tests\test_security.py ....                                              [ 75%]
+tests\test_thread.py ....................                                [ 92%]
+tests\test_user_enhancements.py ........                                 [100%]
+
+====================== 113 passed, 2 warnings in 35.55s =======================
+```
+
+---
+
+### 7. Post-Verification Database State
+
+- `meeting_notes`: **0 rows**
+- `discussion_threads`: **0 rows**
+- `comments`: **0 rows**
+- `alternatives`: **0 rows**
+- `decisions`: **0 rows**
+- `users`: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
+
+
 
 
 

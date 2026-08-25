@@ -151,3 +151,87 @@ def test_database_check_constraint_rejects_invalid_status(db_session):
     with pytest.raises(IntegrityError):
         db_session.commit()
     db_session.rollback()
+
+
+def test_put_rationale_as_owner(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    token = make_token(str(user.id))
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.put(f"/decisions/{decision.id}/rationale", json={
+        "rationale": "Selected PostgreSQL due to ACID compliance and team familiarity."
+    }, headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["rationale"] == "Selected PostgreSQL due to ACID compliance and team familiarity."
+    assert body["id"] == decision.id
+
+    # Verify via GET /decisions/{decision_id}
+    get_res = client.get(f"/decisions/{decision.id}", headers=headers)
+    assert get_res.status_code == 200
+    assert get_res.json()["rationale"] == "Selected PostgreSQL due to ACID compliance and team familiarity."
+
+
+def test_put_rationale_as_admin(client, db_session, make_token):
+    owner = _create_user(db_session, email="owner_rat@example.com", employee_id="EMP_ORAT")
+    admin = User(
+        full_name="Admin User",
+        email="admin_rat@example.com",
+        role=UserRole.ADMINISTRATOR,
+        password=hash_password("password123"),
+        employee_id="EMP_ARAT",
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+
+    decision = _create_decision(db_session, owner)
+    admin_token = make_token(str(admin.id))
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    response = client.put(f"/decisions/{decision.id}/rationale", json={
+        "rationale": "Admin updated rationale."
+    }, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["rationale"] == "Admin updated rationale."
+
+
+def test_put_rationale_as_non_owner_forbidden(client, db_session, make_token):
+    owner = _create_user(db_session, email="owner_rat2@example.com", employee_id="EMP_ORAT2")
+    other_user = _create_user(db_session, email="other_rat@example.com", employee_id="EMP_OTHRAT")
+    decision = _create_decision(db_session, owner)
+
+    other_token = make_token(str(other_user.id))
+    headers = {"Authorization": f"Bearer {other_token}"}
+
+    response = client.put(f"/decisions/{decision.id}/rationale", json={
+        "rationale": "Unauthorized rationale."
+    }, headers=headers)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Not authorized to modify this decision rationale"
+
+
+def test_put_rationale_decision_not_found(client, db_session, make_token):
+    user = _create_user(db_session)
+    token = make_token(str(user.id))
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.put("/decisions/99999999/rationale", json={
+        "rationale": "Orphan rationale."
+    }, headers=headers)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Decision not found"
+
+
+def test_put_rationale_without_token(client, db_session):
+    response = client.put("/decisions/1/rationale", json={
+        "rationale": "No token rationale."
+    })
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"

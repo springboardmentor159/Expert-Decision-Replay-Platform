@@ -7,9 +7,15 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.database import get_db
 from app.models.decision import Decision
-from app.models.enums import DecisionStatus
+from app.models.enums import DecisionStatus, UserRole
 from app.models.user import User
-from app.schemas.decision import DecisionCreate, DecisionResponse, DecisionStatusUpdate, DecisionUpdate
+from app.schemas.decision import (
+    DecisionCreate,
+    DecisionRationaleUpdate,
+    DecisionResponse,
+    DecisionStatusUpdate,
+    DecisionUpdate,
+)
 
 router = APIRouter(
     prefix="/decisions",
@@ -138,6 +144,39 @@ def update_decision_status(
         )
 
     decision.status = status_data.status
+    decision.updated_at = func.now()
+
+    db.commit()
+    db.refresh(decision)
+
+    return decision
+
+
+@router.put(
+    "/{decision_id}/rationale",
+    response_model=DecisionResponse
+)
+def update_decision_rationale(
+    decision_id: int,
+    rationale_data: DecisionRationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    if decision.created_by != current_user.id and current_user.role != UserRole.ADMINISTRATOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this decision rationale"
+        )
+
+    decision.rationale = rationale_data.rationale
     decision.updated_at = func.now()
 
     db.commit()

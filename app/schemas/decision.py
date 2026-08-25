@@ -22,6 +22,10 @@ class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
 
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
+
+
 class DecisionResponse(BaseModel):
     id: int
     title: str
@@ -29,7 +33,9 @@ class DecisionResponse(BaseModel):
     category: str
     status: str
     created_by: int
+    rationale: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
