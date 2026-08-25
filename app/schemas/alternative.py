@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.models.enums import RiskLevel
 
 
 class AlternativeCreate(BaseModel):
@@ -10,8 +12,18 @@ class AlternativeCreate(BaseModel):
     pros: Optional[str] = None
     cons: Optional[str] = None
     estimated_cost: Optional[int] = None
-    feasibility_score: Optional[int] = None
-    risk_level: Optional[str] = None
+    feasibility_score: Optional[int] = Field(default=None, ge=1, le=5)
+    risk_level: Optional[RiskLevel] = None
+
+
+class AlternativeUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    pros: Optional[str] = None
+    cons: Optional[str] = None
+    estimated_cost: Optional[int] = None
+    feasibility_score: Optional[int] = Field(default=None, ge=1, le=5)
+    risk_level: Optional[RiskLevel] = None
 
 
 class AlternativeResponse(BaseModel):

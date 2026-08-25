@@ -14,3 +14,10 @@ class DecisionStatus(str, Enum):
     APPROVED = "Approved"
     REJECTED = "Rejected"
     ARCHIVED = "Archived"
+
+
+class RiskLevel(str, Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CRITICAL = "Critical"

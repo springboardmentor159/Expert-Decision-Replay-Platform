@@ -1,3 +1,9 @@
+import time
+
+import pytest
+from sqlalchemy.exc import IntegrityError
+
+from app.models.alternative import Alternative
 from app.models.decision import Decision
 from app.models.enums import UserRole
 from app.models.user import User
@@ -43,7 +49,7 @@ ALT_BODY = {
     "pros": "ACID, mature",
     "cons": "Scaling",
     "estimated_cost": 5000,
-    "feasibility_score": 8,
+    "feasibility_score": 4,
     "risk_level": "Low",
 }
 
@@ -60,7 +66,7 @@ def test_create_alternative(client, db_session, make_token):
     assert body["decision_id"] == decision.id
     assert body["name"] == "PostgreSQL"
     assert body["estimated_cost"] == 5000
-    assert body["feasibility_score"] == 8
+    assert body["feasibility_score"] == 4
     assert body["risk_level"] == "Low"
     assert body["id"] is not None
 
@@ -164,3 +170,167 @@ def test_multiple_alternatives_reference_same_decision_in_db(client, db_session,
 
     assert len(decision.alternatives) == 3
     assert all(alt.decision_id == decision.id for alt in decision.alternatives)
+
+
+def test_create_feasibility_score_out_of_range(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    response = client.post(f"/decisions/{decision.id}/alternatives",
+                           json={**ALT_BODY, "feasibility_score": 10}, headers=headers)
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "feasibility_score"]
+
+
+def test_create_risk_level_invalid(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    response = client.post(f"/decisions/{decision.id}/alternatives",
+                           json={**ALT_BODY, "risk_level": "Very Dangerous"}, headers=headers)
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "risk_level"]
+
+
+def test_valid_score_and_risk_values_accepted(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    response = client.post(f"/decisions/{decision.id}/alternatives",
+                           json={**ALT_BODY, "feasibility_score": 5, "risk_level": "Medium"},
+                           headers=headers)
+
+    assert response.status_code == 201
+    assert response.json()["feasibility_score"] == 5
+    assert response.json()["risk_level"] == "Medium"
+
+
+def test_update_alternative(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    created = client.post(f"/decisions/{decision.id}/alternatives", json=ALT_BODY, headers=headers).json()
+
+    time.sleep(1.1)
+
+    response = client.put(f"/alternatives/{created['id']}", json={
+        "name": "PostgreSQL 16",
+        "description": "Updated desc",
+        "pros": "ACID",
+        "cons": "Ops",
+        "estimated_cost": 6000,
+        "feasibility_score": 5,
+        "risk_level": "Medium",
+    }, headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "PostgreSQL 16"
+    assert body["description"] == "Updated desc"
+    assert body["estimated_cost"] == 6000
+    assert body["feasibility_score"] == 5
+    assert body["risk_level"] == "Medium"
+    assert body["id"] == created["id"]
+    assert body["decision_id"] == decision.id
+    assert body["created_at"] == created["created_at"]
+    assert body["updated_at"] > created["updated_at"]
+
+
+def test_update_alternative_ignores_backend_controlled_fields(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    created = client.post(f"/decisions/{decision.id}/alternatives", json=ALT_BODY, headers=headers).json()
+
+    response = client.put(f"/alternatives/{created['id']}", json={
+        "name": "Ignored Injection",
+        "id": 999,
+        "decision_id": 1,
+        "created_at": "2020-01-01T00:00:00",
+        "updated_at": "2020-01-01T00:00:00",
+    }, headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Ignored Injection"
+    assert body["id"] == created["id"]
+    assert body["decision_id"] == decision.id
+    assert body["created_at"] == created["created_at"]
+
+
+def test_update_alternative_not_found(client, db_session, make_token):
+    user = _create_user(db_session)
+    headers = _auth_headers(user, make_token)
+
+    response = client.put("/alternatives/99999999", json={"name": "X"}, headers=headers)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Alternative not found"
+
+
+def test_update_alternative_feasibility_score_out_of_range(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    created = client.post(f"/decisions/{decision.id}/alternatives", json=ALT_BODY, headers=headers).json()
+
+    response = client.put(f"/alternatives/{created['id']}", json={"feasibility_score": 0}, headers=headers)
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "feasibility_score"]
+
+
+def test_update_alternative_risk_level_invalid(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    created = client.post(f"/decisions/{decision.id}/alternatives", json=ALT_BODY, headers=headers).json()
+
+    response = client.put(f"/alternatives/{created['id']}", json={"risk_level": "Very Dangerous"}, headers=headers)
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "risk_level"]
+
+
+def test_update_alternative_without_token(client, db_session):
+    response = client.put("/alternatives/1", json={"name": "X"})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"
+
+
+def test_db_constraint_rejects_invalid_feasibility_score(db_session):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    alt = Alternative(
+        decision_id=decision.id,
+        name="Bad Score",
+        feasibility_score=10,
+    )
+    db_session.add(alt)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()
+
+
+def test_db_constraint_rejects_invalid_risk_level(db_session):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    alt = Alternative(
+        decision_id=decision.id,
+        name="Bad Risk",
+        risk_level="Very Dangerous",
+    )
+    db_session.add(alt)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()

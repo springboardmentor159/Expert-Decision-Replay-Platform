@@ -348,3 +348,80 @@ only pre-existing `employee_live_new@example.com` user remains).
 Alternative update/delete endpoints, `feasibility_score` range validation and `risk_level`
 enum enforcement (DB CHECK + Pydantic), approval workflow. The 6a endpoints intentionally
 accept these as basic int/string types.
+
+---
+
+## Part 6b: Controlled feasibility_score + risk_level + PUT /alternatives/{id} — COMPLETE (2026-08-18)
+
+### Changes
+
+- `app/models/enums.py` — added `RiskLevel(str, Enum)` with exactly 4 values: `Low`,
+  `Medium`, `High`, `Critical` (mirrors `UserRole`/`DecisionStatus` pattern).
+- `app/models/alternative.py` — validation now enforced at the DB layer:
+  - `CheckConstraint("feasibility_score BETWEEN 1 AND 5", name="check_valid_feasibility_score")`
+  - `CheckConstraint("risk_level IN ('Low','Medium','High','Critical')", name="check_valid_risk_level")`
+  - `risk_level` column now `SqlAlchemyEnum(RiskLevel, native_enum=False, values_callable=...)`
+    (still VARCHAR in DB, like decision status). `feasibility_score` stays Integer.
+  - Both columns remain nullable; the CHECKs evaluate to NULL (pass) when the column is NULL.
+- `alembic/versions/4869b7a3e2a0_add_alternative_validation_constraints.py` — new migration.
+  **Note:** `alembic revision --autogenerate` produced an EMPTY migration (Alembic does not
+  detect `CheckConstraint` additions — same reason the `check_valid_status` migration was
+  hand-written in Part 3), so the file was hand-populated with the two
+  `op.create_check_constraint` calls, mirroring that pattern. Applied (`alembic upgrade head`;
+  `alembic current` = head). Both constraints confirmed in `pg_constraint`.
+- `app/schemas/alternative.py` — validation now enforced at the Pydantic layer:
+  - `feasibility_score: Optional[int] = Field(default=None, ge=1, le=5)` → out-of-range values
+    (e.g. 10) rejected with **422** (`less_than_equal`), not 500.
+  - `risk_level: Optional[RiskLevel] = None` → invalid values (e.g. `"Very Dangerous"`)
+    rejected with **422** (enum error `Input should be 'Low', 'Medium', 'High' or 'Critical'`).
+  - Added `AlternativeUpdate` (all-Optional, same validation) for PUT.
+- `app/routers/alternative.py` — added `update_alternative` (PUT /alternatives/{id}):
+  - 404 `{"detail": "Alternative not found"}` if ID missing
+  - updates name/description/pros/cons/estimated_cost/feasibility_score/risk_level (only when
+    not None); `id`/`decision_id`/`created_at`/`updated_at` are not on the schema so any
+    client-supplied values are ignored by Pydantic
+  - sets `updated_at = func.now()` (always bumps on PUT)
+  - protected with existing `get_current_user` JWT (401 without token)
+- `tests/test_alternative.py` — updated ALT_BODY to a valid score (4); 11 new tests
+  (create/update score out of range → 422, create/update invalid risk → 422, valid values
+  accepted, PUT updates + backend fields unchanged + updated_at bumped, PUT ignores
+  injected id/decision_id/created_at, PUT 404, PUT no-token 401, DB CHECK rejects
+  invalid score/risk via IntegrityError).
+
+### Verification results (real PostgreSQL `expert_decision_replay`)
+
+| Check | Result |
+| --- | --- |
+| PUT /alternatives/{valid_id} (valid data) | PASS — 200; name/description/cost/score/risk updated; id, decision_id, created_at unchanged; updated_at bumped 20:48:27.75 → 20:48:28.88 |
+| PUT /alternatives/99999999 | PASS — 404 `{"detail": "Alternative not found"}` |
+| PUT without token | PASS — 401 `{"detail": "Not authenticated"}` |
+| Create with feasibility_score=10 | PASS — 422 `{"type":"less_than_equal","loc":["body","feasibility_score"],"msg":"Input should be less than or equal to 5","input":10}` |
+| Update with feasibility_score=10 | PASS — 422 (same error shape) |
+| Create with risk_level="Very Dangerous" | PASS — 422 `{"type":"enum","loc":["body","risk_level"],"msg":"Input should be 'Low', 'Medium', 'High' or 'Critical'","input":"Very Dangerous"}` |
+| Update with risk_level="Very Dangerous" | PASS — 422 (same error shape) |
+| Valid values (feasibility_score=5, risk_level="Medium") | PASS — 201, persisted correctly |
+| `python -m pytest` | PASS — 49 passed (38 existing + 11 new) |
+
+### Postgres DB-level verification
+
+Constraints in `pg_constraint` on `alternatives`:
+
+```
+check_valid_feasibility_score  CHECK (((feasibility_score >= 1) AND (feasibility_score <= 5)))
+check_valid_risk_level         CHECK (((risk_level)::text = ANY ((ARRAY['Low'::character varying,
+                               'Medium'::character varying, 'High'::character varying,
+                               'Critical'::character varying])::text[])))
+```
+
+Direct-SQL inserts via psycopg2 — rejected at the DB layer (not just app validation):
+`feasibility_score=10` → `psycopg2.errors.CheckViolation: ... violates check constraint
+"check_valid_feasibility_score"`; `risk_level='Very Dangerous'` → violates
+`check_valid_risk_level`. Valid direct insert (score=3, risk='Medium') → accepted, then
+deleted. Test data cleaned up afterward (alternatives 0 rows, decisions 0 rows; only
+pre-existing `employee_live_new@example.com` user remains).
+
+## Out of scope (Part 7 / next) — do NOT touch
+
+Alternative delete endpoints, approval workflow (role-based restrictions, reviewer/manager
+approval chains, status transition rules). The Alternative module is otherwise complete
+through update.
