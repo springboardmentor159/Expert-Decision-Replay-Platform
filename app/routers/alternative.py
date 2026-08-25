@@ -9,7 +9,12 @@ from app.db.database import get_db
 from app.models.alternative import Alternative
 from app.models.decision import Decision
 from app.models.user import User
-from app.schemas.alternative import AlternativeCreate, AlternativeResponse, AlternativeUpdate
+from app.schemas.alternative import (
+    AlternativeCompareResponse,
+    AlternativeCreate,
+    AlternativeResponse,
+    AlternativeUpdate,
+)
 
 router = APIRouter(
     prefix="/decisions",
@@ -61,6 +66,27 @@ def create_alternative(
     db.refresh(new_alternative)
 
     return new_alternative
+
+
+@router.get(
+    "/{decision_id}/alternatives/compare",
+    response_model=AlternativeCompareResponse
+)
+def compare_alternatives(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _get_decision_or_404(db, decision_id)
+
+    alternatives = db.query(Alternative).filter(
+        Alternative.decision_id == decision_id
+    ).all()
+
+    return {
+        "decision_id": decision_id,
+        "alternatives": alternatives
+    }
 
 
 @router.get(

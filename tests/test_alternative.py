@@ -334,3 +334,80 @@ def test_db_constraint_rejects_invalid_risk_level(db_session):
     with pytest.raises(IntegrityError):
         db_session.commit()
     db_session.rollback()
+
+
+def test_compare_alternatives(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    alts_data = [
+        {"name": "PostgreSQL", "estimated_cost": 5000, "feasibility_score": 5, "risk_level": "Low"},
+        {"name": "MySQL", "estimated_cost": 3000, "feasibility_score": 4, "risk_level": "Medium"},
+        {"name": "MongoDB", "estimated_cost": 4000, "feasibility_score": 3, "risk_level": "High"},
+    ]
+
+    for alt in alts_data:
+        res = client.post(f"/decisions/{decision.id}/alternatives", json=alt, headers=headers)
+        assert res.status_code == 201
+
+    response = client.get(f"/decisions/{decision.id}/alternatives/compare", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["decision_id"] == decision.id
+    assert len(body["alternatives"]) == 3
+    assert body["alternatives"] == [
+        {"name": "PostgreSQL", "estimated_cost": 5000, "feasibility_score": 5, "risk_level": "Low"},
+        {"name": "MySQL", "estimated_cost": 3000, "feasibility_score": 4, "risk_level": "Medium"},
+        {"name": "MongoDB", "estimated_cost": 4000, "feasibility_score": 3, "risk_level": "High"},
+    ]
+
+
+def test_compare_alternatives_empty_list(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    response = client.get(f"/decisions/{decision.id}/alternatives/compare", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["decision_id"] == decision.id
+    assert body["alternatives"] == []
+
+
+def test_compare_alternatives_decision_not_found(client, db_session, make_token):
+    user = _create_user(db_session)
+    headers = _auth_headers(user, make_token)
+
+    response = client.get("/decisions/99999999/alternatives/compare", headers=headers)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Decision not found"
+
+
+def test_create_alternative_missing_required_field(client, db_session, make_token):
+    user = _create_user(db_session)
+    decision = _create_decision(db_session, user)
+    headers = _auth_headers(user, make_token)
+
+    response = client.post(f"/decisions/{decision.id}/alternatives", json={"description": "no name"}, headers=headers)
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "name"]
+
+
+def test_all_five_alternative_endpoints_without_token(client, db_session):
+    endpoints = [
+        ("post", "/decisions/1/alternatives", {"json": ALT_BODY}),
+        ("get", "/decisions/1/alternatives", {}),
+        ("get", "/alternatives/1", {}),
+        ("put", "/alternatives/1", {"json": {"name": "Updated"}}),
+        ("get", "/decisions/1/alternatives/compare", {}),
+    ]
+
+    for method, url, kwargs in endpoints:
+        response = getattr(client, method)(url, **kwargs)
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Not authenticated"

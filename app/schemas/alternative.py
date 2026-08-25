@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -40,3 +40,17 @@ class AlternativeResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AlternativeCompareItem(BaseModel):
+    name: str
+    estimated_cost: Optional[int] = None
+    feasibility_score: Optional[int] = None
+    risk_level: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AlternativeCompareResponse(BaseModel):
+    decision_id: int
+    alternatives: List[AlternativeCompareItem]

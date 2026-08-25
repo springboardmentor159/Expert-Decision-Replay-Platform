@@ -420,8 +420,102 @@ Direct-SQL inserts via psycopg2 — rejected at the DB layer (not just app valid
 deleted. Test data cleaned up afterward (alternatives 0 rows, decisions 0 rows; only
 pre-existing `employee_live_new@example.com` user remains).
 
-## Out of scope (Part 7 / next) — do NOT touch
+## Out of scope (Sprint 7 / next) — do NOT touch
 
 Alternative delete endpoints, approval workflow (role-based restrictions, reviewer/manager
 approval chains, status transition rules). The Alternative module is otherwise complete
-through update.
+through update and comparison.
+
+---
+
+## Sprint 6: Alternatives Module (Full Suite & Compare Endpoint) — SIGN-OFF — COMPLETE (2026-08-25)
+
+Final verification pass and comparison endpoint implementation. All 5 Alternative endpoints,
+JWT auth requirements, error handling, comparison shape, and database persistence have been
+verified against live server and real PostgreSQL (`expert_decision_replay`).
+
+### 1. Alternative Endpoints & Auth Requirements
+
+| Method | Endpoint | Auth | Behavior |
+| --- | --- | --- | --- |
+| POST | `/decisions/{decision_id}/alternatives` | JWT (`get_current_user`) | 201; creates alternative tied to `decision_id`; 404 if decision not found; 422 on validation failure; client `id`/`decision_id`/`created_at` ignored |
+| GET | `/decisions/{decision_id}/alternatives` | JWT (`get_current_user`) | 200 list of alternatives for the decision; 404 if decision not found |
+| GET | `/alternatives/{alternative_id}` | JWT (`get_current_user`) | 200 record or 404 `{"detail": "Alternative not found"}` |
+| PUT | `/alternatives/{alternative_id}` | JWT (`get_current_user`) | 200 updates fields (only non-None fields); 404 if not found; `updated_at` bumped; client `id`/`decision_id`/`created_at` ignored; 422 on validation failure |
+| GET | `/decisions/{decision_id}/alternatives/compare` | JWT (`get_current_user`) | 200 comparison-friendly shape `{"decision_id": int, "alternatives": [{"name", "estimated_cost", "feasibility_score", "risk_level"}]}`; 404 if decision not found; 200 with empty array `[]` if decision has zero alternatives |
+
+*Note: Access across all 5 endpoints is protected by standard JWT authentication (`get_current_user`). No multi-level approval or role restrictions are enforced in this module (deferred to Approval Workflow sprint).*
+
+---
+
+### 2. Swagger / E2E Testing Workflow Verification (Real PostgreSQL)
+
+| Step | Action & Description | Expected | Actual Result | Pass/Fail |
+| --- | --- | --- | --- | --- |
+| 1 | POST `/login` with credentials | 200 + JWT token | 200, access token acquired | **PASS** |
+| 2 | POST `/decisions` | 201, status "Draft" | 201, id=25, status="Draft", created_by=27 | **PASS** |
+| 3 | POST 3 alternatives (PostgreSQL, MySQL, MongoDB) | 201 for each, varying cost/feasibility/risk | 201 for IDs 9, 10, 11; decision_id=25 on all | **PASS** |
+| 4 | GET `/decisions/{decision_id}/alternatives` | 200, returns list of 3 | 200, returned 3 alternatives (PostgreSQL, MySQL, MongoDB) | **PASS** |
+| 5 | GET `/alternatives/{id}` | 200, single record | 200, id=9, name="PostgreSQL", decision_id=25 | **PASS** |
+| 6 | PUT `/alternatives/{id}` | 200, update name & cost | 200, name="PostgreSQL 16 Enterprise", cost=6200, updated_at bumped | **PASS** |
+| 7 | POST with invalid `risk_level` ("Extremely Risky") | 422 Unprocessable Entity | 422 `Input should be 'Low', 'Medium', 'High' or 'Critical'` | **PASS** |
+| 8 | POST with invalid `feasibility_score` (10) | 422 Unprocessable Entity | 422 `Input should be less than or equal to 5` | **PASS** |
+| 9 | GET `/decisions/{decision_id}/alternatives/compare` | 200 with 3 comparison items | 200, `decision_id: 25`, all 3 items returned with exact keys `name`, `estimated_cost`, `feasibility_score`, `risk_level` | **PASS** |
+| 10a | POST `/decisions/{id}/alternatives` (no JWT) | 401 Unauthorized | 401 `{"detail": "Not authenticated"}` | **PASS** |
+| 10b | GET `/decisions/{id}/alternatives` (no JWT) | 401 Unauthorized | 401 `{"detail": "Not authenticated"}` | **PASS** |
+| 10c | GET `/alternatives/{id}` (no JWT) | 401 Unauthorized | 401 `{"detail": "Not authenticated"}` | **PASS** |
+| 10d | PUT `/alternatives/{id}` (no JWT) | 401 Unauthorized | 401 `{"detail": "Not authenticated"}` | **PASS** |
+| 10e | GET `/decisions/{id}/alternatives/compare` (no JWT) | 401 Unauthorized | 401 `{"detail": "Not authenticated"}` | **PASS** |
+
+---
+
+### 3. Error Handling Checklist Verification
+
+| Scenario | Endpoint(s) | Status | Response Detail | Pass/Fail |
+| --- | --- | --- | --- | --- |
+| Non-existing decision | POST `/decisions/99999999/alternatives` | 404 | `{"detail": "Decision not found"}` | **PASS** |
+| Non-existing decision | GET `/decisions/99999999/alternatives` | 404 | `{"detail": "Decision not found"}` | **PASS** |
+| Non-existing decision | GET `/decisions/99999999/alternatives/compare` | 404 | `{"detail": "Decision not found"}` | **PASS** |
+| Non-existing alternative | GET `/alternatives/99999999` | 404 | `{"detail": "Alternative not found"}` | **PASS** |
+| Non-existing alternative | PUT `/alternatives/99999999` | 404 | `{"detail": "Alternative not found"}` | **PASS** |
+| Missing required field (`name`) | POST `/decisions/{id}/alternatives` | 422 | `loc: ["body", "name"], type: "missing"` | **PASS** |
+| Invalid `feasibility_score` (<1 or >5) | POST & PUT | 422 | `loc: ["body", "feasibility_score"]` | **PASS** |
+| Invalid `risk_level` (not in enum) | POST & PUT | 422 | `loc: ["body", "risk_level"]` | **PASS** |
+| No JWT Header | All 5 Alternative endpoints | 401 | `{"detail": "Not authenticated"}` | **PASS** |
+| Existing decision with 0 alternatives | GET `.../compare` | 200 | `{"decision_id": <id>, "alternatives": []}` (not an error) | **PASS** |
+
+---
+
+### 4. Direct PostgreSQL Verification
+
+Direct queries via `psycopg2` on live PostgreSQL `expert_decision_replay` database verified:
+- **Foreign Key**: `decision_id` correctly references parent `decisions.id` (id=25).
+- **Multiple Alternatives**: All 3 records (PostgreSQL 16 Enterprise, MySQL, MongoDB) stored under the same `decision_id`.
+- **Field Integrity**: `estimated_cost`, `feasibility_score`, `risk_level` correctly stored and typed.
+- **Updates Reflected**: `name` updated from 'PostgreSQL' to 'PostgreSQL 16 Enterprise', `estimated_cost` updated from 5000 to 6200, and `updated_at` updated timestamp.
+
+### 5. Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 54 items
+
+tests\test_alternative.py .........................                      [ 46%]
+tests\test_auth.py ...                                                   [ 51%]
+tests\test_decision_filtering.py ......                                  [ 62%]
+tests\test_decision_status.py ........                                   [ 77%]
+tests\test_security.py ....                                              [ 85%]
+tests\test_user_enhancements.py ........                                 [100%]
+
+======================= 54 passed, 2 warnings in 13.30s =======================
+```
+
+### 6. Cleanup Verification
+
+- `alternatives` table: **0 rows**
+- `decisions` table: **0 rows**
+- `users` table: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
+
