@@ -12,6 +12,8 @@ from app.schemas.decision import (
     DecisionUpdate,
     DecisionStatusUpdate,
     DecisionResponse,
+    DecisionRationaleUpdate,
+    DecisionRationaleResponse,
 )
 
 
@@ -61,9 +63,9 @@ def create_decision(
 )
 def get_decisions(
     status_filter: Optional[str] = Query(
-    default=None,
-    alias="status"
-),
+        default=None,
+        alias="status",
+    ),
     category: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -77,6 +79,81 @@ def get_decisions(
         query = query.filter(Decision.category == category)
 
     return query.all()
+
+
+# =========================
+# UPDATE DECISION RATIONALE
+# =========================
+
+@router.put(
+    "/{decision_id}/rationale",
+    response_model=DecisionRationaleResponse,
+)
+def update_decision_rationale(
+    decision_id: int,
+    rationale_data: DecisionRationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found",
+        )
+
+    # Only the decision creator can update the rationale
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this decision rationale",
+        )
+
+    decision.rationale = rationale_data.rationale
+
+    db.commit()
+    db.refresh(decision)
+
+    return {
+        "decision_id": decision.id,
+        "rationale": decision.rationale,
+    }
+
+
+# =========================
+# GET DECISION RATIONALE
+# =========================
+
+@router.get(
+    "/{decision_id}/rationale",
+    response_model=DecisionRationaleResponse,
+)
+def get_decision_rationale(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found",
+        )
+
+    return {
+        "decision_id": decision.id,
+        "rationale": decision.rationale,
+    }
 
 
 # =========================

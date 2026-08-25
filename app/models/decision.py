@@ -19,6 +19,8 @@ class Decision(Base):
 
     status = Column(String(50), nullable=False, default="Draft")
 
+    rationale = Column(Text, nullable=True)
+
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -34,6 +36,21 @@ class Decision(Base):
 
     alternatives = relationship(
         "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+    comments = relationship(
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+    discussion_threads = relationship(
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+    meeting_notes = relationship(
+        "MeetingNote",
         back_populates="decision",
         cascade="all, delete-orphan"
     )

@@ -41,3 +41,11 @@ class DecisionResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
+
+
+class DecisionRationaleResponse(BaseModel):
+    decision_id: int
+    rationale: str | None
+    model_config = ConfigDict(from_attributes=True)
