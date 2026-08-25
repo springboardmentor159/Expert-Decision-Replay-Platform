@@ -14,11 +14,19 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 
 
-# Routers
+# =========================================================
+# ROUTERS
+# =========================================================
+
 from routers import decision
 from routers import comment
 from routers import alternative
+from routers import discussion_thread
 
+
+# =========================================================
+# FASTAPI APPLICATION
+# =========================================================
 
 app = FastAPI(
     title=settings.app_name,
@@ -26,37 +34,29 @@ app = FastAPI(
 )
 
 
-# -------------------------
-# Decision Router
-# -------------------------
+# =========================================================
+# INCLUDE ROUTERS
+# =========================================================
 
 app.include_router(decision.router)
 
-
-# -------------------------
-# Comment Router
-# -------------------------
-
 app.include_router(comment.router)
-
-
-# -------------------------
-# Alternative Router
-# -------------------------
 
 app.include_router(alternative.router)
 
+app.include_router(discussion_thread.router)
 
-# -------------------------
-# Bearer Token Security
-# -------------------------
+
+# =========================================================
+# BEARER TOKEN SECURITY
+# =========================================================
 
 security = HTTPBearer()
 
 
-# -------------------------
-# Health Check
-# -------------------------
+# =========================================================
+# HEALTH CHECK
+# =========================================================
 
 @app.get("/health")
 def health_check():
@@ -66,9 +66,9 @@ def health_check():
     }
 
 
-# -------------------------
-# Create User
-# -------------------------
+# =========================================================
+# CREATE USER
+# =========================================================
 
 @app.post(
     "/users",
@@ -122,9 +122,9 @@ def create_user(
     return db_user
 
 
-# -------------------------
-# Login
-# -------------------------
+# =========================================================
+# LOGIN
+# =========================================================
 
 @app.post("/login")
 def login(
@@ -169,9 +169,9 @@ def login(
     }
 
 
-# -------------------------
-# Protected API
-# -------------------------
+# =========================================================
+# GET CURRENT USER PROFILE
+# =========================================================
 
 @app.get("/users/me")
 def get_my_profile(
@@ -182,6 +182,7 @@ def get_my_profile(
     token = credentials.credentials
 
     try:
+
         payload = jwt.decode(
             token,
             settings.secret_key,
@@ -199,6 +200,7 @@ def get_my_profile(
         user_id = int(user_id)
 
     except (JWTError, ValueError):
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -211,6 +213,7 @@ def get_my_profile(
     )
 
     if not user:
+
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",

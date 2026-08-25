@@ -73,3 +73,10 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+
+    # One Decision -> Many Discussion Threads
+    discussion_threads = relationship(
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )

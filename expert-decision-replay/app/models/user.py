@@ -68,3 +68,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
+    # One User -> Many Discussion Threads
+    discussion_threads = relationship(
+        "DiscussionThread",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

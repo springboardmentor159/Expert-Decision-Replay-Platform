@@ -5,8 +5,8 @@ from datetime import datetime
 from app.db.base import Base
 
 
-class Comment(Base):
-    __tablename__ = "comments"
+class DiscussionThread(Base):
+    __tablename__ = "discussion_threads"
 
     id = Column(
         Integer,
@@ -20,24 +20,26 @@ class Comment(Base):
         nullable=False
     )
 
-    user_id = Column(
+    created_by = Column(
         Integer,
         ForeignKey("users.id"),
         nullable=False
     )
 
-    content = Column(
+    title = Column(
         String,
         nullable=False
     )
 
-    # NEW:
-    # NULL = normal decision comment
-    # value = reply to a discussion thread
-    thread_id = Column(
-        Integer,
-        ForeignKey("discussion_threads.id"),
-        nullable=True
+    description = Column(
+        String,
+        nullable=False
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="Open"
     )
 
     created_at = Column(
@@ -53,20 +55,21 @@ class Comment(Base):
         nullable=False
     )
 
-    # Decision -> Comments
+    # DiscussionThread -> Decision
     decision = relationship(
         "Decision",
-        back_populates="comments"
+        back_populates="discussion_threads"
     )
 
-    # User -> Comments
+    # DiscussionThread -> User
     user = relationship(
         "User",
-        back_populates="comments"
+        back_populates="discussion_threads"
     )
 
-    # Discussion Thread -> Replies
-    thread = relationship(
-        "DiscussionThread",
-        back_populates="comments"
+    # DiscussionThread -> Many Replies
+    comments = relationship(
+        "Comment",
+        back_populates="thread",
+        cascade="all, delete-orphan"
     )
