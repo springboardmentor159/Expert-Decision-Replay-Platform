@@ -17,6 +17,7 @@ from app.schemas.user import UserCreate, UserResponse
 # Routers
 from routers import decision
 from routers import comment
+from routers import alternative
 
 
 app = FastAPI(
@@ -37,6 +38,13 @@ app.include_router(decision.router)
 # -------------------------
 
 app.include_router(comment.router)
+
+
+# -------------------------
+# Alternative Router
+# -------------------------
+
+app.include_router(alternative.router)
 
 
 # -------------------------

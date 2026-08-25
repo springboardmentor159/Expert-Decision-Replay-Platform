@@ -33,7 +33,6 @@ def create_decision(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-
     decision = Decision(
         title=decision_data.title,
         problem_statement=decision_data.problem_statement,
@@ -66,7 +65,6 @@ def get_decisions(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-
     query = db.query(Decision)
 
     # Filter by status
@@ -97,7 +95,6 @@ def get_decision(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
@@ -127,7 +124,6 @@ def update_decision(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
@@ -165,7 +161,6 @@ def update_decision_status(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
@@ -184,3 +179,36 @@ def update_decision_status(
     db.refresh(decision)
 
     return decision
+
+
+# =========================================================
+# DELETE DECISION
+# =========================================================
+
+@router.delete(
+    "/{decision_id}",
+    status_code=status.HTTP_200_OK
+)
+def delete_decision(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    db.delete(decision)
+    db.commit()
+
+    return {
+        "message": "Decision deleted successfully"
+    }
