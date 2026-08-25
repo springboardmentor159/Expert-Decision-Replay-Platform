@@ -30,4 +30,7 @@ class User(Base):
     phone_number = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    decisions = relationship("Decision", back_populates="creator", cascade="all, delete-orphan")
+    decisions = relationship("Decision", back_populates="creator", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
+    threads = relationship("DiscussionThread", back_populates="creator", cascade="all, delete-orphan")
+

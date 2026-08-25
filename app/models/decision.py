@@ -32,3 +32,5 @@ class Decision(Base):
 
     creator = relationship("User", back_populates="decisions")
     alternatives = relationship("Alternative", back_populates="decision", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="decision", cascade="all, delete-orphan")
+    threads = relationship("DiscussionThread", back_populates="decision", cascade="all, delete-orphan")

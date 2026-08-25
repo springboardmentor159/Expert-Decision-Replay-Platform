@@ -519,3 +519,170 @@ tests\test_user_enhancements.py ........                                 [100%]
 - `decisions` table: **0 rows**
 - `users` table: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
 
+---
+
+## Sprint 7: Comments Module (Model, Migration, Schemas, Endpoints & Ownership) — SIGN-OFF — COMPLETE (2026-08-25)
+
+### 1. What was built & Files Touched
+
+- `app/models/comment.py` — SQLAlchemy `Comment` model with `id` (PK), `decision_id` (FK → decisions.id), `user_id` (FK → users.id), `content` (String, NOT NULL), `created_at`, and `updated_at`. Added relationships to `Decision` and `User`.
+- `app/models/decision.py` — added `comments` relationship (`cascade="all, delete-orphan"`).
+- `app/models/user.py` — added `comments` relationship (`cascade="all, delete-orphan"`).
+- `app/models/__init__.py` & `alembic/env.py` — registered `Comment` model.
+- `alembic/versions/72f74061fb2d_create_comments_table.py` — migration generated via `alembic revision --autogenerate`, reviewed, and applied (`alembic upgrade head`).
+- `app/schemas/comment.py` — `CommentCreate` (`content` only), `CommentUpdate` (`content` only), and `CommentResponse` (full model).
+- `app/routers/comment.py` — 5 endpoints with JWT auth and ownership validation:
+  - `POST /decisions/{decision_id}/comments` → 201 (404 if decision not found, `user_id` set from JWT)
+  - `GET /decisions/{decision_id}/comments` → 200 (404 if decision not found)
+  - `GET /comments/{comment_id}` → 200 (404 if comment not found)
+  - `PUT /comments/{comment_id}` → 200 (404 if not found, 403 Forbidden if not author/admin, `updated_at` bumped)
+  - `DELETE /comments/{comment_id}` → 200 `{"message": "Comment deleted successfully"}` (404 if not found, 403 Forbidden if not author/admin)
+- `app/main.py` — registered `comment_router` and `comments_router`.
+- `tests/test_comment.py` — 16 unit/integration tests covering CRUD, 401s, 403s, 404s, admin moderation, and cascade delete.
+
+---
+
+### 2. Ownership Enforcement Policy
+
+- **Rule Chosen**: **Author OR Administrator**
+- **Rationale**: The original author of the comment retains full editing and deletion rights over their own contributions. In addition, users with the `Administrator` role are granted administrative/moderation permissions to edit or remove comments across the system when necessary (e.g. content moderation, policy violations). Non-admin users attempting to update or delete another user's comment are rejected with **403 Forbidden** (`{"detail": "Not authorized to modify this comment"}` / `{"detail": "Not authorized to delete this comment"}`).
+
+---
+
+### 3. Swagger / E2E Testing Workflow Verification (Real PostgreSQL)
+
+| Step | Action & Description | Expected | Actual Result | Pass/Fail |
+| --- | --- | --- | --- | --- |
+| 1 | Login as User A → JWT | 200 + token | 200, acquired token for User A (id=28) | **PASS** |
+| 2 | Create Decision | 201 Created | 201, decision_id=27 | **PASS** |
+| 3 | Create 3 comments as User A | 201 for each | 201 for comment IDs 1, 2, 3; all tied to decision 27 and user 28 | **PASS** |
+| 4 | POST `/decisions/99999/comments` | 404 Not Found | 404 `{"detail": "Decision not found"}` | **PASS** |
+| 5 | GET `/decisions/{id}/comments` | 200 list of 3 | 200, returned all 3 comments by User A | **PASS** |
+| 6 | GET `/comments/{id}` | 200 single record | 200, comment id=1, user_id=28, content="First comment by User A" | **PASS** |
+| 7 | GET `/comments/99999` | 404 Not Found | 404 `{"detail": "Comment not found"}` | **PASS** |
+| 8 | PUT `/comments/{id}` as owner (User A) | 200 OK | 200, content updated, id/decision_id/user_id unchanged, updated_at bumped | **PASS** |
+| 9 | Login as User B, PUT `/comments/{User A's comment id}` | 403 Forbidden | 403 `{"detail": "Not authorized to modify this comment"}` | **PASS** |
+| 9b | Login as Admin, PUT `/comments/{User A's comment id}` | 200 OK | 200, content updated by Administrator | **PASS** |
+| 10 | DELETE `/comments/{id}` as owner (User A) | 200 OK | 200 `{"message": "Comment deleted successfully"}`, subsequent GET is 404 | **PASS** |
+| 11 | DELETE `/comments/99999` | 404 Not Found | 404 `{"detail": "Comment not found"}` | **PASS** |
+| 12a | DELETE on User A's comment as User B | 403 Forbidden | 403 `{"detail": "Not authorized to delete this comment"}` | **PASS** |
+| 12b | DELETE on User A's comment as Administrator | 200 OK | 200 `{"message": "Comment deleted successfully"}` | **PASS** |
+| 13 | All 5 endpoints without token | 401 Unauthorized | 401 `{"detail": "Not authenticated"}` on all 5 | **PASS** |
+
+---
+
+### 4. Direct PostgreSQL Verification
+
+Direct queries via `psycopg2` on live PostgreSQL `expert_decision_replay` database verified:
+- **Columns & Types**: `id` (integer PK), `decision_id` (integer FK → decisions.id), `user_id` (integer FK → users.id), `content` (varchar, NOT NULL), `created_at` (timestamptz), `updated_at` (timestamptz).
+- **Constraints**: `comments_pkey`, `comments_decision_id_fkey`, `comments_user_id_fkey`, indexes on `id`, `decision_id`, `user_id`.
+- **Multi-user integrity**: Verified multiple comments correctly stored under the same `decision_id` referencing distinct `user_id`s.
+
+---
+
+### 5. Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 70 items
+
+tests\test_alternative.py .........................                      [ 35%]
+tests\test_auth.py ...                                                   [ 40%]
+tests\test_comment.py ................                                   [ 62%]
+tests\test_decision_filtering.py ......                                  [ 71%]
+tests\test_decision_status.py ........                                   [ 82%]
+tests\test_security.py ....                                              [ 88%]
+tests\test_user_enhancements.py ........                                 [100%]
+
+======================= 70 passed, 2 warnings in 19.07s =======================
+```
+
+---
+
+### 6. Post-Verification Database State
+
+- `comments` table: **0 rows**
+- `alternatives` table: **0 rows**
+- `decisions` table: **0 rows**
+- `users` table: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
+
+---
+
+## Sprint 8: Discussion Threads (Model, CRUD, Ownership & Thread Replies) — COMPLETE (2026-08-25)
+
+### 1. What was built & Files Touched
+
+- `app/models/discussion_thread.py` — SQLAlchemy `DiscussionThread` model with `id`, `decision_id` (FK → decisions.id), `created_by` (FK → users.id), `title`, `description` (nullable), `status` (String, default `"Open"`), `created_at`, `updated_at`. Relationships to `Decision`, `User`, and `comments`.
+- `app/models/comment.py` — added nullable `thread_id` FK (→ discussion_threads.id) and `thread` relationship for thread replies.
+- `app/models/decision.py` — added `threads` relationship (`cascade="all, delete-orphan"`).
+- `app/models/user.py` — added `threads` relationship (`cascade="all, delete-orphan"`).
+- `app/models/__init__.py` & `alembic/env.py` — registered `DiscussionThread`.
+- `alembic/versions/a9b7255d0c2f_create_discussion_threads_table.py` — single migration creating `discussion_threads` table AND adding `thread_id` column to `comments` (both changes detected by autogenerate). Applied (`alembic upgrade head`; `alembic current` = head).
+- `app/schemas/discussion_thread.py` — `ThreadCreate` (title, description only), `ThreadUpdate` (title, description, status — all optional), `ThreadResponse` (full model).
+- `app/schemas/comment.py` — `CommentResponse` updated to include `thread_id: int | None`.
+- `app/routers/discussion_thread.py` — 6 endpoints with JWT auth and ownership validation:
+  - `POST /decisions/{decision_id}/threads` → 201 (404 if decision not found, `created_by` set from JWT)
+  - `GET /decisions/{decision_id}/threads` → 200 (404 if decision not found)
+  - `GET /threads/{thread_id}` → 200 (404 if thread not found)
+  - `PUT /threads/{thread_id}` → 200 (404 if not found, 403 Forbidden if not author/admin)
+  - `DELETE /threads/{thread_id}` → 200 `{"message": "Thread deleted successfully"}` (404 if not found, 403 Forbidden if not author/admin)
+  - `POST /threads/{thread_id}/comments` → 201 (404 if thread not found; creates a Comment with `thread_id` set)
+- `app/main.py` — registered `thread_router` and `threads_router`.
+- `tests/test_thread.py` — 20 tests covering all CRUD operations, ownership, admin override, thread replies, and auth.
+
+### 2. Ownership Enforcement Policy
+
+- **Rule Applied**: **Author OR Administrator** — same as Sprint 7a Comments.
+- **Rationale**: Reused the same rule from comments because thread authors should retain control over their discussion topics, and administrators need moderation capabilities. This is consistent with the comment module and avoids introducing different authorization rules within the same feature area.
+- **Implementation**: `if thread.created_by != current_user.id and current_user.role != UserRole.ADMINISTRATOR` → 403 Forbidden.
+
+### 3. Thread Replies Design Decision
+
+- Added nullable `thread_id` FK to the `comments` table.
+- A comment is either a **direct comment on a decision** (`thread_id = NULL`) or a **reply to a thread** (`thread_id = <thread_id>`).
+- Both types share the same `Comment` model — no separate reply model needed.
+- Existing Sprint 7a comment endpoints remain unchanged (they key off `decision_id`, not `thread_id`).
+- `POST /threads/{thread_id}/comments` creates a comment with both `decision_id` (inherited from the thread's parent decision) and `thread_id` (the target thread).
+
+### 4. Status Field Assumption
+
+- `status` is a plain `String` with no controlled enum values (not built a workflow unless spec elsewhere requires specific values).
+- Default value is `"Open"` (Python-side default on the model; no DB DEFAULT constraint).
+- If a future workflow requires specific values, a CHECK constraint + enum should be added (similar to `DecisionStatus`).
+
+### 5. Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 90 items
+
+tests\test_alternative.py .........................                      [ 24%]
+tests\test_auth.py ...                                                   [ 30%]
+tests\test_comment.py ................                                     [ 47%]
+tests\test_decision_filtering.py ......                                  [ 55%]
+tests\test_decision_status.py ........                                   [ 65%]
+tests\test_security.py ....                                              [ 70%]
+tests\test_thread.py ....................                                 [100%]
+tests\test_user_enhancements.py ........                                 [100%]
+
+====================== 90 passed, 2 warnings in 26.93s = ======================
+```
+
+**All Sprint 7a comment tests still pass alongside 20 new thread tests — no regression.**
+
+### 6. Post-Verification Database State
+
+- `discussion_threads` table: **0 rows**
+- `comments` table: **0 rows**
+- `alternatives` table: **0 rows**
+- `decisions` table: **0 rows**
+- `users` table: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
+
+
+
