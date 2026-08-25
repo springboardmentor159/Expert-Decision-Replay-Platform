@@ -3,5 +3,6 @@ from app.models.decision import Decision
 from app.models.alternative import Alternative
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
+from app.models.meeting_note import MeetingNote
 
-__all__ = ["User", "Decision", "Alternative", "Comment", "DiscussionThread"]
+__all__ = ["User", "Decision", "Alternative", "Comment", "DiscussionThread", "MeetingNote"]

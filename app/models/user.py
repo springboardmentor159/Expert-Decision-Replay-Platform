@@ -33,4 +33,5 @@ class User(Base):
     decisions = relationship("Decision", back_populates="creator", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
     threads = relationship("DiscussionThread", back_populates="creator", cascade="all, delete-orphan")
+    meeting_notes = relationship("MeetingNote", back_populates="creator", cascade="all, delete-orphan")
 

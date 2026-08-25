@@ -34,3 +34,4 @@ class Decision(Base):
     alternatives = relationship("Alternative", back_populates="decision", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="decision", cascade="all, delete-orphan")
     threads = relationship("DiscussionThread", back_populates="decision", cascade="all, delete-orphan")
+    meeting_notes = relationship("MeetingNote", back_populates="decision", cascade="all, delete-orphan")

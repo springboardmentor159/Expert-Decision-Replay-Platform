@@ -684,5 +684,101 @@ tests\test_user_enhancements.py ........                                 [100%]
 - `decisions` table: **0 rows**
 - `users` table: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
 
+---
+
+## Sprint 7c: Meeting Notes Module (Model, Migration, Schemas, Endpoints & Ownership) — SIGN-OFF — COMPLETE (2026-08-25)
+
+### 1. What was built & Files Touched
+
+- `app/models/meeting_note.py` — SQLAlchemy `MeetingNote` model with `id` (PK), `decision_id` (FK → decisions.id), `created_by` (FK → users.id), `title` (String, NOT NULL), `content` (String, NOT NULL), `meeting_date` (DateTime, NOT NULL), `created_at`, `updated_at`. Relationships to `Decision` (`meeting_notes`) and `User` (`meeting_notes`).
+- `app/models/decision.py` — added `meeting_notes` relationship (`cascade="all, delete-orphan"`).
+- `app/models/user.py` — added `meeting_notes` relationship (`cascade="all, delete-orphan"`).
+- `app/models/__init__.py` & `alembic/env.py` — registered `MeetingNote`.
+- `alembic/versions/85a9d7f952e2_create_meeting_notes_table.py` — migration created and applied (`alembic upgrade head`; `alembic current` = head).
+- `app/schemas/meeting_note.py` — `MeetingNoteCreate` (`title`, `content`, `meeting_date`), `MeetingNoteUpdate` (`title`, `content`, `meeting_date` — all optional), `MeetingNoteResponse` (full model).
+- `app/routers/meeting_note.py` — 5 endpoints with JWT auth (`get_current_user`) and ownership checks:
+  - `POST /decisions/{decision_id}/meeting-notes` → 201 (`created_by` from JWT; 404 if decision not found)
+  - `GET /decisions/{decision_id}/meeting-notes` → 200 list of notes (404 if decision not found)
+  - `GET /meeting-notes/{note_id}` → 200 (404 if note not found)
+  - `PUT /meeting-notes/{note_id}` → 200 (404 if not found; 403 Forbidden if not author/admin; bumps `updated_at`)
+  - `DELETE /meeting-notes/{note_id}` → 200 `{"message": "Meeting note deleted successfully"}` (404 if not found; 403 Forbidden if not author/admin)
+- `app/main.py` — registered `meeting_note_router` and `meeting_notes_router`.
+- `tests/test_meeting_note.py` — 18 comprehensive tests covering CRUD, missing decision 404, missing note 404, field injections ignored, 422 validations, 401 without tokens, author/admin ownership 403/200, and cascade deletion.
+
+---
+
+### 2. Ownership Enforcement Policy
+
+- **Rule Applied**: **Author OR Administrator** — consistent with Comments and Discussion Threads.
+- **Rationale**: Original authors retain full control to edit or delete their meeting notes. Users with the `Administrator` role retain administrative/moderation capability. Non-owner non-admin users receive **403 Forbidden** (`{"detail": "Not authorized to modify this meeting note"}` / `{"detail": "Not authorized to delete this meeting note"}`).
+
+---
+
+### 3. Swagger / E2E Testing Workflow Verification (Real PostgreSQL)
+
+| Step | Action & Description | Expected | Actual Result | Pass/Fail |
+| --- | --- | --- | --- | --- |
+| 1 | POST `/decisions/{id}/meeting-notes` | 201 Created | 201 Created (id=1, decision_id=28, created_by=31) | **PASS** |
+| 2 | POST `/decisions/99999/meeting-notes` | 404 Not Found | 404 `{"detail": "Decision not found"}` | **PASS** |
+| 3 | GET `/decisions/{id}/meeting-notes` | 200 list of notes | 200, returned 2 notes | **PASS** |
+| 4 | GET `/meeting-notes/{id}` | 200 single note | 200, id=1, title="Initial Cloud Architecture Review" | **PASS** |
+| 5 | GET `/meeting-notes/99999` | 404 Not Found | 404 `{"detail": "Meeting note not found"}` | **PASS** |
+| 6 | PUT `/meeting-notes/{id}` as owner | 200 OK | 200, title updated, id/decision_id/created_by unchanged, updated_at bumped | **PASS** |
+| 7a | PUT `/meeting-notes/{id}` as non-owner | 403 Forbidden | 403 `{"detail": "Not authorized to modify this meeting note"}` | **PASS** |
+| 7b | PUT `/meeting-notes/{id}` as Administrator | 200 OK | 200, title updated by Admin | **PASS** |
+| 8a | DELETE non-existing note | 404 Not Found | 404 `{"detail": "Meeting note not found"}` | **PASS** |
+| 8b | DELETE `/meeting-notes/{id}` as non-owner | 403 Forbidden | 403 `{"detail": "Not authorized to delete this meeting note"}` | **PASS** |
+| 8c | DELETE `/meeting-notes/{id}` as owner | 200 OK | 200 `{"message": "Meeting note deleted successfully"}` | **PASS** |
+| 8d | DELETE `/meeting-notes/{id}` as Admin | 200 OK | 200 `{"message": "Meeting note deleted successfully"}` | **PASS** |
+| 9 | All 5 endpoints without token | 401 Unauthorized | 401 `{"detail": "Not authenticated"}` on all 5 | **PASS** |
+| 10 | POST with missing required field (`title`) | 422 Unprocessable | 422 validation error `loc: ["body", "title"]` | **PASS** |
+
+---
+
+### 4. Direct PostgreSQL Verification
+
+Direct queries via `psycopg2` on live PostgreSQL `expert_decision_replay` database verified:
+- **Columns & Types**: `id` (integer PK), `decision_id` (integer FK → decisions.id), `created_by` (integer FK → users.id), `title` (varchar), `content` (varchar), `meeting_date` (timestamptz), `created_at` (timestamptz), `updated_at` (timestamptz).
+- **Constraints & Indexes**: `meeting_notes_pkey`, `meeting_notes_decision_id_fkey`, `meeting_notes_created_by_fkey`, indexes on `id`, `decision_id`, `created_by`.
+- **Relationship**: Verified correct foreign key references to `decisions.id` and `users.id`.
+
+---
+
+### 5. Full Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 108 items
+
+tests\test_alternative.py .........................                      [ 23%]
+tests\test_auth.py ...                                                   [ 25%]
+tests\test_comment.py ................                                   [ 40%]
+tests\test_decision_filtering.py ......                                  [ 46%]
+tests\test_decision_status.py ........                                   [ 53%]
+tests\test_meeting_note.py ..................                            [ 70%]
+tests\test_security.py ....                                              [ 74%]
+tests\test_thread.py ....................                                [ 92%]
+tests\test_user_enhancements.py ........                                 [100%]
+
+====================== 108 passed, 2 warnings in 31.86s =======================
+```
+
+**Zero regressions across Decisions, Alternatives, Comments, Discussion Threads, and Auth modules.**
+
+---
+
+### 6. Post-Verification Database State
+
+- `meeting_notes` table: **0 rows**
+- `discussion_threads` table: **0 rows**
+- `comments` table: **0 rows**
+- `alternatives` table: **0 rows**
+- `decisions` table: **0 rows**
+- `users` table: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
+
+
 
 
