@@ -13,8 +13,10 @@ from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 
-# Decision router
+
+# Routers
 from routers import decision
+from routers import comment
 
 
 app = FastAPI(
@@ -28,6 +30,13 @@ app = FastAPI(
 # -------------------------
 
 app.include_router(decision.router)
+
+
+# -------------------------
+# Comment Router
+# -------------------------
+
+app.include_router(comment.router)
 
 
 # -------------------------

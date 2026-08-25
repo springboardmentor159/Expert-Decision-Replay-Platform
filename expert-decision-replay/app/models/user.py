@@ -61,3 +61,10 @@ class User(Base):
         "Decision",
         back_populates="user"
     )
+
+    # One User -> Many Comments
+    comments = relationship(
+        "Comment",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

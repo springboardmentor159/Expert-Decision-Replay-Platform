@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from datetime import datetime
 
 from app.db.base import Base
 
@@ -8,15 +8,32 @@ from app.db.base import Base
 class Decision(Base):
     __tablename__ = "decisions"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
-    title = Column(String, nullable=False)
+    title = Column(
+        String,
+        nullable=False
+    )
 
-    problem_statement = Column(Text, nullable=False)
+    problem_statement = Column(
+        String,
+        nullable=False
+    )
 
-    category = Column(String, nullable=False)
+    category = Column(
+        String,
+        nullable=False
+    )
 
-    status = Column(String, nullable=False, default="Draft")
+    status = Column(
+        String,
+        nullable=False,
+        default="Draft"
+    )
 
     created_by = Column(
         Integer,
@@ -25,15 +42,15 @@ class Decision(Base):
     )
 
     created_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        DateTime,
+        default=datetime.utcnow,
         nullable=False
     )
 
     updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
         nullable=False
     )
 
@@ -41,4 +58,18 @@ class Decision(Base):
     user = relationship(
         "User",
         back_populates="decisions"
+    )
+
+    # One Decision -> Many Alternatives
+    alternatives = relationship(
+        "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    # One Decision -> Many Comments
+    comments = relationship(
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
     )
