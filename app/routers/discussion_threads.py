@@ -11,6 +11,7 @@ from app.models.discussion_thread import DiscussionThread
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.discussion_thread import ThreadCreate, ThreadResponse, ThreadUpdate
+from app.services.activity_logger import log_activity
 
 router = APIRouter(tags=["Discussion Threads"])
 
@@ -44,6 +45,16 @@ def create_thread(
     db.add(new_thread)
     db.commit()
     db.refresh(new_thread)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="create",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=f"User {current_user.full_name} created discussion thread '{new_thread.title}' on Decision #{decision_id}"
+    )
+
     return new_thread
 
 
@@ -126,6 +137,16 @@ def update_thread(
 
     db.commit()
     db.refresh(thread)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="update",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"User {current_user.full_name} updated discussion thread '{thread.title}'"
+    )
+
     thread.replies = db.query(Comment).filter(Comment.thread_id == thread.id).all()
     return thread
 
@@ -186,6 +207,16 @@ def create_thread_comment(
     db.add(new_reply)
     db.commit()
     db.refresh(new_reply)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="create",
+        entity_type="Comment",
+        entity_id=new_reply.id,
+        description=f"User {current_user.full_name} replied to thread '{thread.title}'"
+    )
+
     return new_reply
 
 

@@ -4,6 +4,9 @@ from app.models.alternative import Alternative
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
+from app.models.tag import Tag, decision_tags
+from app.models.activity_log import ActivityLog
+from app.models.approval import Approval
 
 __all__ = [
     "User",
@@ -12,4 +15,8 @@ __all__ = [
     "Comment",
     "DiscussionThread",
     "MeetingNote",
+    "Tag",
+    "decision_tags",
+    "ActivityLog",
+    "Approval",
 ]

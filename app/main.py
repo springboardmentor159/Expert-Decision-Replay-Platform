@@ -8,10 +8,14 @@ from app.routers.alternatives import router as alternatives_router
 from app.routers.comments import router as comments_router
 from app.routers.discussion_threads import router as threads_router
 from app.routers.meeting_notes import router as meeting_notes_router
+from app.routers.tags import router as tags_router
+from app.routers.approvals import router as approvals_router
+from app.routers.activities import router as activities_router
+from app.routers.dashboard import router as dashboard_router
 
 app = FastAPI(
     title="Expert Decision Replay Platform",
-    description="API for the Expert Decision Replay Platform with User Management and JWT Authentication",
+    description="API for the Expert Decision Replay Platform with Knowledge Repository, Search, Discovery, Dashboards, and Analytics",
     version="1.0.0",
 )
 
@@ -30,3 +34,7 @@ app.include_router(alternatives_router)
 app.include_router(comments_router)
 app.include_router(threads_router)
 app.include_router(meeting_notes_router)
+app.include_router(tags_router)
+app.include_router(approvals_router)
+app.include_router(activities_router)
+app.include_router(dashboard_router)

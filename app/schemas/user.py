@@ -33,11 +33,13 @@ class UserUpdate(BaseModel):
     phone_number: Optional[str] = None
 
 
+from typing import Optional, Union
+
 class UserResponse(BaseModel):
     id: int
     full_name: str
     email: EmailStr
-    role: UserRole
+    role: Union[UserRole, str]
     employee_id: Optional[str] = None
     department: Optional[str] = None
     designation: Optional[str] = None
