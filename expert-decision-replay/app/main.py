@@ -22,6 +22,7 @@ from routers import decision
 from routers import comment
 from routers import alternative
 from routers import discussion_thread
+from routers import meeting_note
 
 
 # =========================================================
@@ -45,6 +46,8 @@ app.include_router(comment.router)
 app.include_router(alternative.router)
 
 app.include_router(discussion_thread.router)
+
+app.include_router(meeting_note.router)
 
 
 # =========================================================

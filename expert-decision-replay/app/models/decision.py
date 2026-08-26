@@ -34,6 +34,10 @@ class Decision(Base):
         nullable=False,
         default="Draft"
     )
+    rationale = Column(
+    String,
+    nullable=True
+)
 
     created_by = Column(
         Integer,
@@ -54,29 +58,51 @@ class Decision(Base):
         nullable=False
     )
 
+    # =====================================================
     # Many Decisions -> One User
+    # =====================================================
+
     user = relationship(
         "User",
         back_populates="decisions"
     )
 
+    # =====================================================
     # One Decision -> Many Alternatives
+    # =====================================================
+
     alternatives = relationship(
         "Alternative",
         back_populates="decision",
         cascade="all, delete-orphan"
     )
 
+    # =====================================================
     # One Decision -> Many Comments
+    # =====================================================
+
     comments = relationship(
         "Comment",
         back_populates="decision",
         cascade="all, delete-orphan"
     )
 
+    # =====================================================
     # One Decision -> Many Discussion Threads
+    # =====================================================
+
     discussion_threads = relationship(
         "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    # =====================================================
+    # One Decision -> Many Meeting Notes
+    # =====================================================
+
+    meeting_notes = relationship(
+        "MeetingNote",
         back_populates="decision",
         cascade="all, delete-orphan"
     )

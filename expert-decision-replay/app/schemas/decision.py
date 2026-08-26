@@ -45,6 +45,14 @@ class DecisionStatusUpdate(BaseModel):
 
 
 # -----------------------------------------
+# Decision Rationale Update
+# -----------------------------------------
+
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
+
+
+# -----------------------------------------
 # Decision Response
 # -----------------------------------------
 

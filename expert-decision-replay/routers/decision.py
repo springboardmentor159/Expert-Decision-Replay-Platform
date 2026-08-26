@@ -9,6 +9,7 @@ from app.schemas.decision import (
     DecisionStatusUpdate,
     DecisionResponse,
     DecisionStatus,
+    DecisionRationaleUpdate,
 )
 from app.core.dependencies import get_current_user
 
@@ -67,13 +68,11 @@ def get_decisions(
 ):
     query = db.query(Decision)
 
-    # Filter by status
     if status_filter:
         query = query.filter(
             Decision.status == status_filter.value
         )
 
-    # Filter by category
     if category:
         query = query.filter(
             Decision.category == category
@@ -136,7 +135,6 @@ def update_decision(
             detail="Decision not found"
         )
 
-    # Only allowed fields are updated
     decision.title = decision_data.title
     decision.problem_statement = decision_data.problem_statement
     decision.category = decision_data.category
@@ -179,6 +177,70 @@ def update_decision_status(
     db.refresh(decision)
 
     return decision
+
+
+# =========================================================
+# UPDATE DECISION RATIONALE
+# =========================================================
+
+@router.put(
+    "/{decision_id}/rationale",
+    response_model=DecisionResponse
+)
+def update_decision_rationale(
+    decision_id: int,
+    rationale_data: DecisionRationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    decision.rationale = rationale_data.rationale
+
+    db.commit()
+    db.refresh(decision)
+
+    return decision
+
+
+# =========================================================
+# GET DECISION RATIONALE
+# =========================================================
+
+@router.get(
+    "/{decision_id}/rationale"
+)
+def get_decision_rationale(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    return {
+        "decision_id": decision.id,
+        "rationale": decision.rationale
+    }
 
 
 # =========================================================

@@ -56,22 +56,41 @@ class User(Base):
         nullable=False
     )
 
+    # =====================================================
     # One User -> Many Decisions
+    # =====================================================
+
     decisions = relationship(
         "Decision",
         back_populates="user"
     )
 
+    # =====================================================
     # One User -> Many Comments
+    # =====================================================
+
     comments = relationship(
         "Comment",
         back_populates="user",
         cascade="all, delete-orphan"
     )
 
+    # =====================================================
     # One User -> Many Discussion Threads
+    # =====================================================
+
     discussion_threads = relationship(
         "DiscussionThread",
         back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    # =====================================================
+    # One User -> Many Meeting Notes
+    # =====================================================
+
+    meeting_notes = relationship(
+        "MeetingNote",
+        back_populates="creator",
         cascade="all, delete-orphan"
     )
