@@ -3,6 +3,8 @@ from enum import Enum
 
 from pydantic import BaseModel
 
+from app.schemas.tag import TagResponse
+
 
 class DecisionStatus(str, Enum):
     DRAFT = "Draft"
@@ -37,6 +39,8 @@ class DecisionResponse(BaseModel):
     created_by: int
     created_at: datetime
     updated_at: datetime
+
+    tags: list[TagResponse] = []
 
     class Config:
         from_attributes = True

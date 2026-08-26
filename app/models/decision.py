@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
 from datetime import datetime
 from sqlalchemy.orm import relationship
+from app.models.tag import decision_tags
 
 from app.db.base import Base
 
@@ -68,4 +69,9 @@ class Decision(Base):
         "DiscussionThread",
         back_populates="decision",
         cascade="all, delete-orphan"
+    )
+    tags = relationship(
+    "Tag",
+    secondary=decision_tags,
+    back_populates="decisions"
     )
