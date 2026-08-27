@@ -79,6 +79,14 @@ def create_thread(
     db.add(new_thread)
     db.commit()
     db.refresh(new_thread)
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="discussion_thread_created",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=f"Discussion thread '{new_thread.title}' was started",
+    )
 
     return new_thread
 

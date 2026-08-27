@@ -59,6 +59,14 @@ def create_alternative(
     db.add(new_alternative)
     db.commit()
     db.refresh(new_alternative)
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="alternative_created",
+        entity_type="Alternative",
+        entity_id=new_alternative.id,
+        description=f"Alternative '{new_alternative.name}' was added to a decision",
+    )
 
     return new_alternative
 

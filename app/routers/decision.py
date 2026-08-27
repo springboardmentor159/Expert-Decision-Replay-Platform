@@ -143,6 +143,14 @@ def create_decision(
     db.add(new_decision)
     db.commit()
     db.refresh(new_decision)
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="decision_created",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=f"Decision '{new_decision.title}' was created",
+    )
 
     return new_decision
 
@@ -275,6 +283,14 @@ def update_decision(
 
     db.commit()
     db.refresh(decision)
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="decision_updated",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Decision '{decision.title}' was updated",
+    )
 
     return decision
 
@@ -297,7 +313,15 @@ def update_decision_status(
 
     db.commit()
     db.refresh(decision)
-
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="decision_status_changed",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Decision '{decision.title}' status changed to {decision.status}",
+    )
+    
     return decision
 
 

@@ -112,3 +112,21 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+# ROLE-BASED ACCESS CONTROL
+
+def require_role(*allowed_roles: str):
+    """
+    Usage: current_user: User = Depends(require_role("Manager", "Administrator"))
+    Reads the role off the authenticated User row — never off anything
+    the client sends — so a request can't just claim role=admin.
+    """
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to access this resource"
+            )
+        return current_user
+
+    return role_checker

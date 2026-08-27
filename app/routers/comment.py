@@ -87,6 +87,14 @@ def create_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="comment_created",
+        entity_type="Comment",
+        entity_id=new_comment.id,
+        description="A comment was added to a decision",
+    )
 
     return new_comment
 
