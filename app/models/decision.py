@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 
 from app.db.base import Base
+from app.models.tag import decision_tags
 
 
 class Decision(Base):
@@ -57,4 +58,11 @@ class Decision(Base):
         "MeetingNote",
         back_populates="decision",
         cascade="all, delete-orphan"
+    )
+
+    # Sprint 9: Knowledge Repository - tags for discovery
+    tags = relationship(
+        "Tag",
+        secondary=decision_tags,
+        back_populates="decisions"
     )

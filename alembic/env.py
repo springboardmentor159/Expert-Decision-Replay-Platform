@@ -36,6 +36,7 @@ from app.models.alternative import Alternative  # noqa: F401
 from app.models.comment import Comment  # noqa: F401
 from app.models.discussion_thread import DiscussionThread  # noqa: F401
 from app.models.meeting_note import MeetingNote  # noqa: F401
+from app.models.tag import Tag  # noqa: F401
 
 target_metadata = Base.metadata
 
