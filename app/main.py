@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 
 from app.routers import (
     users,
@@ -6,12 +6,16 @@ from app.routers import (
     decisions,
     alternatives,
     comments,
-    tags
+    tags,
+    analytics
 )
+
+from app.routers.dashboard import router as dashboard_router
+
 
 app = FastAPI(
     title="Expert Decision Replay Platform",
-    description="API for managing decisions, alternatives, comments and tags",
+    description="API for managing decisions, alternatives, comments, tags, dashboards and analytics",
     version="1.0.0"
 )
 
@@ -22,6 +26,12 @@ app.include_router(decisions.router)
 app.include_router(alternatives.router)
 app.include_router(comments.router)
 app.include_router(tags.router)
+
+# Dashboard routes
+app.include_router(dashboard_router)
+
+# Analytics routes
+app.include_router(analytics.router)
 
 
 @app.get("/")
