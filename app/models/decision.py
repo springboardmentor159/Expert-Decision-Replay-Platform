@@ -67,4 +67,9 @@ class Decision(Base):
     "MeetingNote",
     back_populates="decision",
     cascade="all, delete-orphan"
-    ) 
+    )
+    tags = relationship(
+        "Tag",
+        secondary="decision_tags",
+        back_populates="decisions",
+    )
