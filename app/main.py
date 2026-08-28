@@ -9,6 +9,7 @@ from app.routers import discussion_thread
 from app.routers import meeting_note
 from app.routers import rationale
 from app.routers import tag
+from app.routers import dashboard, activity, approval
 
 app = FastAPI(
     title="Expert Decision Replay Platform"
@@ -23,3 +24,6 @@ app.include_router(discussion_thread.router)
 app.include_router(meeting_note.router)
 app.include_router(rationale.router)
 app.include_router(tag.router)
+app.include_router(dashboard.router)
+app.include_router(activity.router)
+app.include_router(approval.router)

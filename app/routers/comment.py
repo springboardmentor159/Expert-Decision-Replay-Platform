@@ -13,6 +13,7 @@ from app.schemas.comment import (
     CommentResponse,
 )
 from app.routers.users import get_current_user
+from app.utils.activity_logger import log_activity
 
 
 router = APIRouter(
@@ -51,6 +52,8 @@ def create_comment(
     )
 
     db.add(new_comment)
+    db.flush()
+    log_activity(db, int(current_user["sub"]), "comment_created", "Comment", new_comment.id, f"Comment {new_comment.id} added")
     db.commit()
     db.refresh(new_comment)
 
@@ -144,6 +147,7 @@ def update_comment(
 
     comment.content = comment_data.content
 
+    log_activity(db, current_user_id, "comment_updated", "Comment", comment.id, f"Comment {comment.id} updated")
     db.commit()
     db.refresh(comment)
 

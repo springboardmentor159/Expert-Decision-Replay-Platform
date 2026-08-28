@@ -11,6 +11,8 @@ from app.core.config import settings
 from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
 from app.models.tag import Tag
+from app.models.approval import Approval
+from app.models.activity_log import ActivityLog
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

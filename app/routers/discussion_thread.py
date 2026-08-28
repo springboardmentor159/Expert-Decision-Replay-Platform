@@ -12,6 +12,7 @@ from app.schemas.discussion_thread import (
     DiscussionThreadResponse,
 )
 from app.routers.users import get_current_user
+from app.utils.activity_logger import log_activity
 
 
 router = APIRouter(
@@ -51,6 +52,8 @@ def create_thread(
     )
 
     db.add(new_thread)
+    db.flush()
+    log_activity(db, int(current_user["sub"]), "discussion_thread_created", "DiscussionThread", new_thread.id, f"Discussion thread {new_thread.id} created")
     db.commit()
     db.refresh(new_thread)
 
@@ -146,6 +149,7 @@ def update_thread(
     thread.description = thread_data.description
     thread.status = thread_data.status
 
+    log_activity(db, current_user_id, "discussion_thread_updated", "DiscussionThread", thread.id, f"Discussion thread {thread.id} updated")
     db.commit()
     db.refresh(thread)
 

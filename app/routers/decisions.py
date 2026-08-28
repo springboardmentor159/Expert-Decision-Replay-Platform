@@ -18,6 +18,7 @@ from app.schemas.decision import (
 )
 from app.schemas.tag import DecisionTagsUpdate, TagResponse
 from app.routers.users import get_current_user
+from app.utils.activity_logger import log_activity
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -68,6 +69,8 @@ def create_decision(decision: DecisionCreate, db: Session = Depends(get_db), cur
         status=DecisionStatus.Draft.value, created_by=int(current_user["sub"]),
     )
     db.add(new_decision)
+    db.flush()
+    log_activity(db, int(current_user["sub"]), "decision_created", "Decision", new_decision.id, f"Decision {new_decision.id} created")
     db.commit()
     db.refresh(new_decision)
     return new_decision
@@ -164,6 +167,7 @@ def update_decision(decision_id: int, decision_data: DecisionUpdate, db: Session
     decision.problem_statement = decision_data.problem_statement
     decision.category = decision_data.category
     decision.rationale = decision_data.rationale
+    log_activity(db, int(current_user["sub"]), "decision_updated", "Decision", decision.id, f"Decision {decision.id} updated")
     db.commit()
     db.refresh(decision)
     return decision
@@ -173,6 +177,7 @@ def update_decision(decision_id: int, decision_data: DecisionUpdate, db: Session
 def update_decision_status(decision_id: int, status_data: DecisionStatusUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     decision = _find_decision(decision_id, db)
     decision.status = status_data.status.value
+    log_activity(db, int(current_user["sub"]), "decision_status_changed", "Decision", decision.id, f"Decision {decision.id} status changed to {decision.status}")
     db.commit()
     db.refresh(decision)
     return decision

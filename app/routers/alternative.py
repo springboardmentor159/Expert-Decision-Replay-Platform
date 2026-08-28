@@ -12,6 +12,7 @@ from app.schemas.alternative import (
     AlternativeResponse,
 )
 from app.routers.users import get_current_user
+from app.utils.activity_logger import log_activity
 
 
 router = APIRouter(
@@ -55,6 +56,8 @@ def create_alternative(
     )
 
     db.add(new_alternative)
+    db.flush()
+    log_activity(db, int(current_user["sub"]), "alternative_created", "Alternative", new_alternative.id, f"Alternative {new_alternative.id} added")
     db.commit()
     db.refresh(new_alternative)
 
@@ -146,6 +149,7 @@ def update_alternative(
     alternative.feasibility_score = alternative_data.feasibility_score
     alternative.risk_level = alternative_data.risk_level.value
 
+    log_activity(db, int(current_user["sub"]), "alternative_updated", "Alternative", alternative.id, f"Alternative {alternative.id} updated")
     db.commit()
     db.refresh(alternative)
 
