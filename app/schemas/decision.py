@@ -23,7 +23,8 @@ class DecisionStatus(str, Enum):
     Draft = "Draft"
     Approved = "Approved"
     Rejected = "Rejected"
-
+    Under_Review = "Under Review"
+    Archived = "Archived"
 
 # UPDATE STATUS
 class DecisionStatusUpdate(BaseModel):
