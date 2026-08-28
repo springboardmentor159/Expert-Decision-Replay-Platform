@@ -16,6 +16,8 @@ from app.schemas.alternative import (
     AlternativeUpdate,
 )
 
+from app.services.activity_logger import log_activity
+
 router = APIRouter(tags=["Alternatives"])
 
 
@@ -54,6 +56,16 @@ def create_alternative(
     db.add(new_alternative)
     db.commit()
     db.refresh(new_alternative)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="create_alternative",
+        entity_type="alternative",
+        entity_id=new_alternative.id,
+        description=f"User {current_user.full_name} added alternative '{new_alternative.name}' to decision '{decision.title}'"
+    )
+
     return new_alternative
 
 
@@ -163,4 +175,14 @@ def update_alternative(
 
     db.commit()
     db.refresh(alternative)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="update_alternative",
+        entity_type="alternative",
+        entity_id=alternative.id,
+        description=f"User {current_user.full_name} updated alternative '{alternative.name}'"
+    )
+
     return alternative

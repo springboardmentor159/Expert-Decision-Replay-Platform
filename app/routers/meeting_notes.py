@@ -15,6 +15,8 @@ from app.schemas.meeting_note import (
     MeetingNoteUpdate,
 )
 
+from app.services.activity_logger import log_activity
+
 router = APIRouter(tags=["Meeting Notes"])
 
 
@@ -49,6 +51,16 @@ def create_meeting_note(
     db.add(new_note)
     db.commit()
     db.refresh(new_note)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="create_meeting_note",
+        entity_type="meeting_note",
+        entity_id=new_note.id,
+        description=f"User {current_user.full_name} recorded meeting note '{new_note.title}' on decision '{decision.title}'"
+    )
+
     return new_note
 
 
@@ -129,6 +141,16 @@ def update_meeting_note(
 
     db.commit()
     db.refresh(note)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="update_meeting_note",
+        entity_type="meeting_note",
+        entity_id=note.id,
+        description=f"User {current_user.full_name} updated meeting note '{note.title}'"
+    )
+
     return note
 
 

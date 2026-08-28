@@ -1,8 +1,9 @@
 """
 Schemas Package Initializer
 """
-from app.schemas.user import UserCreate, UserResponse, UserRole
+from app.schemas.user import UserCreate, UserUpdate, UserResponse, UserRole, LoginRequest, Token
 from app.schemas.decision import (
+    DecisionCategory,
     DecisionCreate,
     DecisionResponse,
     DecisionUpdate,
@@ -10,6 +11,9 @@ from app.schemas.decision import (
     DecisionStatus,
     DecisionRationaleUpdate,
     DecisionRationaleResponse,
+    PaginatedDecisionsResponse,
+    DecisionTimelineEvent,
+    DecisionTimelineResponse,
 )
 from app.schemas.alternative import (
     RiskLevel,
@@ -23,11 +27,28 @@ from app.schemas.alternative import (
 from app.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
 from app.schemas.discussion_thread import ThreadCreate, ThreadUpdate, ThreadResponse, ThreadDetailResponse
 from app.schemas.meeting_note import MeetingNoteCreate, MeetingNoteUpdate, MeetingNoteResponse
+from app.schemas.tag import TagCreate, TagResponse, TagSimpleResponse, TagAssign
+from app.schemas.approval import ApprovalCreate, ApprovalAction, ApprovalResponse, ApprovalStatus
+from app.schemas.activity import ActivityLogResponse, PaginatedActivitiesResponse
+from app.schemas.dashboard import (
+    EmployeeDashboardResponse,
+    ManagerDashboardResponse,
+    ManagerStatisticsResponse,
+    AdminDashboardResponse,
+    SystemAnalyticsResponse,
+    ApprovalStatisticsResponse,
+    UserActivityResponse,
+    ActiveUserItem,
+)
 
 __all__ = [
     "UserCreate",
+    "UserUpdate",
     "UserResponse",
     "UserRole",
+    "LoginRequest",
+    "Token",
+    "DecisionCategory",
     "DecisionCreate",
     "DecisionResponse",
     "DecisionUpdate",
@@ -35,6 +56,9 @@ __all__ = [
     "DecisionStatus",
     "DecisionRationaleUpdate",
     "DecisionRationaleResponse",
+    "PaginatedDecisionsResponse",
+    "DecisionTimelineEvent",
+    "DecisionTimelineResponse",
     "RiskLevel",
     "AlternativeBase",
     "AlternativeCreate",
@@ -52,5 +76,22 @@ __all__ = [
     "MeetingNoteCreate",
     "MeetingNoteUpdate",
     "MeetingNoteResponse",
+    "TagCreate",
+    "TagResponse",
+    "TagSimpleResponse",
+    "TagAssign",
+    "ApprovalCreate",
+    "ApprovalAction",
+    "ApprovalResponse",
+    "ApprovalStatus",
+    "ActivityLogResponse",
+    "PaginatedActivitiesResponse",
+    "EmployeeDashboardResponse",
+    "ManagerDashboardResponse",
+    "ManagerStatisticsResponse",
+    "AdminDashboardResponse",
+    "SystemAnalyticsResponse",
+    "ApprovalStatisticsResponse",
+    "UserActivityResponse",
+    "ActiveUserItem",
 ]
-

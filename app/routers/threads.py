@@ -17,6 +17,8 @@ from app.schemas.discussion_thread import (
     ThreadUpdate,
 )
 
+from app.services.activity_logger import log_activity
+
 router = APIRouter(tags=["Discussion Threads"])
 
 
@@ -49,6 +51,16 @@ def create_thread(
     db.add(new_thread)
     db.commit()
     db.refresh(new_thread)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="create_thread",
+        entity_type="thread",
+        entity_id=new_thread.id,
+        description=f"User {current_user.full_name} created discussion thread '{new_thread.title}' on decision '{decision.title}'"
+    )
+
     return new_thread
 
 
@@ -129,6 +141,16 @@ def update_thread(
 
     db.commit()
     db.refresh(thread)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="update_thread",
+        entity_type="thread",
+        entity_id=thread.id,
+        description=f"User {current_user.full_name} updated discussion thread '{thread.title}'"
+    )
+
     return thread
 
 
@@ -189,6 +211,16 @@ def create_thread_reply(
     db.add(new_reply)
     db.commit()
     db.refresh(new_reply)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="create_thread_reply",
+        entity_type="comment",
+        entity_id=new_reply.id,
+        description=f"User {current_user.full_name} replied to discussion thread '{thread.title}'"
+    )
+
     return new_reply
 
 

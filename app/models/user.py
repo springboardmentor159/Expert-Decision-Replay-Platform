@@ -21,3 +21,5 @@ class User(Base):
     comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan")
     threads = relationship("DiscussionThread", back_populates="creator", cascade="all, delete-orphan")
     meeting_notes = relationship("MeetingNote", back_populates="creator", cascade="all, delete-orphan")
+    approvals_assigned = relationship("Approval", back_populates="reviewer", cascade="all, delete-orphan")
+    activities = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")

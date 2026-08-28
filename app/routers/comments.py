@@ -10,6 +10,8 @@ from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentResponse, CommentUpdate
 
+from app.services.activity_logger import log_activity
+
 router = APIRouter(tags=["Comments"])
 
 
@@ -40,6 +42,16 @@ def create_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="create_comment",
+        entity_type="comment",
+        entity_id=new_comment.id,
+        description=f"User {current_user.full_name} added a comment to decision '{decision.title}'"
+    )
+
     return new_comment
 
 
@@ -114,6 +126,16 @@ def update_comment(
     comment.content = comment_in.content
     db.commit()
     db.refresh(comment)
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="update_comment",
+        entity_type="comment",
+        entity_id=comment.id,
+        description=f"User {current_user.full_name} updated comment {comment.id}"
+    )
+
     return comment
 
 
