@@ -21,3 +21,4 @@ class CommentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        

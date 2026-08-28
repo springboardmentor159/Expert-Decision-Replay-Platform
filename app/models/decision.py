@@ -15,9 +15,14 @@ class Decision(Base):
 
     problem_statement = Column(Text, nullable=False)
 
+    
+    rationale = Column(Text, nullable=True)
+
     category = Column(String, nullable=False)
 
     status = Column(String, nullable=False, default="Draft")
+
+  
 
     created_by = Column(
         Integer,
@@ -57,4 +62,9 @@ class Decision(Base):
     "DiscussionThread",
     back_populates="decision",
     cascade="all, delete-orphan"
-   )
+    )
+    meeting_notes = relationship(
+    "MeetingNote",
+    back_populates="decision",
+    cascade="all, delete-orphan"
+    ) 

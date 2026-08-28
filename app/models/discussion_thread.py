@@ -55,3 +55,8 @@ class DiscussionThread(Base):
         "User",
         back_populates="discussion_threads"
     )
+    comments = relationship(
+    "Comment",
+    back_populates="thread",
+    cascade="all, delete-orphan"
+    )

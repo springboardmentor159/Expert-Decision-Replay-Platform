@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.comment import Comment
 from app.models.decision import Decision
+from app.models.discussion_thread import DiscussionThread
 from app.schemas.comment import (
     CommentCreate,
     CommentUpdate,
@@ -183,3 +184,39 @@ def delete_comment(
     db.commit()
 
     return None
+# CREATE REPLY TO A DISCUSSION THREAD
+@router.post(
+    "/threads/{thread_id}/comments",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED
+)
+def create_thread_reply(
+    thread_id: int,
+    comment_data: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    thread = (
+        db.query(DiscussionThread)
+        .filter(DiscussionThread.id == thread_id)
+        .first()
+    )
+
+    if not thread:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Discussion thread not found"
+        )
+
+    new_comment = Comment(
+        decision_id=thread.decision_id,
+        thread_id=thread_id,
+        user_id=int(current_user["sub"]),
+        content=comment_data.content
+    )
+
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    return new_comment
