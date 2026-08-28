@@ -42,3 +42,9 @@ class Decision(Base):
         "User",
         back_populates="decisions"
     )
+
+    alternatives = relationship(
+        "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
