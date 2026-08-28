@@ -15,6 +15,10 @@ from app.models.alternative import Alternative
 from app.models.comment import Comment
 from app.models.thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
+import app.models.tag
+import app.models.audit
+from app.models.approval import Approval
+import app.models.organization
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

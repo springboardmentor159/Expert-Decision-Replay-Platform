@@ -6,9 +6,15 @@ from app.models.user import UserRole
 
 
 class UserCreate(BaseModel):
-    full_name: str = Field(min_length=1)
+    full_name: str = Field(
+        min_length=1
+    )
+
     email: EmailStr
-    password: str = Field(min_length=8)
+
+    password: str = Field(
+        min_length=8
+    )
 
     # Only predefined organizational roles are allowed
     role: UserRole
@@ -18,6 +24,9 @@ class UserCreate(BaseModel):
     department: Optional[str] = None
     designation: Optional[str] = None
     phone_number: Optional[str] = None
+
+    # Organization to which the user belongs
+    organization_id: int
 
 
 class UserUpdate(BaseModel):
@@ -42,6 +51,9 @@ class UserUpdate(BaseModel):
     designation: Optional[str] = None
     phone_number: Optional[str] = None
 
+    # Organization can be changed only through authorized logic
+    organization_id: Optional[int] = None
+
 
 class UserResponse(BaseModel):
     id: int
@@ -53,6 +65,8 @@ class UserResponse(BaseModel):
     department: Optional[str] = None
     designation: Optional[str] = None
     phone_number: Optional[str] = None
+
+    organization_id: Optional[int] = None
 
     model_config = ConfigDict(
         from_attributes=True

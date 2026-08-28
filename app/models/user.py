@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
@@ -71,6 +71,17 @@ class User(Base):
         nullable=True
     )
 
+    organization_id = Column(
+        Integer,
+        ForeignKey("organizations.id"),
+        nullable=True
+    )
+
+    organization = relationship(
+        "Organization",
+        back_populates="users"
+    )
+
     decisions = relationship(
         "Decision",
         back_populates="user"
@@ -89,4 +100,14 @@ class User(Base):
     meeting_notes = relationship(
         "MeetingNote",
         back_populates="user"
+    )
+
+    audit_logs = relationship(
+        "AuditLog",
+        back_populates="user"
+    )
+
+    approvals = relationship(
+        "Approval",
+        back_populates="reviewer"
     )

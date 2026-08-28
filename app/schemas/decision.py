@@ -39,3 +39,15 @@ class DecisionResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True
     )
+
+
+class DecisionListResponse(BaseModel):
+    items: list[DecisionResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )

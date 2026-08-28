@@ -1,110 +1,403 @@
+from math import ceil
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.models.audit import AuditAction, AuditLog
 from app.models.decision import Decision, DecisionStatus
-from app.models.user import User
+from app.models.tag import Tag
+from app.models.user import User, UserRole
+from app.schemas.audit import TimelineResponse
 from app.schemas.decision import (
     DecisionCreate,
-    DecisionResponse,
+    DecisionListResponse,
     DecisionRationaleUpdate,
+    DecisionResponse,
     DecisionStatusUpdate,
-    DecisionUpdate
+    DecisionUpdate,
 )
+from app.schemas.decision_detail import DecisionDetailResponse
+from app.schemas.tag import DecisionTagCreate, TagResponse
+from app.services.audit import create_audit_log
 from app.services.auth import get_current_user
 
 
 router = APIRouter(
     prefix="/decisions",
-    tags=["Decisions"]
+    tags=["Decisions"],
 )
 
 
-# Create a new decision
+# ============================================================
+# ORGANIZATION ACCESS HELPERS
+# ============================================================
+
+def can_access_decision(
+    decision: Decision,
+    current_user: User,
+) -> bool:
+    """
+    A user can access a decision only if:
+
+    1. The decision belongs to the user's organization.
+    2. The user is:
+       - the creator, or
+       - a Manager, or
+       - an Administrator.
+    """
+
+    if decision.organization_id != current_user.organization_id:
+        return False
+
+    return (
+        decision.created_by == current_user.id
+        or current_user.role in (
+            UserRole.MANAGER,
+            UserRole.ADMINISTRATOR,
+        )
+    )
+
+
+def can_modify_decision(
+    decision: Decision,
+    current_user: User,
+) -> bool:
+    """
+    A user can modify a decision only if it belongs
+    to the same organization and the user is authorized.
+    """
+
+    return can_access_decision(
+        decision,
+        current_user,
+    )
+
+
+def get_decision_or_404(
+    decision_id: int,
+    db: Session,
+    current_user: User,
+) -> Decision:
+    """
+    Fetch a decision and enforce organization isolation.
+    """
+
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found",
+        )
+
+    if decision.organization_id != current_user.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found",
+        )
+
+    return decision
+
+
+# ============================================================
+# CREATE DECISION
+# ============================================================
+
 @router.post(
     "",
     response_model=DecisionResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
 def create_decision(
     decision_data: DecisionCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
+    """
+    Create a decision inside the current user's organization.
+    """
+
+    if current_user.organization_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not assigned to an organization",
+        )
+
     decision = Decision(
         title=decision_data.title,
         problem_statement=decision_data.problem_statement,
         category=decision_data.category,
-        status="Draft",
-        created_by=current_user.id
+        rationale=getattr(
+            decision_data,
+            "rationale",
+            None,
+        ),
+        status=DecisionStatus.DRAFT,
+        created_by=current_user.id,
+        organization_id=current_user.organization_id,
     )
 
     db.add(decision)
+    db.flush()
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.CREATE,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"Decision '{decision.title}' was created"
+        ),
+    )
+
     db.commit()
     db.refresh(decision)
 
     return decision
 
 
-# Get all decisions with optional filters
+# ============================================================
+# GET ALL DECISIONS
+# Search, filters, pagination and sorting
+# Organization isolated
+# ============================================================
+
 @router.get(
     "",
-    response_model=list[DecisionResponse]
+    response_model=DecisionListResponse,
 )
 def get_decisions(
+    keyword: str | None = Query(
+        default=None,
+        description=(
+            "Search in title, problem statement and rationale"
+        ),
+    ),
     status_filter: DecisionStatus | None = Query(
         default=None,
-        alias="status"
+        alias="status",
     ),
     category: str | None = None,
+    tag: str | None = Query(
+        default=None,
+        description="Filter by tag name",
+    ),
+    page: int = Query(
+        default=1,
+        ge=1,
+    ),
+    page_size: int = Query(
+        default=10,
+        ge=1,
+        le=100,
+    ),
+    sort_by: str = Query(
+        default="created_at",
+        description="created_at, updated_at or title",
+    ),
+    sort_order: str = Query(
+        default="desc",
+        description="asc or desc",
+    ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    query = db.query(Decision)
+    """
+    Return decisions belonging only to the current user's organization.
+    """
+
+    if current_user.organization_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not assigned to an organization",
+        )
+
+    query = (
+        db.query(Decision)
+        .filter(
+            Decision.organization_id
+            == current_user.organization_id
+        )
+    )
+
+    # --------------------------------------------------------
+    # Keyword search
+    # --------------------------------------------------------
+
+    if keyword:
+        search_pattern = f"%{keyword}%"
+
+        query = query.filter(
+            or_(
+                Decision.title.ilike(search_pattern),
+                Decision.problem_statement.ilike(
+                    search_pattern
+                ),
+                Decision.rationale.ilike(
+                    search_pattern
+                ),
+            )
+        )
+
+    # --------------------------------------------------------
+    # Status filter
+    # --------------------------------------------------------
 
     if status_filter is not None:
         query = query.filter(
             Decision.status == status_filter
         )
 
+    # --------------------------------------------------------
+    # Category filter
+    # --------------------------------------------------------
+
     if category is not None:
         query = query.filter(
             Decision.category == category
         )
 
+    # --------------------------------------------------------
+    # Tag filter
+    # --------------------------------------------------------
+
+    if tag is not None:
+        query = (
+            query
+            .join(Decision.tags)
+            .filter(
+                Tag.name == tag,
+                Tag.organization_id
+                == current_user.organization_id,
+            )
+        )
+
+    # --------------------------------------------------------
+    # Total results
+    # --------------------------------------------------------
+
+    total = query.count()
+
+    # --------------------------------------------------------
+    # Sorting
+    # --------------------------------------------------------
+
+    if sort_by == "title":
+        sort_column = Decision.title
+
+    elif sort_by == "updated_at":
+        sort_column = Decision.updated_at
+
+    elif sort_by == "created_at":
+        sort_column = Decision.created_at
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Invalid sort_by. "
+                "Use created_at, updated_at or title"
+            ),
+        )
+
+    if sort_order.lower() == "asc":
+        query = query.order_by(
+            sort_column.asc()
+        )
+
+    elif sort_order.lower() == "desc":
+        query = query.order_by(
+            sort_column.desc()
+        )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid sort_order. Use asc or desc",
+        )
+
+    # --------------------------------------------------------
+    # Pagination
+    # --------------------------------------------------------
+
+    offset = (page - 1) * page_size
+
     decisions = (
         query
-        .order_by(Decision.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
         .all()
     )
 
-    return decisions
+    total_pages = (
+        ceil(total / page_size)
+        if total > 0
+        else 0
+    )
+
+    return DecisionListResponse(
+        items=decisions,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
-# Update decision rationale
+# ============================================================
+# UPDATE DECISION RATIONALE
+# ============================================================
+
 @router.put(
     "/{decision_id}/rationale",
-    response_model=DecisionResponse
+    response_model=DecisionResponse,
 )
 def update_decision_rationale(
     decision_id: int,
     rationale_data: DecisionRationaleUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
-        .first()
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
     )
 
-    if decision is None:
+    if not can_modify_decision(
+        decision,
+        current_user,
+    ):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Decision not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to modify this decision"
+            ),
         )
 
     decision.rationale = rationale_data.rationale
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"Rationale updated for decision "
+            f"'{decision.title}'"
+        ),
+    )
 
     db.commit()
     db.refresh(decision)
@@ -112,57 +405,385 @@ def update_decision_rationale(
     return decision
 
 
-# Get decision by ID
-@router.get(
-    "/{decision_id}",
-    response_model=DecisionResponse
+# ============================================================
+# ASSIGN TAGS TO DECISION
+# ============================================================
+
+@router.post(
+    "/{decision_id}/tags",
+    response_model=list[TagResponse],
+    status_code=status.HTTP_201_CREATED,
 )
-def get_decision(
+def assign_tags_to_decision(
+    decision_id: int,
+    tag_data: DecisionTagCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_modify_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to modify this decision"
+            ),
+        )
+
+    # Remove duplicate IDs
+    tag_ids = list(
+        dict.fromkeys(tag_data.tag_ids)
+    )
+
+    if not tag_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one tag ID is required",
+        )
+
+    # IMPORTANT:
+    # Only retrieve tags belonging to the same organization.
+    tags = (
+        db.query(Tag)
+        .filter(
+            Tag.id.in_(tag_ids),
+            Tag.organization_id
+            == current_user.organization_id,
+        )
+        .all()
+    )
+
+    found_tag_ids = {
+        tag.id
+        for tag in tags
+    }
+
+    missing_tag_ids = [
+        tag_id
+        for tag_id in tag_ids
+        if tag_id not in found_tag_ids
+    ]
+
+    if missing_tag_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "Tag(s) not found in your organization: "
+                f"{missing_tag_ids}"
+            ),
+        )
+
+    existing_tag_ids = {
+        tag.id
+        for tag in decision.tags
+    }
+
+    already_assigned = [
+        tag_id
+        for tag_id in tag_ids
+        if tag_id in existing_tag_ids
+    ]
+
+    if already_assigned:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Tag(s) already assigned to this decision: "
+                f"{already_assigned}"
+            ),
+        )
+
+    decision.tags.extend(tags)
+
+    # Audit each tag assignment
+    for tag in tags:
+        create_audit_log(
+            db=db,
+            decision_id=decision.id,
+            user_id=current_user.id,
+            action=AuditAction.TAG_ADDED,
+            entity_type="Tag",
+            entity_id=tag.id,
+            description=(
+                f"Tag '{tag.name}' was added to "
+                f"decision '{decision.title}'"
+            ),
+        )
+
+    db.commit()
+
+    return tags
+
+
+# ============================================================
+# GET TAGS ASSIGNED TO DECISION
+# ============================================================
+
+@router.get(
+    "/{decision_id}/tags",
+    response_model=list[TagResponse],
+)
+def get_decision_tags(
     decision_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    return decision.tags
+
+
+# ============================================================
+# REMOVE TAG FROM DECISION
+# ============================================================
+
+@router.delete(
+    "/{decision_id}/tags/{tag_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_tag_from_decision(
+    decision_id: int,
+    tag_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_modify_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to modify this decision"
+            ),
+        )
+
+    # Tag must belong to the same organization
+    tag = (
+        db.query(Tag)
+        .filter(
+            Tag.id == tag_id,
+            Tag.organization_id
+            == current_user.organization_id,
+        )
         .first()
     )
 
-    if decision is None:
+    if tag is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Decision not found"
+            detail="Tag not found",
+        )
+
+    if tag not in decision.tags:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tag is not assigned to this decision",
+        )
+
+    tag_name = tag.name
+
+    decision.tags.remove(tag)
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.TAG_REMOVED,
+        entity_type="Tag",
+        entity_id=tag.id,
+        description=(
+            f"Tag '{tag_name}' was removed from "
+            f"decision '{decision.title}'"
+        ),
+    )
+
+    db.commit()
+
+    return None
+
+
+# ============================================================
+# GET COMPLETE DECISION DETAILS
+# ============================================================
+
+@router.get(
+    "/{decision_id}/detail",
+    response_model=DecisionDetailResponse,
+)
+def get_decision_detail(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_access_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to view this decision"
+            ),
         )
 
     return decision
 
 
-# Update an existing decision
+# ============================================================
+# GET DECISION TIMELINE
+# ============================================================
+
+@router.get(
+    "/{decision_id}/timeline",
+    response_model=list[TimelineResponse],
+)
+def get_decision_timeline(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_access_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to view this decision"
+            ),
+        )
+
+    timeline = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.decision_id == decision_id
+        )
+        .order_by(
+            AuditLog.created_at.asc()
+        )
+        .all()
+    )
+
+    return timeline
+
+
+# ============================================================
+# GET DECISION BY ID
+# ============================================================
+
+@router.get(
+    "/{decision_id}",
+    response_model=DecisionResponse,
+)
+def get_decision(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_access_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to view this decision"
+            ),
+        )
+
+    return decision
+
+
+# ============================================================
+# UPDATE DECISION
+# ============================================================
+
 @router.put(
     "/{decision_id}",
-    response_model=DecisionResponse
+    response_model=DecisionResponse,
 )
 def update_decision(
     decision_id: int,
     decision_data: DecisionUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
-        .first()
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
     )
 
-    if decision is None:
+    if not can_modify_decision(
+        decision,
+        current_user,
+    ):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Decision not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to modify this decision"
+            ),
         )
 
     decision.title = decision_data.title
-    decision.problem_statement = decision_data.problem_statement
+    decision.problem_statement = (
+        decision_data.problem_statement
+    )
     decision.category = decision_data.category
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"Decision '{decision.title}' was updated"
+        ),
+    )
 
     db.commit()
     db.refresh(decision)
@@ -170,30 +791,55 @@ def update_decision(
     return decision
 
 
-# Update decision status
+# ============================================================
+# UPDATE DECISION STATUS
+# ============================================================
+
 @router.patch(
     "/{decision_id}/status",
-    response_model=DecisionResponse
+    response_model=DecisionResponse,
 )
 def update_decision_status(
     decision_id: int,
     status_data: DecisionStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
-        .first()
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
     )
 
-    if decision is None:
+    if not can_modify_decision(
+        decision,
+        current_user,
+    ):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Decision not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to modify this decision"
+            ),
         )
 
+    old_status = decision.status
+
     decision.status = status_data.status
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.STATUS_CHANGE,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"Decision status changed from "
+            f"'{old_status.value}' to "
+            f"'{decision.status.value}'"
+        ),
+    )
 
     db.commit()
     db.refresh(decision)

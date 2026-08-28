@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.models.organization import Organization
 from app.models.user import User, UserRole
 from app.schemas.user import (
     UserCreate,
@@ -23,6 +24,7 @@ router = APIRouter(
 
 # ============================================================
 # CREATE USER
+# Administrator only
 # ============================================================
 
 @router.post(
@@ -32,8 +34,33 @@ router = APIRouter(
 )
 def create_user(
     user: UserCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles(UserRole.ADMINISTRATOR)
+    )
 ):
+    # --------------------------------------------------------
+    # Verify organization exists
+    # --------------------------------------------------------
+
+    organization = (
+        db.query(Organization)
+        .filter(
+            Organization.id == user.organization_id
+        )
+        .first()
+    )
+
+    if organization is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found"
+        )
+
+    # --------------------------------------------------------
+    # Check duplicate email
+    # --------------------------------------------------------
+
     existing_user = (
         db.query(User)
         .filter(User.email == user.email)
@@ -46,10 +73,16 @@ def create_user(
             detail="Email already registered"
         )
 
+    # --------------------------------------------------------
+    # Check duplicate employee ID
+    # --------------------------------------------------------
+
     if user.employee_id:
         existing_employee = (
             db.query(User)
-            .filter(User.employee_id == user.employee_id)
+            .filter(
+                User.employee_id == user.employee_id
+            )
             .first()
         )
 
@@ -59,6 +92,10 @@ def create_user(
                 detail="Employee ID already registered"
             )
 
+    # --------------------------------------------------------
+    # Create user
+    # --------------------------------------------------------
+
     new_user = User(
         full_name=user.full_name,
         email=user.email,
@@ -67,7 +104,8 @@ def create_user(
         employee_id=user.employee_id,
         department=user.department,
         designation=user.designation,
-        phone_number=user.phone_number
+        phone_number=user.phone_number,
+        organization_id=user.organization_id
     )
 
     db.add(new_user)
@@ -79,7 +117,13 @@ def create_user(
 
 # ============================================================
 # GET ALL USERS
-# Manager and Administrator only
+#
+# Administrator:
+#   Can see users from all organizations.
+#
+# Manager:
+#   Can see users from their own organization only.
+#
 # ============================================================
 
 @router.get(
@@ -95,13 +139,35 @@ def get_users(
         )
     )
 ):
-    return db.query(User).all()
+    query = db.query(User)
+
+    # Administrator can view all users
+    if current_user.role == UserRole.ADMINISTRATOR:
+        return query.all()
+
+    # Manager can only view users
+    # belonging to their organization
+    return (
+        query
+        .filter(
+            User.organization_id
+            == current_user.organization_id
+        )
+        .all()
+    )
 
 
 # ============================================================
 # GET USER BY ID
+#
 # Users can view themselves.
-# Managers and Administrators can view anyone.
+#
+# Managers:
+#   Can view users in their organization.
+#
+# Administrators:
+#   Can view anyone.
+#
 # ============================================================
 
 @router.get(
@@ -125,21 +191,48 @@ def get_user(
             detail="User not found"
         )
 
-    # A user can view their own profile
+    # --------------------------------------------------------
+    # User can view their own profile
+    # --------------------------------------------------------
+
     if current_user.id == user_id:
         return user
 
-    # Managers and Administrators can view other users
-    if current_user.role not in (
-        UserRole.MANAGER,
-        UserRole.ADMINISTRATOR
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to view this user"
-        )
+    # --------------------------------------------------------
+    # Administrator can view anyone
+    # --------------------------------------------------------
 
-    return user
+    if current_user.role == UserRole.ADMINISTRATOR:
+        return user
+
+    # --------------------------------------------------------
+    # Managers can only view users
+    # in their own organization
+    # --------------------------------------------------------
+
+    if current_user.role == UserRole.MANAGER:
+        if (
+            user.organization_id
+            != current_user.organization_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You do not have permission to "
+                    "view users from another organization"
+                )
+            )
+
+        return user
+
+    # --------------------------------------------------------
+    # Other roles cannot view another user
+    # --------------------------------------------------------
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have permission to view this user"
+    )
 
 
 # ============================================================
@@ -169,20 +262,78 @@ def update_user(
         )
 
     # --------------------------------------------------------
-    # Permission check
+    # Determine whether this is the user's own profile
     # --------------------------------------------------------
 
     is_own_profile = current_user.id == user_id
 
+    # --------------------------------------------------------
+    # Organization access check
+    # --------------------------------------------------------
+
     if not is_own_profile:
-        if current_user.role not in (
-            UserRole.MANAGER,
-            UserRole.ADMINISTRATOR
-        ):
+
+        # Administrator can edit anyone
+        if current_user.role == UserRole.ADMINISTRATOR:
+            pass
+
+        # Manager can edit users in same organization
+        elif current_user.role == UserRole.MANAGER:
+
+            if (
+                user.organization_id
+                != current_user.organization_id
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=(
+                        "You do not have permission to "
+                        "edit users from another organization"
+                    )
+                )
+
+        else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to edit this user"
+                detail=(
+                    "You do not have permission "
+                    "to edit this user"
+                )
             )
+
+    # --------------------------------------------------------
+    # Organization change protection
+    # --------------------------------------------------------
+
+    if user_data.organization_id is not None:
+
+        # Only Administrator can change organization
+        if current_user.role != UserRole.ADMINISTRATOR:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Only an Administrator can "
+                    "change a user's organization"
+                )
+            )
+
+        # Verify new organization exists
+        organization = (
+            db.query(Organization)
+            .filter(
+                Organization.id
+                == user_data.organization_id
+            )
+            .first()
+        )
+
+        if organization is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found"
+            )
+
+        user.organization_id = user_data.organization_id
 
     # --------------------------------------------------------
     # Role change protection
@@ -190,8 +341,9 @@ def update_user(
 
     if user_data.role is not None:
 
-        # Users cannot change their own role
+        # User cannot change their own role
         if is_own_profile:
+
             if user_data.role != current_user.role:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -202,8 +354,13 @@ def update_user(
         elif current_user.role != UserRole.ADMINISTRATOR:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only an Administrator can change user roles"
+                detail=(
+                    "Only an Administrator can "
+                    "change user roles"
+                )
             )
+
+        user.role = user_data.role
 
     # --------------------------------------------------------
     # Update full name
@@ -236,13 +393,6 @@ def update_user(
         user.email = user_data.email
 
     # --------------------------------------------------------
-    # Update role
-    # --------------------------------------------------------
-
-    if user_data.role is not None:
-        user.role = user_data.role
-
-    # --------------------------------------------------------
     # Update employee ID
     # --------------------------------------------------------
 
@@ -251,7 +401,8 @@ def update_user(
         existing_employee = (
             db.query(User)
             .filter(
-                User.employee_id == user_data.employee_id,
+                User.employee_id
+                == user_data.employee_id,
                 User.id != user_id
             )
             .first()
@@ -330,8 +481,10 @@ def delete_user(
             detail="User not found"
         )
 
-    # Prevent Administrator from accidentally deleting
-    # their own account.
+    # --------------------------------------------------------
+    # Prevent Administrator from deleting own account
+    # --------------------------------------------------------
+
     if current_user.id == user_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
