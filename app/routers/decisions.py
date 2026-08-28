@@ -19,6 +19,7 @@ from app.schemas.decision import (
 from app.schemas.tag import DecisionTagsUpdate, TagResponse
 from app.routers.users import get_current_user
 from app.utils.activity_logger import log_activity
+from app.utils.audit_logger import log_audit, snapshot_decision, log_access
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -71,6 +72,8 @@ def create_decision(decision: DecisionCreate, db: Session = Depends(get_db), cur
     db.add(new_decision)
     db.flush()
     log_activity(db, int(current_user["sub"]), "decision_created", "Decision", new_decision.id, f"Decision {new_decision.id} created")
+    snapshot_decision(db, new_decision, int(current_user["sub"]))
+    log_audit(db, int(current_user["sub"]), "CREATE", "Decision", new_decision.id, f"Decision {new_decision.id} created", new_value={"title": new_decision.title, "category": new_decision.category, "status": new_decision.status})
     db.commit()
     db.refresh(new_decision)
     return new_decision
@@ -155,7 +158,10 @@ def get_decision_timeline(decision_id: int, db: Session = Depends(get_db), curre
 
 @router.get("/{decision_id}", response_model=DecisionResponse)
 def get_decision(decision_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return _find_decision(decision_id, db)
+    decision = _find_decision(decision_id, db)
+    log_access(db, int(current_user["sub"]), "Decision", decision.id, "VIEW")
+    db.commit()
+    return decision
 
 
 @router.put("/{decision_id}", response_model=DecisionResponse)
@@ -163,11 +169,14 @@ def update_decision(decision_id: int, decision_data: DecisionUpdate, db: Session
     decision = _find_decision(decision_id, db)
     if decision.status == DecisionStatus.Archived.value:
         raise HTTPException(status_code=403, detail="Archived decisions cannot be modified")
+    old_value = {"title": decision.title, "problem_statement": decision.problem_statement, "category": decision.category, "rationale": decision.rationale}
     decision.title = decision_data.title
     decision.problem_statement = decision_data.problem_statement
     decision.category = decision_data.category
     decision.rationale = decision_data.rationale
     log_activity(db, int(current_user["sub"]), "decision_updated", "Decision", decision.id, f"Decision {decision.id} updated")
+    snapshot_decision(db, decision, int(current_user["sub"]))
+    log_audit(db, int(current_user["sub"]), "UPDATE", "Decision", decision.id, f"Decision {decision.id} updated", old_value=old_value, new_value={"title": decision.title, "problem_statement": decision.problem_statement, "category": decision.category, "rationale": decision.rationale})
     db.commit()
     db.refresh(decision)
     return decision
@@ -176,8 +185,12 @@ def update_decision(decision_id: int, decision_data: DecisionUpdate, db: Session
 @router.patch("/{decision_id}/status", response_model=DecisionResponse)
 def update_decision_status(decision_id: int, status_data: DecisionStatusUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     decision = _find_decision(decision_id, db)
+    old_status = decision.status
     decision.status = status_data.status.value
     log_activity(db, int(current_user["sub"]), "decision_status_changed", "Decision", decision.id, f"Decision {decision.id} status changed to {decision.status}")
+    snapshot_decision(db, decision, int(current_user["sub"]))
+    action = "APPROVE" if decision.status == "Approved" else "REJECT" if decision.status == "Rejected" else "UPDATE"
+    log_audit(db, int(current_user["sub"]), action, "Decision", decision.id, f"Decision status changed to {decision.status}", old_value={"status": old_status}, new_value={"status": decision.status})
     db.commit()
     db.refresh(decision)
     return decision

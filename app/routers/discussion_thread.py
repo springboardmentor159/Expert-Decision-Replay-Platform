@@ -13,6 +13,7 @@ from app.schemas.discussion_thread import (
 )
 from app.routers.users import get_current_user
 from app.utils.activity_logger import log_activity
+from app.utils.audit_logger import log_audit
 
 
 router = APIRouter(
@@ -54,6 +55,7 @@ def create_thread(
     db.add(new_thread)
     db.flush()
     log_activity(db, int(current_user["sub"]), "discussion_thread_created", "DiscussionThread", new_thread.id, f"Discussion thread {new_thread.id} created")
+    log_audit(db, int(current_user["sub"]), "CREATE", "DiscussionThread", new_thread.id, f"Discussion thread {new_thread.id} created")
     db.commit()
     db.refresh(new_thread)
 
@@ -150,6 +152,7 @@ def update_thread(
     thread.status = thread_data.status
 
     log_activity(db, current_user_id, "discussion_thread_updated", "DiscussionThread", thread.id, f"Discussion thread {thread.id} updated")
+    log_audit(db, current_user_id, "UPDATE", "DiscussionThread", thread.id, f"Discussion thread {thread.id} updated")
     db.commit()
     db.refresh(thread)
 
@@ -186,6 +189,7 @@ def delete_thread(
             detail="You can only delete your own discussion thread"
         )
 
+    log_audit(db, current_user_id, "DELETE", "DiscussionThread", thread.id, f"Discussion thread {thread.id} deleted")
     db.delete(thread)
     db.commit()
 

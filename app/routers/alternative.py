@@ -13,6 +13,7 @@ from app.schemas.alternative import (
 )
 from app.routers.users import get_current_user
 from app.utils.activity_logger import log_activity
+from app.utils.audit_logger import log_audit
 
 
 router = APIRouter(
@@ -58,6 +59,7 @@ def create_alternative(
     db.add(new_alternative)
     db.flush()
     log_activity(db, int(current_user["sub"]), "alternative_created", "Alternative", new_alternative.id, f"Alternative {new_alternative.id} added")
+    log_audit(db, int(current_user["sub"]), "CREATE", "Alternative", new_alternative.id, f"Alternative {new_alternative.id} added")
     db.commit()
     db.refresh(new_alternative)
 
@@ -150,10 +152,29 @@ def update_alternative(
     alternative.risk_level = alternative_data.risk_level.value
 
     log_activity(db, int(current_user["sub"]), "alternative_updated", "Alternative", alternative.id, f"Alternative {alternative.id} updated")
+    log_audit(db, int(current_user["sub"]), "UPDATE", "Alternative", alternative.id, f"Alternative {alternative.id} updated")
     db.commit()
     db.refresh(alternative)
 
     return alternative
+
+
+@router.delete(
+    "/alternatives/{alternative_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_alternative(
+    alternative_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    alternative = db.query(Alternative).filter(Alternative.id == alternative_id).first()
+    if not alternative:
+        raise HTTPException(status_code=404, detail="Alternative not found")
+    log_activity(db, int(current_user["sub"]), "alternative_deleted", "Alternative", alternative.id, f"Alternative {alternative.id} deleted")
+    log_audit(db, int(current_user["sub"]), "DELETE", "Alternative", alternative.id, f"Alternative {alternative.id} deleted")
+    db.delete(alternative)
+    db.commit()
 
 
 # COMPARE ALTERNATIVES

@@ -14,6 +14,7 @@ from app.schemas.comment import (
 )
 from app.routers.users import get_current_user
 from app.utils.activity_logger import log_activity
+from app.utils.audit_logger import log_audit
 
 
 router = APIRouter(
@@ -54,6 +55,7 @@ def create_comment(
     db.add(new_comment)
     db.flush()
     log_activity(db, int(current_user["sub"]), "comment_created", "Comment", new_comment.id, f"Comment {new_comment.id} added")
+    log_audit(db, int(current_user["sub"]), "CREATE", "Comment", new_comment.id, f"Comment {new_comment.id} added")
     db.commit()
     db.refresh(new_comment)
 
@@ -148,6 +150,7 @@ def update_comment(
     comment.content = comment_data.content
 
     log_activity(db, current_user_id, "comment_updated", "Comment", comment.id, f"Comment {comment.id} updated")
+    log_audit(db, current_user_id, "UPDATE", "Comment", comment.id, f"Comment {comment.id} updated")
     db.commit()
     db.refresh(comment)
 
@@ -184,6 +187,7 @@ def delete_comment(
             detail="You can only delete your own comment"
         )
 
+    log_audit(db, current_user_id, "DELETE", "Comment", comment.id, f"Comment {comment.id} deleted")
     db.delete(comment)
     db.commit()
 
