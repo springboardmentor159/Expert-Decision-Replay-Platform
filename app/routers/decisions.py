@@ -6,6 +6,7 @@ from sqlalchemy import or_
 
 from app.db.database import get_db
 from app.models.decision import Decision
+from app.models.activity import Activity
 from app.schemas.decision import (
     DecisionCreate,
     DecisionResponse,
@@ -48,6 +49,18 @@ def create_decision(
     db.commit()
     db.refresh(new_decision)
 
+    # Create activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Decision Created",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=f"User {current_user.id} created Decision {new_decision.id}"
+    )
+
+    db.add(activity)
+    db.commit()
+
     return new_decision
 
 
@@ -76,7 +89,6 @@ def get_decisions(
 
     # --------------------------------------------------------
     # KEYWORD SEARCH
-    # Searches title and problem statement
     # --------------------------------------------------------
 
     if search:
@@ -134,7 +146,7 @@ def get_decisions(
 
     # --------------------------------------------------------
     # SORTING
-    # IMPORTANT: Sorting MUST happen before pagination
+    # Sorting happens BEFORE pagination
     # --------------------------------------------------------
 
     allowed_sort_fields = {
@@ -241,6 +253,18 @@ def update_decision(
     db.commit()
     db.refresh(decision)
 
+    # Create activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Decision Updated",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"User {current_user.id} updated Decision {decision.id}"
+    )
+
+    db.add(activity)
+    db.commit()
+
     return decision
 
 
@@ -271,9 +295,28 @@ def update_decision_status(
             detail="Decision not found"
         )
 
-    decision.status = status_data.status.value
+    old_status = decision.status
+    new_status = status_data.status.value
+
+    decision.status = new_status
 
     db.commit()
     db.refresh(decision)
+
+    # Create activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Decision Status Changed",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"User {current_user.id} changed "
+            f"Decision {decision.id} status "
+            f"from {old_status} to {new_status}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
 
     return decision

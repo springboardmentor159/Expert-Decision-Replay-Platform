@@ -75,3 +75,8 @@ class Decision(Base):
     secondary=decision_tags,
     back_populates="decisions"
     )
+    approvals = relationship(
+        "Approval",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )

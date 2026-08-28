@@ -32,6 +32,8 @@ from app.models.comment import Comment
 from app.models.meeting_note import MeetingNote
 from app.models.discussion_thread import DiscussionThread
 from app.models.tag import Tag
+from app.models.approval import Approval
+from app.models.activity import Activity
 
 target_metadata = Base.metadata
 

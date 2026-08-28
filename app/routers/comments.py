@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.models.comment import Comment
 from app.models.decision import Decision
 from app.models.discussion_thread import DiscussionThread
+from app.models.activity import Activity
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.core.security import get_current_user
 
@@ -69,6 +70,22 @@ def create_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+
+    # Activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Comment Created",
+        entity_type="Comment",
+        entity_id=new_comment.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Comment {new_comment.id} "
+            f"on Decision {decision_id}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
 
     return new_comment
 
@@ -176,6 +193,21 @@ def update_comment(
     db.commit()
     db.refresh(existing_comment)
 
+    # Activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Comment Updated",
+        entity_type="Comment",
+        entity_id=existing_comment.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Comment {existing_comment.id}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
+
     return existing_comment
 
 
@@ -216,6 +248,8 @@ def delete_comment(
     db.commit()
 
     return None
+
+
 # ============================================================
 # CREATE REPLY TO DISCUSSION THREAD
 # POST /comments/threads/{thread_id}/comments
@@ -255,5 +289,21 @@ def create_thread_reply(
     db.add(new_reply)
     db.commit()
     db.refresh(new_reply)
+
+    # Activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Comment Reply Created",
+        entity_type="Comment",
+        entity_id=new_reply.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Comment Reply {new_reply.id} "
+            f"on Thread {thread_id}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
 
     return new_reply

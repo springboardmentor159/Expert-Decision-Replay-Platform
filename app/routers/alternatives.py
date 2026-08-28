@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.alternative import Alternative
 from app.models.decision import Decision
+from app.models.activity import Activity
 from app.schemas.alternative import (
     AlternativeCreate,
     AlternativeResponse
@@ -18,7 +19,11 @@ router = APIRouter(
 )
 
 
+# ============================================================
 # CREATE ALTERNATIVE
+# POST /decisions/{decision_id}/alternatives
+# ============================================================
+
 @router.post(
     "/decisions/{decision_id}/alternatives",
     response_model=AlternativeResponse,
@@ -57,10 +62,30 @@ def create_alternative(
     db.commit()
     db.refresh(new_alternative)
 
+    # Activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Alternative Created",
+        entity_type="Alternative",
+        entity_id=new_alternative.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Alternative {new_alternative.id} "
+            f"for Decision {decision_id}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
+
     return new_alternative
 
 
+# ============================================================
 # GET ALL ALTERNATIVES FOR A DECISION
+# GET /decisions/{decision_id}/alternatives
+# ============================================================
+
 @router.get(
     "/decisions/{decision_id}/alternatives",
     response_model=List[AlternativeResponse]
@@ -89,7 +114,11 @@ def get_alternatives(
     )
 
 
+# ============================================================
 # GET ALTERNATIVE BY ID
+# GET /alternatives/{alternative_id}
+# ============================================================
+
 @router.get(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -114,7 +143,11 @@ def get_alternative(
     return alternative
 
 
+# ============================================================
 # UPDATE ALTERNATIVE
+# PUT /alternatives/{alternative_id}
+# ============================================================
+
 @router.put(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -148,10 +181,29 @@ def update_alternative(
     db.commit()
     db.refresh(alternative)
 
+    # Activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Alternative Updated",
+        entity_type="Alternative",
+        entity_id=alternative.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Alternative {alternative.id}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
+
     return alternative
 
 
+# ============================================================
 # COMPARE ALTERNATIVES
+# GET /decisions/{decision_id}/alternatives/compare
+# ============================================================
+
 @router.get(
     "/decisions/{decision_id}/alternatives/compare"
 )

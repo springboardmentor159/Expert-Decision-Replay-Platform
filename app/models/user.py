@@ -47,3 +47,12 @@ class User(Base):
     back_populates="user",
     cascade="all, delete-orphan"
     )
+    approvals = relationship(
+        "Approval",
+        back_populates="reviewer"
+    )
+    activities = relationship(
+        "Activity",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.discussion_thread import DiscussionThread
 from app.models.decision import Decision
+from app.models.activity import Activity
 from app.schemas.discussion_thread import (
     DiscussionThreadCreate,
     DiscussionThreadUpdate,
@@ -19,7 +20,11 @@ router = APIRouter(
 )
 
 
+# ============================================================
 # CREATE DISCUSSION THREAD
+# POST /decisions/{decision_id}/threads
+# ============================================================
+
 @router.post(
     "/decisions/{decision_id}/threads",
     response_model=DiscussionThreadResponse,
@@ -55,10 +60,30 @@ def create_thread(
     db.commit()
     db.refresh(new_thread)
 
+    # Activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Discussion Thread Created",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Discussion Thread {new_thread.id} "
+            f"for Decision {decision_id}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
+
     return new_thread
 
 
+# ============================================================
 # GET ALL THREADS FOR A DECISION
+# GET /decisions/{decision_id}/threads
+# ============================================================
+
 @router.get(
     "/decisions/{decision_id}/threads",
     response_model=List[DiscussionThreadResponse]
@@ -87,7 +112,11 @@ def get_threads(
     )
 
 
+# ============================================================
 # GET THREAD BY ID
+# GET /threads/{thread_id}
+# ============================================================
+
 @router.get(
     "/threads/{thread_id}",
     response_model=DiscussionThreadResponse
@@ -112,7 +141,11 @@ def get_thread(
     return thread
 
 
+# ============================================================
 # UPDATE THREAD
+# PUT /threads/{thread_id}
+# ============================================================
+
 @router.put(
     "/threads/{thread_id}",
     response_model=DiscussionThreadResponse
@@ -149,10 +182,29 @@ def update_thread(
     db.commit()
     db.refresh(thread)
 
+    # Activity log
+    activity = Activity(
+        user_id=current_user.id,
+        action="Discussion Thread Updated",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Discussion Thread {thread.id}"
+        )
+    )
+
+    db.add(activity)
+    db.commit()
+
     return thread
 
 
+# ============================================================
 # DELETE THREAD
+# DELETE /threads/{thread_id}
+# ============================================================
+
 @router.delete(
     "/threads/{thread_id}",
     status_code=status.HTTP_204_NO_CONTENT
