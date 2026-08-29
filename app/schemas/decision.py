@@ -1,43 +1,36 @@
 from datetime import datetime
-from enum import Enum
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
+from typing import List, Optional
 
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status
+)
 
-class DecisionStatus(str, Enum):
-    DRAFT = "Draft"
-    UNDER_REVIEW = "Under Review"
-    APPROVED = "Approved"
-    REJECTED = "Rejected"
-    ARCHIVED = "Archived"
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
-
-class DecisionCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
-    problem_statement: str = Field(min_length=1)
-    category: str = Field(min_length=1, max_length=100)
-
-
-class DecisionUpdate(BaseModel):
-    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    problem_statement: Optional[str] = Field(default=None, min_length=1)
-    category: Optional[str] = Field(default=None, min_length=1, max_length=100)
+class TagAssignment(BaseModel):
+    tag_ids: list[int]
 
 
-class DecisionStatusUpdate(BaseModel):
-    status: DecisionStatus
-
-
-class DecisionResponse(BaseModel):
+class DecisionListItem(BaseModel):
     id: int
     title: str
-    problem_statement: str
     category: str
-    status: DecisionStatus
-    created_by: int
+    status: str
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DecisionListResponse(BaseModel):
+    items: list[DecisionListItem]
+    page: int
+    page_size: int
+    total: int

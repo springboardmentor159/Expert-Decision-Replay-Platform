@@ -31,7 +31,8 @@ from app.models.alternative import Alternative
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
 from app.models.decision_version import DecisionVersion
-
+from app.models.tag import Tag
+from app.models.decision_tag import decision_tags
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

@@ -16,6 +16,10 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------
+# CREATE ALTERNATIVE
+# POST /decisions/{decision_id}/alternatives
+# ---------------------------------------------------------
 @router.post(
     "/decisions/{decision_id}/alternatives",
     response_model=AlternativeResponse,
@@ -57,10 +61,44 @@ def create_alternative(
     return new_alternative
 
 
+# ---------------------------------------------------------
+# GET ALL ALTERNATIVES FOR A DECISION
+# GET /decisions/{decision_id}/alternatives
+# ---------------------------------------------------------
 @router.get(
     "/decisions/{decision_id}/alternatives",
     response_model=List[AlternativeResponse]
 )
+def get_alternatives(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    alternatives = (
+        db.query(Alternative)
+        .filter(Alternative.decision_id == decision_id)
+        .all()
+    )
+
+    return alternatives
+
+
+# ---------------------------------------------------------
+# GET ONE ALTERNATIVE
+# GET /alternatives/{alternative_id}
+# ---------------------------------------------------------
 @router.get(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -85,6 +123,10 @@ def get_alternative(
     return alternative
 
 
+# ---------------------------------------------------------
+# UPDATE ALTERNATIVE
+# PUT /alternatives/{alternative_id}
+# ---------------------------------------------------------
 @router.put(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -121,6 +163,10 @@ def update_alternative(
     return alternative
 
 
+# ---------------------------------------------------------
+# COMPARE ALTERNATIVES
+# GET /decisions/{decision_id}/alternatives/compare
+# ---------------------------------------------------------
 @router.get(
     "/decisions/{decision_id}/alternatives/compare"
 )
@@ -151,7 +197,11 @@ def compare_alternatives(
         "decision_id": decision_id,
         "alternatives": [
             {
+                "id": alternative.id,
                 "name": alternative.name,
+                "description": alternative.description,
+                "pros": alternative.pros,
+                "cons": alternative.cons,
                 "estimated_cost": alternative.estimated_cost,
                 "feasibility_score": alternative.feasibility_score,
                 "risk_level": alternative.risk_level
@@ -159,6 +209,12 @@ def compare_alternatives(
             for alternative in alternatives
         ]
     }
+
+
+# ---------------------------------------------------------
+# DELETE ALTERNATIVE
+# DELETE /alternatives/{alternative_id}
+# ---------------------------------------------------------
 @router.delete(
     "/alternatives/{alternative_id}",
     status_code=status.HTTP_204_NO_CONTENT
