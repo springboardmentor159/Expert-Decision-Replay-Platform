@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
+from app.services.audit import create_security_log
 from app.services.auth import get_current_user
 from app.services.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -20,9 +21,12 @@ router = APIRouter(
 
 @router.post("/login")
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
+    ip_address = request.client.host if request.client else None
+
     # Swagger/OAuth2 calls the login field "username".
     # We use the user's email as the username.
     user = (
@@ -32,6 +36,14 @@ def login(
     )
 
     if user is None:
+        create_security_log(
+            db=db,
+            event_type="LOGIN_FAILED",
+            description=f"Failed login attempt for non-existent email '{form_data.username}'",
+            email=form_data.username,
+            ip_address=ip_address,
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -44,6 +56,15 @@ def login(
         form_data.password,
         user.password
     ):
+        create_security_log(
+            db=db,
+            event_type="LOGIN_FAILED",
+            description=f"Failed login attempt (wrong password) for user '{user.email}'",
+            user_id=user.id,
+            email=user.email,
+            ip_address=ip_address,
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -51,6 +72,16 @@ def login(
                 "WWW-Authenticate": "Bearer"
             }
         )
+
+    create_security_log(
+        db=db,
+        event_type="LOGIN_SUCCESS",
+        description=f"User '{user.email}' logged in successfully",
+        user_id=user.id,
+        email=user.email,
+        ip_address=ip_address,
+    )
+    db.commit()
 
     access_token = create_access_token(
         data={
@@ -64,6 +95,7 @@ def login(
         "access_token": access_token,
         "token_type": "bearer"
     }
+
 
 
 @router.get("/me")

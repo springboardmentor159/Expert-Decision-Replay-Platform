@@ -8,7 +8,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.decision import Decision
+from app.models.decision import Decision, DecisionStatus
 from app.models.tag import Tag
 from app.models.user import User
 from app.schemas.tag import (
@@ -230,6 +230,12 @@ def assign_tags_to_decision(
             detail="Decision not found"
         )
 
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision"
+        )
+
     # --------------------------------------------------------
     # Remove duplicate IDs from request
     # --------------------------------------------------------
@@ -375,6 +381,12 @@ def remove_tag_from_decision(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
+        )
+
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision"
         )
 
     # --------------------------------------------------------

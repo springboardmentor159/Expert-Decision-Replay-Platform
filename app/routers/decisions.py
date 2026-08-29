@@ -5,22 +5,29 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.audit import AuditAction, AuditLog
+from app.models.audit import AuditAction, AuditLog, DecisionVersion
 from app.models.decision import Decision, DecisionStatus
 from app.models.tag import Tag
 from app.models.user import User, UserRole
-from app.schemas.audit import TimelineResponse
+from app.schemas.audit import DecisionVersionResponse, TimelineResponse
 from app.schemas.decision import (
     DecisionCreate,
+    DecisionHistoryItem,
     DecisionListResponse,
     DecisionRationaleUpdate,
     DecisionResponse,
+    DecisionSearchResponse,
+    DecisionSearchResult,
     DecisionStatusUpdate,
     DecisionUpdate,
 )
 from app.schemas.decision_detail import DecisionDetailResponse
 from app.schemas.tag import DecisionTagCreate, TagResponse
-from app.services.audit import create_audit_log
+from app.services.audit import (
+    create_access_log,
+    create_audit_log,
+    create_decision_version,
+)
 from app.services.auth import get_current_user
 
 
@@ -158,10 +165,170 @@ def create_decision(
         ),
     )
 
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
+    )
+
     db.commit()
     db.refresh(decision)
 
     return decision
+
+
+# ============================================================
+# SEARCH DECISIONS
+# Dedicated discovery search endpoint
+# ============================================================
+
+@router.get(
+    "/search",
+    response_model=DecisionSearchResponse,
+)
+def search_decisions(
+    q: str | None = Query(
+        default=None,
+        description="Search query across title, problem statement, rationale",
+    ),
+    keyword: str | None = Query(
+        default=None,
+        description="Search keyword alias",
+    ),
+    category: str | None = Query(
+        default=None,
+        description="Filter by category",
+    ),
+    status_filter: DecisionStatus | None = Query(
+        default=None,
+        alias="status",
+        description="Filter by status",
+    ),
+    tag: str | None = Query(
+        default=None,
+        description="Filter by tag name",
+    ),
+    page: int = Query(
+        default=1,
+        ge=1,
+    ),
+    page_size: int = Query(
+        default=10,
+        ge=1,
+        le=100,
+    ),
+    sort_by: str = Query(
+        default="created_at",
+        description="created_at, updated_at or title",
+    ),
+    sort_order: str = Query(
+        default="desc",
+        description="asc or desc",
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.organization_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not assigned to an organization",
+        )
+
+    query = (
+        db.query(Decision)
+        .filter(
+            Decision.organization_id
+            == current_user.organization_id
+        )
+    )
+
+    search_term = q or keyword
+    if search_term:
+        search_pattern = f"%{search_term}%"
+        query = query.filter(
+            or_(
+                Decision.title.ilike(search_pattern),
+                Decision.problem_statement.ilike(search_pattern),
+                Decision.rationale.ilike(search_pattern),
+            )
+        )
+
+    if status_filter is not None:
+        query = query.filter(
+            Decision.status == status_filter
+        )
+
+    if category is not None:
+        query = query.filter(
+            Decision.category == category
+        )
+
+    if tag is not None:
+        query = (
+            query
+            .join(Decision.tags)
+            .filter(
+                Tag.name == tag,
+                Tag.organization_id
+                == current_user.organization_id,
+            )
+        )
+
+    total = query.count()
+
+    if sort_by == "title":
+        sort_column = Decision.title
+    elif sort_by == "updated_at":
+        sort_column = Decision.updated_at
+    elif sort_by == "created_at":
+        sort_column = Decision.created_at
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid sort_by. Use created_at, updated_at or title",
+        )
+
+    if sort_order.lower() == "asc":
+        query = query.order_by(sort_column.asc())
+    elif sort_order.lower() == "desc":
+        query = query.order_by(sort_column.desc())
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid sort_order. Use asc or desc",
+        )
+
+    offset = (page - 1) * page_size
+    decisions = (
+        query
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    total_pages = ceil(total / page_size) if total > 0 else 0
+
+    results = [
+        DecisionSearchResult(
+            id=d.id,
+            title=d.title,
+            problem_statement=d.problem_statement,
+            category=d.category,
+            status=d.status.value if hasattr(d.status, "value") else str(d.status),
+            tags=[t.name for t in d.tags],
+            created_at=d.created_at,
+            updated_at=d.updated_at,
+        )
+        for d in decisions
+    ]
+
+    return DecisionSearchResponse(
+        results=results,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
 
 
 # ============================================================
@@ -175,6 +342,10 @@ def create_decision(
     response_model=DecisionListResponse,
 )
 def get_decisions(
+    q: str | None = Query(
+        default=None,
+        description="Search query string alias",
+    ),
     keyword: str | None = Query(
         default=None,
         description=(
@@ -229,11 +400,12 @@ def get_decisions(
     )
 
     # --------------------------------------------------------
-    # Keyword search
+    # Keyword / query search
     # --------------------------------------------------------
 
-    if keyword:
-        search_pattern = f"%{keyword}%"
+    search_term = q or keyword
+    if search_term:
+        search_pattern = f"%{search_term}%"
 
         query = query.filter(
             or_(
@@ -352,6 +524,7 @@ def get_decisions(
     )
 
 
+
 # ============================================================
 # UPDATE DECISION RATIONALE
 # ============================================================
@@ -384,7 +557,15 @@ def update_decision_rationale(
             ),
         )
 
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
+        )
+
+    old_value = {"rationale": decision.rationale}
     decision.rationale = rationale_data.rationale
+    new_value = {"rationale": decision.rationale}
 
     create_audit_log(
         db=db,
@@ -397,6 +578,14 @@ def update_decision_rationale(
             f"Rationale updated for decision "
             f"'{decision.title}'"
         ),
+        old_value=old_value,
+        new_value=new_value,
+    )
+
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
     )
 
     db.commit()
@@ -436,6 +625,12 @@ def assign_tags_to_decision(
                 "You do not have permission "
                 "to modify this decision"
             ),
+        )
+
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
         )
 
     # Remove duplicate IDs
@@ -577,6 +772,12 @@ def remove_tag_from_decision(
             ),
         )
 
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
+        )
+
     # Tag must belong to the same organization
     tag = (
         db.query(Tag)
@@ -702,6 +903,146 @@ def get_decision_timeline(
 
 
 # ============================================================
+# GET DECISION VERSIONS
+# ============================================================
+
+@router.get(
+    "/{decision_id}/versions",
+    response_model=list[DecisionVersionResponse],
+)
+def get_decision_versions(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_access_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to view versions for this decision"
+            ),
+        )
+
+    versions = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id
+        )
+        .order_by(
+            DecisionVersion.version_number.asc()
+        )
+        .all()
+    )
+
+    return versions
+
+
+# ============================================================
+# GET SPECIFIC DECISION VERSION
+# ============================================================
+
+@router.get(
+    "/{decision_id}/versions/{version_number}",
+    response_model=DecisionVersionResponse,
+)
+def get_decision_version(
+    decision_id: int,
+    version_number: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_access_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to view this version"
+            ),
+        )
+
+    version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id,
+            DecisionVersion.version_number == version_number,
+        )
+        .first()
+    )
+
+    if version is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Version {version_number} not found for decision {decision_id}",
+        )
+
+    return version
+
+
+# ============================================================
+# GET DECISION CHANGE HISTORY
+# ============================================================
+
+@router.get(
+    "/{decision_id}/history",
+    response_model=list[DecisionHistoryItem],
+)
+def get_decision_history(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_access_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You do not have permission "
+                "to view history for this decision"
+            ),
+        )
+
+    history = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.decision_id == decision_id
+        )
+        .order_by(
+            AuditLog.created_at.asc()
+        )
+        .all()
+    )
+
+    return history
+
+
+# ============================================================
 # GET DECISION BY ID
 # ============================================================
 
@@ -731,6 +1072,15 @@ def get_decision(
                 "to view this decision"
             ),
         )
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Decision",
+        resource_id=decision.id,
+        action="VIEW",
+    )
+    db.commit()
 
     return decision
 
@@ -767,11 +1117,27 @@ def update_decision(
             ),
         )
 
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
+        )
+
+    old_value = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category,
+    }
+
     decision.title = decision_data.title
-    decision.problem_statement = (
-        decision_data.problem_statement
-    )
+    decision.problem_statement = decision_data.problem_statement
     decision.category = decision_data.category
+
+    new_value = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category,
+    }
 
     create_audit_log(
         db=db,
@@ -783,6 +1149,14 @@ def update_decision(
         description=(
             f"Decision '{decision.title}' was updated"
         ),
+        old_value=old_value,
+        new_value=new_value,
+    )
+
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
     )
 
     db.commit()
@@ -824,8 +1198,14 @@ def update_decision_status(
         )
 
     old_status = decision.status
-
     decision.status = status_data.status
+
+    old_value = {
+        "status": old_status.value if hasattr(old_status, "value") else str(old_status)
+    }
+    new_value = {
+        "status": decision.status.value if hasattr(decision.status, "value") else str(decision.status)
+    }
 
     create_audit_log(
         db=db,
@@ -839,6 +1219,14 @@ def update_decision_status(
             f"'{old_status.value}' to "
             f"'{decision.status.value}'"
         ),
+        old_value=old_value,
+        new_value=new_value,
+    )
+
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
     )
 
     db.commit()

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.alternative import Alternative
 from app.models.audit import AuditAction
-from app.models.decision import Decision
+from app.models.decision import Decision, DecisionStatus
 from app.models.user import User, UserRole
 from app.schemas.alternative import (
     AlternativeCreate,
@@ -109,6 +109,12 @@ def create_alternative(
                 "You do not have permission to modify "
                 "alternatives for this decision"
             ),
+        )
+
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
         )
 
     alternative = Alternative(
@@ -266,6 +272,12 @@ def update_alternative(
             ),
         )
 
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
+        )
+
     alternative.name = alternative_data.name
     alternative.description = alternative_data.description
     alternative.pros = alternative_data.pros
@@ -338,6 +350,12 @@ def delete_alternative(
                 "You do not have permission "
                 "to delete this alternative"
             ),
+        )
+
+    if decision.status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
         )
 
     decision_id = alternative.decision_id

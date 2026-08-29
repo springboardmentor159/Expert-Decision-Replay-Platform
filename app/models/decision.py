@@ -131,3 +131,9 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+
+    versions = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )

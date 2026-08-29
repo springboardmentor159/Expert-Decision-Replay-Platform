@@ -1,53 +1,47 @@
+from datetime import date, datetime, time
+from math import ceil
+
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
     Query,
-    status
+    status,
 )
-
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.audit import AuditLog
+from app.models.audit import AccessLog, AuditLog, SecurityLog
 from app.models.decision import Decision
 from app.models.user import User, UserRole
-from app.schemas.audit import AuditLogResponse
+from app.schemas.audit import (
+    AccessLogListResponse,
+    AuditLogListResponse,
+    AuditLogResponse,
+    SecurityLogListResponse,
+)
 from app.services.auth import get_current_user
+from app.services.authorization import require_roles
 
 
 router = APIRouter(
-    tags=["Audit Logs"]
+    tags=["Audit & Compliance"]
 )
 
 
 # ============================================================
-# Decision authorization
+# Decision authorization helper
 # ============================================================
 
 def can_access_decision(
     decision: Decision,
     current_user: User
 ) -> bool:
-
-    # --------------------------------------------------------
-    # Organization isolation
-    # --------------------------------------------------------
-
     if decision.organization_id != current_user.organization_id:
         return False
 
-    # --------------------------------------------------------
-    # Decision creator can access their own decision
-    # --------------------------------------------------------
-
     if decision.created_by == current_user.id:
         return True
-
-    # --------------------------------------------------------
-    # Managers and Administrators can access decisions
-    # within their own organization.
-    # --------------------------------------------------------
 
     if current_user.role in (
         UserRole.MANAGER,
@@ -59,12 +53,233 @@ def can_access_decision(
 
 
 # ============================================================
-# Get audit history for a decision
+# SYSTEM-WIDE AUDIT LOGS
+# Administrator only
+# ============================================================
+
+@router.get(
+    "/audit-logs",
+    response_model=AuditLogListResponse,
+)
+def get_audit_logs(
+    user_id: int | None = Query(default=None, description="Filter by user ID"),
+    action: str | None = Query(default=None, description="Filter by action type"),
+    entity_type: str | None = Query(default=None, description="Filter by entity type"),
+    entity_id: int | None = Query(default=None, description="Filter by entity ID"),
+    start_date: date | None = Query(default=None, description="Start date filter"),
+    end_date: date | None = Query(default=None, description="End date filter"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMINISTRATOR)),
+):
+    if (
+        start_date is not None
+        and end_date is not None
+        and start_date > end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_date cannot be after end_date",
+        )
+
+    query = (
+        db.query(AuditLog)
+        .join(User, AuditLog.user_id == User.id)
+        .filter(User.organization_id == current_user.organization_id)
+    )
+
+    if user_id is not None:
+        query = query.filter(AuditLog.user_id == user_id)
+
+    if action is not None:
+        query = query.filter(AuditLog.action == action)
+
+    if entity_type is not None:
+        query = query.filter(AuditLog.entity_type == entity_type)
+
+    if entity_id is not None:
+        query = query.filter(AuditLog.entity_id == entity_id)
+
+    if start_date is not None:
+        query = query.filter(
+            AuditLog.created_at >= datetime.combine(start_date, time.min)
+        )
+
+    if end_date is not None:
+        query = query.filter(
+            AuditLog.created_at <= datetime.combine(end_date, time.max)
+        )
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    items = (
+        query
+        .order_by(AuditLog.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+    total_pages = ceil(total / page_size) if total > 0 else 0
+
+    return AuditLogListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+# ============================================================
+# SECURITY LOGS
+# Administrator only
+# ============================================================
+
+@router.get(
+    "/security-logs",
+    response_model=SecurityLogListResponse,
+)
+def get_security_logs(
+    user_id: int | None = Query(default=None, description="Filter by user ID"),
+    event_type: str | None = Query(default=None, description="Filter by event type"),
+    start_date: date | None = Query(default=None, description="Start date filter"),
+    end_date: date | None = Query(default=None, description="End date filter"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMINISTRATOR)),
+):
+    if (
+        start_date is not None
+        and end_date is not None
+        and start_date > end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_date cannot be after end_date",
+        )
+
+    query = db.query(SecurityLog)
+
+    if user_id is not None:
+        query = query.filter(SecurityLog.user_id == user_id)
+
+    if event_type is not None:
+        query = query.filter(SecurityLog.event_type == event_type)
+
+    if start_date is not None:
+        query = query.filter(
+            SecurityLog.created_at >= datetime.combine(start_date, time.min)
+        )
+
+    if end_date is not None:
+        query = query.filter(
+            SecurityLog.created_at <= datetime.combine(end_date, time.max)
+        )
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    items = (
+        query
+        .order_by(SecurityLog.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+    total_pages = ceil(total / page_size) if total > 0 else 0
+
+    return SecurityLogListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+# ============================================================
+# ACCESS LOGS
+# Administrator only
+# ============================================================
+
+@router.get(
+    "/access-logs",
+    response_model=AccessLogListResponse,
+)
+def get_access_logs(
+    user_id: int | None = Query(default=None, description="Filter by user ID"),
+    resource_type: str | None = Query(default=None, description="Filter by resource type"),
+    resource_id: int | None = Query(default=None, description="Filter by resource ID"),
+    start_date: date | None = Query(default=None, description="Start date filter"),
+    end_date: date | None = Query(default=None, description="End date filter"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMINISTRATOR)),
+):
+    if (
+        start_date is not None
+        and end_date is not None
+        and start_date > end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_date cannot be after end_date",
+        )
+
+    query = (
+        db.query(AccessLog)
+        .join(User, AccessLog.user_id == User.id)
+        .filter(User.organization_id == current_user.organization_id)
+    )
+
+    if user_id is not None:
+        query = query.filter(AccessLog.user_id == user_id)
+
+    if resource_type is not None:
+        query = query.filter(AccessLog.resource_type == resource_type)
+
+    if resource_id is not None:
+        query = query.filter(AccessLog.resource_id == resource_id)
+
+    if start_date is not None:
+        query = query.filter(
+            AccessLog.created_at >= datetime.combine(start_date, time.min)
+        )
+
+    if end_date is not None:
+        query = query.filter(
+            AccessLog.created_at <= datetime.combine(end_date, time.max)
+        )
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    items = (
+        query
+        .order_by(AccessLog.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+    total_pages = ceil(total / page_size) if total > 0 else 0
+
+    return AccessLogListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+# ============================================================
+# Get audit history for a specific decision
 # ============================================================
 
 @router.get(
     "/decisions/{decision_id}/audit-logs",
-    response_model=list[AuditLogResponse]
+    response_model=list[AuditLogResponse],
 )
 def get_decision_audit_logs(
     decision_id: int,
@@ -83,11 +298,6 @@ def get_decision_audit_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-
-    # ========================================================
-    # Find decision
-    # ========================================================
-
     decision = (
         db.query(Decision)
         .filter(
@@ -102,10 +312,6 @@ def get_decision_audit_logs(
             detail="Decision not found"
         )
 
-    # ========================================================
-    # Organization + role authorization
-    # ========================================================
-
     if not can_access_decision(
         decision,
         current_user
@@ -118,10 +324,6 @@ def get_decision_audit_logs(
             )
         )
 
-    # ========================================================
-    # Build audit log query
-    # ========================================================
-
     query = (
         db.query(AuditLog)
         .filter(
@@ -129,32 +331,17 @@ def get_decision_audit_logs(
         )
     )
 
-    # ========================================================
-    # Filter by action
-    # ========================================================
-
     if action is not None:
         query = query.filter(
             AuditLog.action == action
         )
-
-    # ========================================================
-    # Filter by entity type
-    # ========================================================
 
     if entity_type is not None:
         query = query.filter(
             AuditLog.entity_type == entity_type
         )
 
-    # ========================================================
-    # Filter by user
-    # ========================================================
-
     if user_id is not None:
-
-        # Make sure the requested user belongs to the
-        # same organization as the current user.
         requested_user = (
             db.query(User)
             .filter(
@@ -174,10 +361,6 @@ def get_decision_audit_logs(
             AuditLog.user_id == user_id
         )
 
-    # ========================================================
-    # Return latest activity first
-    # ========================================================
-
     audit_logs = (
         query
         .order_by(
@@ -186,4 +369,4 @@ def get_decision_audit_logs(
         .all()
     )
 
-    return audit_logs
+    return audit_logs
