@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.decision import Decision
 from app.models.user import User
+from app.models.audit_log import AuditLog
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -57,6 +58,26 @@ def create_decision(
     db.add(new_decision)
     db.commit()
     db.refresh(new_decision)
+
+    # Create audit log
+    audit_log = AuditLog(
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="decision",
+        entity_id=new_decision.id,
+        description="Decision created",
+        new_value={
+            "title": new_decision.title,
+            "problem_statement": new_decision.problem_statement,
+            "category": new_decision.category,
+            "status": new_decision.status
+        },
+        request_method="POST",
+        endpoint="/decisions"
+    )
+
+    db.add(audit_log)
+    db.commit()
 
     return new_decision
 
@@ -223,16 +244,40 @@ def update_decision(
             detail="Decision not found"
         )
 
+    # Store old values for audit
+    old_value = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category
+    }
+
+    # Update decision
     decision.title = decision_data.title
-
-    decision.problem_statement = (
-        decision_data.problem_statement
-    )
-
+    decision.problem_statement = decision_data.problem_statement
     decision.category = decision_data.category
 
     db.commit()
     db.refresh(decision)
+
+    # Create audit log
+    audit_log = AuditLog(
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="decision",
+        entity_id=decision.id,
+        description="Decision updated",
+        old_value=old_value,
+        new_value={
+            "title": decision.title,
+            "problem_statement": decision.problem_statement,
+            "category": decision.category
+        },
+        request_method="PUT",
+        endpoint=f"/decisions/{decision.id}"
+    )
+
+    db.add(audit_log)
+    db.commit()
 
     return decision
 
@@ -264,9 +309,33 @@ def update_decision_status(
             detail="Decision not found"
         )
 
+    # Store old status for audit
+    old_status = decision.status
+
+    # Update status
     decision.status = status_data.status.value
 
     db.commit()
     db.refresh(decision)
+
+    # Create audit log
+    audit_log = AuditLog(
+        user_id=current_user.id,
+        action="STATUS_UPDATE",
+        entity_type="decision",
+        entity_id=decision.id,
+        description="Decision status updated",
+        old_value={
+            "status": old_status
+        },
+        new_value={
+            "status": decision.status
+        },
+        request_method="PATCH",
+        endpoint=f"/decisions/{decision.id}/status"
+    )
+
+    db.add(audit_log)
+    db.commit()
 
     return decision

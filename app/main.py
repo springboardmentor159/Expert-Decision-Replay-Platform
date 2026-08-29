@@ -7,7 +7,8 @@ from app.routers import (
     alternatives,
     comments,
     tags,
-    analytics
+    analytics,
+    audit_logs
 )
 
 from app.routers.dashboard import router as dashboard_router
@@ -26,6 +27,7 @@ app.include_router(decisions.router)
 app.include_router(alternatives.router)
 app.include_router(comments.router)
 app.include_router(tags.router)
+app.include_router(audit_logs.router)
 
 # Dashboard routes
 app.include_router(dashboard_router)
