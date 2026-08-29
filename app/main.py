@@ -6,6 +6,10 @@ from app.routers import alternatives
 from app.routers import comments
 from app.routers import threads
 from app.routers import meeting_notes
+from app.routers import tags
+from app.routers import activities
+from app.routers import approvals
+from app.routers import dashboard
 
 
 app = FastAPI(
@@ -24,3 +28,11 @@ app.include_router(comments.router)
 app.include_router(threads.router)
 
 app.include_router(meeting_notes.router)
+
+app.include_router(tags.router)
+
+app.include_router(activities.router)
+
+app.include_router(approvals.router)
+
+app.include_router(dashboard.router)

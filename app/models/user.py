@@ -35,3 +35,13 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
+    approvals = relationship(
+        "Approval",
+        foreign_keys="Approval.assigned_to"
+    )
+
+    activity_logs = relationship(
+        "ActivityLog",
+        foreign_keys="ActivityLog.user_id"
+    )

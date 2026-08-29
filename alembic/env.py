@@ -8,10 +8,14 @@ from app.core.config import settings
 from app.db.base import Base
 from app.models.user import User
 from app.models.decision import Decision
+from app.models.decision_activity import DecisionActivity
 from app.models.alternative import Alternative
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
+from app.models.tag import Tag
+from app.models.approval import Approval
+from app.models.activity_log import ActivityLog
 
 
 # this is the Alembic Config object, which provides
