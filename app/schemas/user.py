@@ -1,8 +1,7 @@
 from typing import Optional
 from enum import Enum
-from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr
 
 
 class UserRole(str, Enum):
@@ -27,6 +26,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[UserRole] = None
+    password: Optional[str] = None
     employee_id: Optional[str] = None
     department: Optional[str] = None
     designation: Optional[str] = None
@@ -43,23 +43,5 @@ class UserResponse(BaseModel):
     designation: str
     phone_number: str
 
-    model_config = ConfigDict(from_attributes=True)
-
-
-class DecisionCreate(BaseModel):
-    title: str
-    problem_statement: str
-    category: str
-
-
-class DecisionResponse(BaseModel):
-    id: int
-    title: str
-    problem_statement: str
-    category: str
-    status: str
-    created_by: int
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True

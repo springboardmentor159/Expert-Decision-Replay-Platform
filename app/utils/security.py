@@ -1,23 +1,43 @@
-"""
-Password hashing using bcrypt directly.
+from datetime import datetime, timedelta, timezone
 
-Uses the bcrypt library directly instead of passlib to avoid the
-passlib+bcrypt version compatibility bug (ValueError: password cannot
-be longer than 72 bytes).
-"""
-import bcrypt
+from fastapi.security import HTTPBearer
+from jose import JWTError, jwt
 
 
-def hash_password(password: str) -> str:
-    """Hash a plaintext password with bcrypt. Never store plaintext."""
-    password_bytes = password.encode("utf-8")
-    hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
-    return hashed.decode("utf-8")
+SECRET_KEY = "your-secret-key-change-this"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+security = HTTPBearer()
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plaintext password against a stored bcrypt hash."""
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8")
+def create_access_token(data: dict):
+    to_encode = data.copy()
+
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
+
+    to_encode.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    return encoded_jwt
+
+
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        return payload
+
+    except JWTError:
+        return None
