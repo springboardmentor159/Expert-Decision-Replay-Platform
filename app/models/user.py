@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Enum
 from sqlalchemy.orm import relationship
 
 from app.core.enums import UserRole
-from app.db.base import Base
+from app.db.database import Base
 
 
 class User(Base):
@@ -33,11 +33,18 @@ class User(Base):
         "Decision",
         back_populates="creator"
     )
+
     comments = relationship(
-    "Comment",
-    back_populates="user"
-)
+        "Comment",
+        back_populates="user"
+    )
+
     meeting_notes = relationship(
-    "MeetingNote",
-    back_populates="creator"
-)
+        "MeetingNote",
+        back_populates="creator"
+    )
+
+    expert_evaluations = relationship(
+        "ExpertEvaluation",
+        back_populates="expert"
+    )

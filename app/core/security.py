@@ -45,7 +45,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 # Swagger will use this for Bearer authentication
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/login"
+    tokenUrl="login"
 )
 
 

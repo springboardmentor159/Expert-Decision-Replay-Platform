@@ -48,3 +48,8 @@ class Alternative(Base):
         "Decision",
         back_populates="alternatives"
     )
+    expert_evaluations = relationship(
+    "ExpertEvaluation",
+    back_populates="alternative",
+    cascade="all, delete-orphan"
+)
