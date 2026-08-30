@@ -9,6 +9,7 @@ from app.models.approval import Approval
 from app.models.decision import Decision
 from app.models.user import User
 from app.models.activity import Activity
+from app.services.access import create_access_log
 from app.schemas.approval import (
     ApprovalCreate,
     ApprovalAction,
@@ -117,8 +118,26 @@ def get_approvals(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    return db.query(Approval).all()
+    approvals = (
+        db.query(Approval)
+        .all()
+    )
 
+    # --------------------------------------------------------
+    # ACCESS LOG
+    # --------------------------------------------------------
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Approval",
+        resource_id=None,
+        action="VIEW"
+    )
+
+    db.commit()
+
+    return approvals
 
 # ============================================================
 # GET MY PENDING APPROVALS
@@ -157,7 +176,6 @@ def get_approval(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-
     approval = (
         db.query(Approval)
         .filter(
@@ -171,6 +189,20 @@ def get_approval(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Approval not found"
         )
+
+    # --------------------------------------------------------
+    # ACCESS LOG
+    # --------------------------------------------------------
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Approval",
+        resource_id=approval.id,
+        action="VIEW"
+    )
+
+    db.commit()
 
     return approval
 

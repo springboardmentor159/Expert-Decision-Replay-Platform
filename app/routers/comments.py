@@ -10,10 +10,11 @@ from app.models.discussion_thread import DiscussionThread
 from app.models.activity import Activity
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.core.security import get_current_user
+from app.services.audit import create_audit_log
 
 
 # ============================================================
-# Router for decision-related comment APIs
+# DECISION COMMENTS ROUTER
 # ============================================================
 
 decision_comments_router = APIRouter(
@@ -23,7 +24,7 @@ decision_comments_router = APIRouter(
 
 
 # ============================================================
-# Router for individual comment APIs
+# INDIVIDUAL COMMENTS ROUTER
 # ============================================================
 
 comments_router = APIRouter(
@@ -68,10 +69,12 @@ def create_comment(
     )
 
     db.add(new_comment)
-    db.commit()
-    db.refresh(new_comment)
+    db.flush()
 
-    # Activity log
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
     activity = Activity(
         user_id=current_user.id,
         action="Comment Created",
@@ -85,13 +88,36 @@ def create_comment(
     )
 
     db.add(activity)
+
+    # --------------------------------------------------------
+    # AUDIT LOG
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_comment.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Comment {new_comment.id} "
+            f"on Decision {decision_id}"
+        ),
+        new_value={
+            "decision_id": decision_id,
+            "content": comment.content
+        }
+    )
+
     db.commit()
+    db.refresh(new_comment)
 
     return new_comment
 
 
 # ============================================================
-# GET ALL COMMENTS FOR A DECISION
+# GET COMMENTS FOR DECISION
 # GET /decisions/{decision_id}/comments
 # ============================================================
 
@@ -188,12 +214,28 @@ def update_comment(
             detail="You can only update your own comments"
         )
 
+    # --------------------------------------------------------
+    # SAVE OLD VALUE
+    # --------------------------------------------------------
+
+    old_value = {
+        "content": existing_comment.content
+    }
+
+    # --------------------------------------------------------
+    # UPDATE
+    # --------------------------------------------------------
+
     existing_comment.content = comment.content
 
-    db.commit()
-    db.refresh(existing_comment)
+    new_value = {
+        "content": existing_comment.content
+    }
 
-    # Activity log
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
     activity = Activity(
         user_id=current_user.id,
         action="Comment Updated",
@@ -206,7 +248,27 @@ def update_comment(
     )
 
     db.add(activity)
+
+    # --------------------------------------------------------
+    # AUDIT LOG
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Comment",
+        entity_id=existing_comment.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Comment {existing_comment.id}"
+        ),
+        old_value=old_value,
+        new_value=new_value
+    )
+
     db.commit()
+    db.refresh(existing_comment)
 
     return existing_comment
 
@@ -243,6 +305,52 @@ def delete_comment(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own comments"
         )
+
+    # --------------------------------------------------------
+    # SAVE VALUE BEFORE DELETE
+    # --------------------------------------------------------
+
+    old_value = {
+        "decision_id": existing_comment.decision_id,
+        "thread_id": existing_comment.thread_id,
+        "content": existing_comment.content
+    }
+
+    comment_id_value = existing_comment.id
+
+    # --------------------------------------------------------
+    # AUDIT LOG BEFORE DELETE
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Comment",
+        entity_id=comment_id_value,
+        description=(
+            f"User {current_user.id} deleted "
+            f"Comment {comment_id_value}"
+        ),
+        old_value=old_value
+    )
+
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
+    activity = Activity(
+        user_id=current_user.id,
+        action="Comment Deleted",
+        entity_type="Comment",
+        entity_id=comment_id_value,
+        description=(
+            f"User {current_user.id} deleted "
+            f"Comment {comment_id_value}"
+        )
+    )
+
+    db.add(activity)
 
     db.delete(existing_comment)
     db.commit()
@@ -287,10 +395,12 @@ def create_thread_reply(
     )
 
     db.add(new_reply)
-    db.commit()
-    db.refresh(new_reply)
+    db.flush()
 
-    # Activity log
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
     activity = Activity(
         user_id=current_user.id,
         action="Comment Reply Created",
@@ -304,6 +414,30 @@ def create_thread_reply(
     )
 
     db.add(activity)
+
+    # --------------------------------------------------------
+    # AUDIT LOG
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_reply.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Comment Reply {new_reply.id} "
+            f"on Thread {thread_id}"
+        ),
+        new_value={
+            "decision_id": thread.decision_id,
+            "thread_id": thread_id,
+            "content": comment.content
+        }
+    )
+
     db.commit()
+    db.refresh(new_reply)
 
     return new_reply

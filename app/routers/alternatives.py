@@ -2,6 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from app.services.audit import create_audit_log
 
 from app.db.database import get_db
 from app.models.alternative import Alternative

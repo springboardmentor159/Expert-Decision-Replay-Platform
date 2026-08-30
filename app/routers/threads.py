@@ -4,16 +4,24 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.decision import Decision
 from app.models.discussion_thread import DiscussionThread
+from app.models.decision import Decision
 from app.models.comment import Comment
+from app.models.activity import Activity
+
 from app.schemas.discussion_thread import (
     DiscussionThreadCreate,
     DiscussionThreadUpdate,
     DiscussionThreadResponse
 )
-from app.schemas.comment import CommentCreate, CommentResponse
+
+from app.schemas.comment import (
+    CommentCreate,
+    CommentResponse
+)
+
 from app.core.security import get_current_user
+from app.services.audit import create_audit_log
 
 
 router = APIRouter(
@@ -33,7 +41,7 @@ router = APIRouter(
 )
 def create_thread(
     decision_id: int,
-    thread: DiscussionThreadCreate,
+    thread_data: DiscussionThreadCreate,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
@@ -53,11 +61,55 @@ def create_thread(
     new_thread = DiscussionThread(
         decision_id=decision_id,
         created_by=current_user.id,
-        title=thread.title,
-        description=thread.description
+        title=thread_data.title,
+        description=thread_data.description,
+        status="Open"
     )
 
     db.add(new_thread)
+    db.flush()
+
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
+    activity = Activity(
+        user_id=current_user.id,
+        action="Discussion Thread Created",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Discussion Thread {new_thread.id} "
+            f"for Decision {decision_id}"
+        )
+    )
+
+    db.add(activity)
+
+    # --------------------------------------------------------
+    # AUDIT LOG
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Discussion Thread {new_thread.id} "
+            f"for Decision {decision_id}"
+        ),
+        new_value={
+            "decision_id": decision_id,
+            "title": thread_data.title,
+            "description": thread_data.description,
+            "status": "Open"
+        }
+    )
+
     db.commit()
     db.refresh(new_thread)
 
@@ -65,7 +117,7 @@ def create_thread(
 
 
 # ============================================================
-# GET ALL THREADS FOR A DECISION
+# GET ALL THREADS FOR DECISION
 # GET /decisions/{decision_id}/threads
 # ============================================================
 
@@ -93,7 +145,9 @@ def get_threads(
 
     return (
         db.query(DiscussionThread)
-        .filter(DiscussionThread.decision_id == decision_id)
+        .filter(
+            DiscussionThread.decision_id == decision_id
+        )
         .all()
     )
 
@@ -115,7 +169,9 @@ def get_thread(
 
     thread = (
         db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+        .filter(
+            DiscussionThread.id == thread_id
+        )
         .first()
     )
 
@@ -146,7 +202,9 @@ def update_thread(
 
     thread = (
         db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+        .filter(
+            DiscussionThread.id == thread_id
+        )
         .first()
     )
 
@@ -159,12 +217,70 @@ def update_thread(
     if thread.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only update your own discussion threads"
+            detail=(
+                "You can only update your own "
+                "discussion threads"
+            )
         )
+
+    # --------------------------------------------------------
+    # OLD VALUES
+    # --------------------------------------------------------
+
+    old_value = {
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status
+    }
+
+    # --------------------------------------------------------
+    # UPDATE
+    # --------------------------------------------------------
 
     thread.title = thread_data.title
     thread.description = thread_data.description
     thread.status = thread_data.status
+
+    new_value = {
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status
+    }
+
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
+    activity = Activity(
+        user_id=current_user.id,
+        action="Discussion Thread Updated",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Discussion Thread {thread.id}"
+        )
+    )
+
+    db.add(activity)
+
+    # --------------------------------------------------------
+    # AUDIT LOG
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Discussion Thread {thread.id}"
+        ),
+        old_value=old_value,
+        new_value=new_value
+    )
 
     db.commit()
     db.refresh(thread)
@@ -189,7 +305,9 @@ def delete_thread(
 
     thread = (
         db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+        .filter(
+            DiscussionThread.id == thread_id
+        )
         .first()
     )
 
@@ -202,8 +320,58 @@ def delete_thread(
     if thread.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own discussion threads"
+            detail=(
+                "You can only delete your own "
+                "discussion threads"
+            )
         )
+
+    # --------------------------------------------------------
+    # SAVE OLD VALUE BEFORE DELETE
+    # --------------------------------------------------------
+
+    old_value = {
+        "decision_id": thread.decision_id,
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status
+    }
+
+    thread_id_value = thread.id
+
+    # --------------------------------------------------------
+    # AUDIT LOG
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=thread_id_value,
+        description=(
+            f"User {current_user.id} deleted "
+            f"Discussion Thread {thread_id_value}"
+        ),
+        old_value=old_value
+    )
+
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
+    activity = Activity(
+        user_id=current_user.id,
+        action="Discussion Thread Deleted",
+        entity_type="DiscussionThread",
+        entity_id=thread_id_value,
+        description=(
+            f"User {current_user.id} deleted "
+            f"Discussion Thread {thread_id_value}"
+        )
+    )
+
+    db.add(activity)
 
     db.delete(thread)
     db.commit()
@@ -230,7 +398,9 @@ def create_thread_reply(
 
     thread = (
         db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+        .filter(
+            DiscussionThread.id == thread_id
+        )
         .first()
     )
 
@@ -248,6 +418,48 @@ def create_thread_reply(
     )
 
     db.add(new_reply)
+    db.flush()
+
+    # --------------------------------------------------------
+    # AUDIT LOG
+    # --------------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_reply.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Comment Reply {new_reply.id} "
+            f"on Thread {thread_id}"
+        ),
+        new_value={
+            "decision_id": thread.decision_id,
+            "thread_id": thread_id,
+            "content": comment.content
+        }
+    )
+
+    # --------------------------------------------------------
+    # ACTIVITY LOG
+    # --------------------------------------------------------
+
+    activity = Activity(
+        user_id=current_user.id,
+        action="Comment Reply Created",
+        entity_type="Comment",
+        entity_id=new_reply.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Comment Reply {new_reply.id} "
+            f"on Thread {thread_id}"
+        )
+    )
+
+    db.add(activity)
+
     db.commit()
     db.refresh(new_reply)
 
@@ -271,7 +483,9 @@ def get_thread_replies(
 
     thread = (
         db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+        .filter(
+            DiscussionThread.id == thread_id
+        )
         .first()
     )
 
@@ -283,6 +497,8 @@ def get_thread_replies(
 
     return (
         db.query(Comment)
-        .filter(Comment.thread_id == thread_id)
+        .filter(
+            Comment.thread_id == thread_id
+        )
         .all()
     )
