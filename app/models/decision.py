@@ -54,3 +54,13 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+    tags = relationship(
+        "Tag",
+        secondary="decision_tags",
+        back_populates="decisions",
+    )
+    approvals = relationship(
+        "Approval",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )

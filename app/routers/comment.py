@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.decision import Decision
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
+from app.services.activity import create_activity
 from app.schemas.comment import (
     CommentCreate,
     CommentUpdate,
@@ -55,6 +56,17 @@ def create_comment(
     )
 
     db.add(new_comment)
+    db.flush()
+
+    create_activity(
+    db=db,
+    user_id=current_user.id,
+    action="Comment created",
+    entity_type="Comment",
+    entity_id=new_comment.id,
+    description=f"User {current_user.id} added Comment {new_comment.id}",
+)
+
     db.commit()
     db.refresh(new_comment)
 
@@ -156,10 +168,21 @@ def update_comment(
             detail="You do not have permission to update this comment",
         )
 
-    comment.content = comment_data.content
+        comment.content = comment_data.content
 
     db.commit()
     db.refresh(comment)
+
+    create_activity(
+    db=db,
+    user_id=current_user.id,
+    action="Comment updated",
+    entity_type="Comment",
+    entity_id=comment.id,
+    description=f"User {current_user.id} updated Comment {comment.id}",
+)
+
+    db.commit()
 
     return comment
 

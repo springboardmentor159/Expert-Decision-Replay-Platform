@@ -8,6 +8,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.decision import Decision
 from app.models.discussion_thread import DiscussionThread
+from app.services.activity import create_activity
 from app.schemas.discussion_thread import (
     DiscussionThreadCreate,
     DiscussionThreadUpdate,
@@ -56,11 +57,21 @@ def create_thread(
     )
 
     db.add(new_thread)
+    db.flush()
+
+    create_activity(
+    db=db,
+    user_id=current_user.id,
+    action="Discussion thread created",
+    entity_type="DiscussionThread",
+    entity_id=new_thread.id,
+    description=f"User {current_user.id} created Discussion Thread {new_thread.id}",
+)
+
     db.commit()
     db.refresh(new_thread)
 
     return new_thread
-
 
 # =========================
 # GET ALL THREADS

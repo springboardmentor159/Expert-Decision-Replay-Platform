@@ -8,6 +8,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.decision import Decision
 from app.models.meeting_note import MeetingNote
+from app.services.activity import create_activity
 from app.schemas.meeting_note import (
     MeetingNoteCreate,
     MeetingNoteUpdate,
@@ -56,6 +57,17 @@ def create_meeting_note(
     )
 
     db.add(new_note)
+    db.flush()
+
+    create_activity(
+    db=db,
+    user_id=current_user.id,
+    action="Meeting note created",
+    entity_type="MeetingNote",
+    entity_id=new_note.id,
+    description=f"User {current_user.id} added Meeting Note {new_note.id}",
+)
+
     db.commit()
     db.refresh(new_note)
 

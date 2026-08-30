@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
+
 from app.db.base import Base
 
 
@@ -7,6 +8,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+
     full_name = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, nullable=False)
     role = Column(String(50), nullable=False)
@@ -22,18 +24,31 @@ class User(Base):
         back_populates="creator",
         cascade="all, delete-orphan"
     )
+
     comments = relationship(
         "Comment",
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
     discussion_threads = relationship(
         "DiscussionThread",
         back_populates="creator",
         cascade="all, delete-orphan"
     )
+
     meeting_notes = relationship(
         "MeetingNote",
         back_populates="creator",
         cascade="all, delete-orphan"
+    )
+
+    activity_logs = relationship(
+        "ActivityLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    approvals = relationship(
+        "Approval",
+        back_populates="reviewer"
     )

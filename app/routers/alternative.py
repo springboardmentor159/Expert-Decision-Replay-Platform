@@ -8,6 +8,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.decision import Decision
 from app.models.alternative import Alternative
+from app.services.activity import create_activity
 from app.schemas.alternative import (
     AlternativeCreate,
     AlternativeUpdate,
@@ -60,6 +61,17 @@ def create_alternative(
     )
 
     db.add(new_alternative)
+    db.flush()
+
+    create_activity(
+    db=db,
+    user_id=current_user.id,
+    action="Alternative created",
+    entity_type="Alternative",
+    entity_id=new_alternative.id,
+    description=f"Alternative '{new_alternative.name}' was created.",
+)
+
     db.commit()
     db.refresh(new_alternative)
 
@@ -165,8 +177,18 @@ def update_alternative(
     db.commit()
     db.refresh(alternative)
 
-    return alternative
+    create_activity(
+    db=db,
+    user_id=current_user.id,
+    action="Alternative updated",
+    entity_type="Alternative",
+    entity_id=alternative.id,
+    description=f"Alternative '{alternative.name}' was updated.",
+)
 
+    db.commit()
+
+    return alternative
 
 # =========================
 # COMPARE ALTERNATIVES
