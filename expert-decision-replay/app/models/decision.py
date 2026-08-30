@@ -34,10 +34,11 @@ class Decision(Base):
         nullable=False,
         default="Draft"
     )
+
     rationale = Column(
-    String,
-    nullable=True
-)
+        String,
+        nullable=True
+    )
 
     created_by = Column(
         Integer,
@@ -105,4 +106,14 @@ class Decision(Base):
         "MeetingNote",
         back_populates="decision",
         cascade="all, delete-orphan"
+    )
+
+    # =====================================================
+    # Many Decisions <-> Many Tags
+    # =====================================================
+
+    tags = relationship(
+        "Tag",
+        secondary="decision_tags",
+        back_populates="decisions"
     )
