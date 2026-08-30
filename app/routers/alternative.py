@@ -9,7 +9,7 @@ from app.models.alternative import Alternative
 from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.alternative import AlternativeCreate, AlternativeResponse
-
+from app.services.activity_service import log_activity
 
 router = APIRouter(
     tags=["Alternatives"]
@@ -55,6 +55,17 @@ def create_alternative(
     )
 
     db.add(new_alternative)
+    db.flush()
+
+    log_activity(
+        db,
+        user_id=current_user.id,
+        action="alternative_created",
+        entity_type="alternative",
+        entity_id=new_alternative.id,
+        description=f"User {current_user.id} added Alternative {new_alternative.id}"
+    )
+
     db.commit()
     db.refresh(new_alternative)
 
@@ -95,10 +106,7 @@ def get_alternatives(
     return alternatives
 
 
-# ---------------------------------------------------------
-# GET ONE ALTERNATIVE
-# GET /alternatives/{alternative_id}
-# ---------------------------------------------------------
+
 @router.get(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -157,16 +165,21 @@ def update_alternative(
     alternative.feasibility_score = alternative_data.feasibility_score
     alternative.risk_level = alternative_data.risk_level.value
 
+    log_activity(
+        db,
+        user_id=current_user.id,
+        action="alternative_updated",
+        entity_type="alternative",
+        entity_id=alternative.id,
+        description=f"User {current_user.id} updated Alternative {alternative.id}"
+    )
+
     db.commit()
     db.refresh(alternative)
 
     return alternative
 
 
-# ---------------------------------------------------------
-# COMPARE ALTERNATIVES
-# GET /decisions/{decision_id}/alternatives/compare
-# ---------------------------------------------------------
 @router.get(
     "/decisions/{decision_id}/alternatives/compare"
 )

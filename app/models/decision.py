@@ -108,9 +108,4 @@ class Decision(Base):
         secondary=decision_tags,
         back_populates="decisions"
     )
-    tags = relationship(
-    "Tag",
-    secondary=decision_tags,
-    back_populates="decisions"
-)
     

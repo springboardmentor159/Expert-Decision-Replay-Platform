@@ -1,21 +1,34 @@
 from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Query,
-    status
-)
 
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+class DecisionCreate(BaseModel):
+    title: str
+    problem_statement: str
+    category: str
+    rationale: Optional[str] = None
 
-class TagAssignment(BaseModel):
-    tag_ids: list[int]
+
+class DecisionUpdate(BaseModel):
+    title: Optional[str] = None
+    problem_statement: Optional[str] = None
+    category: Optional[str] = None
+    rationale: Optional[str] = None
+
+
+class DecisionResponse(BaseModel):
+    id: int
+    title: str
+    problem_statement: str
+    category: str
+    status: str
+    rationale: Optional[str] = None
+    created_by: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DecisionListItem(BaseModel):
@@ -30,7 +43,7 @@ class DecisionListItem(BaseModel):
 
 
 class DecisionListResponse(BaseModel):
-    items: list[DecisionListItem]
+    items: List[DecisionListItem]
     page: int
     page_size: int
     total: int
