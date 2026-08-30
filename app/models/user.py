@@ -48,3 +48,8 @@ class User(Base):
         "ExpertEvaluation",
         back_populates="expert"
     )
+    activity_logs = relationship(
+        "ActivityLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

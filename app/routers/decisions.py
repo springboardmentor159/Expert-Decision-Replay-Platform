@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import asc, desc, or_
 
 from app.db.database import get_db
+
 from app.models.decision import Decision
 from app.models.tag import Tag
 from app.models.user import User
@@ -23,6 +24,8 @@ from app.models.discussion_thread import DiscussionThread
 
 from app.core.security import get_current_user
 from app.core.enums import DecisionStatus
+
+from app.services.activity import log_activity
 
 
 # =========================================================
@@ -117,12 +120,44 @@ def create_decision(
     )
 
     db.add(new_decision)
+    db.flush()
+
+    # -----------------------------------------------------
+    # ACTIVITY LOG
+    # -----------------------------------------------------
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="Decision Created",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Decision {new_decision.id}"
+        )
+    )
+
     db.commit()
     db.refresh(new_decision)
 
+    # -----------------------------------------------------
+    # RESPONSE
+    # -----------------------------------------------------
+
     return {
         "message": "Decision created successfully",
-        "decision": new_decision
+        "decision": {
+            "id": new_decision.id,
+            "title": new_decision.title,
+            "problem_statement": new_decision.problem_statement,
+            "rationale": new_decision.rationale,
+            "category": new_decision.category,
+            "status": new_decision.status,
+            "created_by": new_decision.created_by,
+            "created_at": new_decision.created_at,
+            "updated_at": new_decision.updated_at
+        }
     }
 
 
@@ -146,7 +181,10 @@ def search_decisions(
     q: Optional[str] = Query(
         None,
         min_length=1,
-        description="Search decision title, problem statement, description, or rationale"
+        description=(
+            "Search decision title, problem statement, "
+            "description, or rationale"
+        )
     ),
 
     category: Optional[str] = Query(
@@ -219,7 +257,9 @@ def search_decisions(
     if category:
 
         query = query.filter(
-            Decision.category.ilike(category)
+            Decision.category.ilike(
+                f"%{category}%"
+            )
         )
 
     # -----------------------------------------------------
@@ -241,7 +281,9 @@ def search_decisions(
         query = query.join(
             Decision.tags
         ).filter(
-            Tag.name.ilike(tag)
+            Tag.name.ilike(
+                f"%{tag}%"
+            )
         ).distinct()
 
     # -----------------------------------------------------
@@ -336,7 +378,10 @@ def get_all_decisions(
 
     search: Optional[str] = Query(
         None,
-        description="Search by title, problem statement, or rationale"
+        description=(
+            "Search by title, problem statement, "
+            "or rationale"
+        )
     ),
 
     category: Optional[str] = Query(
@@ -409,7 +454,9 @@ def get_all_decisions(
     if category:
 
         query = query.filter(
-            Decision.category.ilike(category)
+            Decision.category.ilike(
+                f"%{category}%"
+            )
         )
 
     # -----------------------------------------------------
@@ -431,7 +478,9 @@ def get_all_decisions(
         query = query.join(
             Decision.tags
         ).filter(
-            Tag.name.ilike(tag)
+            Tag.name.ilike(
+                f"%{tag}%"
+            )
         ).distinct()
 
     # -----------------------------------------------------
@@ -530,9 +579,26 @@ def update_decision(
         db
     )
 
+    # -----------------------------------------------------
+    # STORE OLD STATUS
+    # -----------------------------------------------------
+
+    old_status = decision.status
+
+    # -----------------------------------------------------
+    # UPDATE PROVIDED FIELDS
+    # -----------------------------------------------------
+
     update_data = decision_data.model_dump(
         exclude_unset=True
     )
+
+    if not update_data:
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided for update"
+        )
 
     for field, value in update_data.items():
 
@@ -542,12 +608,63 @@ def update_decision(
             value
         )
 
+    db.flush()
+
+    # -----------------------------------------------------
+    # ACTIVITY LOG - STATUS CHANGE
+    # -----------------------------------------------------
+
+    if (
+        "status" in update_data
+        and old_status != decision.status
+    ):
+
+        log_activity(
+            db=db,
+            user_id=current_user.id,
+            action="Decision Status Changed",
+            entity_type="Decision",
+            entity_id=decision.id,
+            description=(
+                f"User {current_user.id} changed "
+                f"Decision {decision.id} status from "
+                f"'{old_status.value}' to "
+                f"'{decision.status.value}'"
+            )
+        )
+
+    # -----------------------------------------------------
+    # ACTIVITY LOG - GENERAL UPDATE
+    # -----------------------------------------------------
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="Decision Updated",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Decision {decision.id}"
+        )
+    )
+
     db.commit()
     db.refresh(decision)
 
     return {
         "message": "Decision updated successfully",
-        "decision": decision
+        "decision": {
+            "id": decision.id,
+            "title": decision.title,
+            "problem_statement": decision.problem_statement,
+            "rationale": decision.rationale,
+            "category": decision.category,
+            "status": decision.status,
+            "created_by": decision.created_by,
+            "created_at": decision.created_at,
+            "updated_at": decision.updated_at
+        }
     }
 
 
@@ -570,7 +687,27 @@ def delete_decision(
         db
     )
 
+    decision_title = decision.title
+
+    # -----------------------------------------------------
+    # ACTIVITY LOG BEFORE DELETE
+    # -----------------------------------------------------
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="Decision Deleted",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"User {current_user.id} deleted "
+            f"Decision {decision.id} "
+            f"('{decision_title}')"
+        )
+    )
+
     db.delete(decision)
+
     db.commit()
 
     return {
@@ -600,7 +737,7 @@ def assign_tags_to_decision(
     )
 
     # -----------------------------------------------------
-    # REMOVE DUPLICATE IDS FROM REQUEST
+    # REMOVE DUPLICATE IDS
     # -----------------------------------------------------
 
     requested_tag_ids = set(
@@ -635,18 +772,51 @@ def assign_tags_to_decision(
 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Tags not found: {list(missing_tag_ids)}"
+            detail=(
+                f"Tags not found: "
+                f"{list(missing_tag_ids)}"
+            )
         )
 
     # -----------------------------------------------------
     # ASSIGN TAGS
     # -----------------------------------------------------
 
+    newly_assigned = []
+
     for tag in tags:
 
         if tag not in decision.tags:
 
             decision.tags.append(tag)
+
+            newly_assigned.append(tag)
+
+    db.flush()
+
+    # -----------------------------------------------------
+    # ACTIVITY LOG
+    # -----------------------------------------------------
+
+    if newly_assigned:
+
+        tag_names = ", ".join(
+            tag.name
+            for tag in newly_assigned
+        )
+
+        log_activity(
+            db=db,
+            user_id=current_user.id,
+            action="Tags Assigned",
+            entity_type="Decision",
+            entity_id=decision.id,
+            description=(
+                f"User {current_user.id} assigned "
+                f"tags [{tag_names}] to "
+                f"Decision {decision.id}"
+            )
+        )
 
     db.commit()
     db.refresh(decision)
@@ -734,10 +904,34 @@ def remove_tag_from_decision(
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This tag is not assigned to this decision"
+            detail=(
+                "This tag is not assigned "
+                "to this decision"
+            )
         )
 
+    tag_name = tag.name
+
     decision.tags.remove(tag)
+
+    db.flush()
+
+    # -----------------------------------------------------
+    # ACTIVITY LOG
+    # -----------------------------------------------------
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="Tag Removed",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"User {current_user.id} removed "
+            f"tag '{tag_name}' from "
+            f"Decision {decision.id}"
+        )
+    )
 
     db.commit()
 
@@ -771,6 +965,11 @@ def get_decision_timeline(
 
     # -----------------------------------------------------
     # NORMALIZE TIMESTAMPS
+    #
+    # PostgreSQL may return some timestamps as timezone-aware
+    # and others as timezone-naive.
+    #
+    # This makes all timestamps UTC-aware before sorting.
     # -----------------------------------------------------
 
     def normalize_timestamp(timestamp):
@@ -797,7 +996,10 @@ def get_decision_timeline(
 
     timeline.append({
         "event_type": "Decision created",
-        "description": f"Decision '{decision.title}' was created",
+        "description": (
+            f"Decision '{decision.title}' "
+            f"was created"
+        ),
         "timestamp": decision.created_at
     })
 
@@ -807,15 +1009,22 @@ def get_decision_timeline(
 
     if decision.updated_at:
 
-        if normalize_timestamp(
-            decision.updated_at
-        ) != normalize_timestamp(
-            decision.created_at
+        if (
+            normalize_timestamp(
+                decision.updated_at
+            )
+            !=
+            normalize_timestamp(
+                decision.created_at
+            )
         ):
 
             timeline.append({
                 "event_type": "Decision updated",
-                "description": f"Decision '{decision.title}' was updated",
+                "description": (
+                    f"Decision '{decision.title}' "
+                    f"was updated"
+                ),
                 "timestamp": decision.updated_at
             })
 
@@ -833,21 +1042,32 @@ def get_decision_timeline(
 
         timeline.append({
             "event_type": "Alternative created",
-            "description": f"Alternative '{alternative.name}' was added",
+            "description": (
+                f"Alternative '{alternative.name}' "
+                f"was added"
+            ),
             "timestamp": alternative.created_at
         })
 
         if alternative.updated_at:
 
-            if normalize_timestamp(
-                alternative.updated_at
-            ) != normalize_timestamp(
-                alternative.created_at
+            if (
+                normalize_timestamp(
+                    alternative.updated_at
+                )
+                !=
+                normalize_timestamp(
+                    alternative.created_at
+                )
             ):
 
                 timeline.append({
                     "event_type": "Alternative updated",
-                    "description": f"Alternative '{alternative.name}' was updated",
+                    "description": (
+                        f"Alternative "
+                        f"'{alternative.name}' "
+                        f"was updated"
+                    ),
                     "timestamp": alternative.updated_at
                 })
 
@@ -865,9 +1085,33 @@ def get_decision_timeline(
 
         timeline.append({
             "event_type": "Comment added",
-            "description": "A comment was added to the decision",
+            "description": (
+                "A comment was added "
+                "to the decision"
+            ),
             "timestamp": comment.created_at
         })
+
+        if comment.updated_at:
+
+            if (
+                normalize_timestamp(
+                    comment.updated_at
+                )
+                !=
+                normalize_timestamp(
+                    comment.created_at
+                )
+            ):
+
+                timeline.append({
+                    "event_type": "Comment updated",
+                    "description": (
+                        "A comment was updated "
+                        "on the decision"
+                    ),
+                    "timestamp": comment.updated_at
+                })
 
     # -----------------------------------------------------
     # DISCUSSION THREADS
@@ -883,9 +1127,33 @@ def get_decision_timeline(
 
         timeline.append({
             "event_type": "Discussion thread created",
-            "description": f"Discussion thread '{thread.title}' was created",
+            "description": (
+                f"Discussion thread "
+                f"'{thread.title}' was created"
+            ),
             "timestamp": thread.created_at
         })
+
+        if thread.updated_at:
+
+            if (
+                normalize_timestamp(
+                    thread.updated_at
+                )
+                !=
+                normalize_timestamp(
+                    thread.created_at
+                )
+            ):
+
+                timeline.append({
+                    "event_type": "Discussion thread updated",
+                    "description": (
+                        f"Discussion thread "
+                        f"'{thread.title}' was updated"
+                    ),
+                    "timestamp": thread.updated_at
+                })
 
     # -----------------------------------------------------
     # STATUS EVENTS
@@ -895,7 +1163,9 @@ def get_decision_timeline(
 
         timeline.append({
             "event_type": "Decision approved",
-            "description": "Decision status is Approved",
+            "description": (
+                "Decision status is Approved"
+            ),
             "timestamp": decision.updated_at
         })
 
@@ -903,7 +1173,9 @@ def get_decision_timeline(
 
         timeline.append({
             "event_type": "Decision rejected",
-            "description": "Decision status is Rejected",
+            "description": (
+                "Decision status is Rejected"
+            ),
             "timestamp": decision.updated_at
         })
 
@@ -911,12 +1183,24 @@ def get_decision_timeline(
 
         timeline.append({
             "event_type": "Decision archived",
-            "description": "Decision status is Archived",
+            "description": (
+                "Decision status is Archived"
+            ),
+            "timestamp": decision.updated_at
+        })
+
+    elif decision.status == DecisionStatus.UNDER_REVIEW:
+
+        timeline.append({
+            "event_type": "Decision submitted for review",
+            "description": (
+                "Decision status is Under Review"
+            ),
             "timestamp": decision.updated_at
         })
 
     # -----------------------------------------------------
-    # SORT CHRONOLOGICALLY
+    # SORT TIMELINE
     # -----------------------------------------------------
 
     timeline.sort(

@@ -6,3 +6,4 @@ from app.models.meeting_note import MeetingNote
 from app.models.expert_evaluation import ExpertEvaluation
 from app.models.tag import Tag
 from app.models.discussion_thread import DiscussionThread
+from app.models.activity_log import ActivityLog

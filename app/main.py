@@ -3,9 +3,18 @@ from fastapi import FastAPI
 from app.db.base import Base
 from app.db.database import engine
 
-# Import all models so SQLAlchemy knows about them
+# =========================================================
+# IMPORT ALL MODELS
+# =========================================================
+# This ensures SQLAlchemy knows about all models before
+# creating database tables.
 import app.models
-from fastapi import FastAPI
+
+
+# =========================================================
+# IMPORT ROUTERS
+# =========================================================
+
 from app.routers.meeting_notes import router as meeting_note_router
 from app.routers.auth import router as auth_router
 from app.routers.users import router as user_router
@@ -17,14 +26,29 @@ from app.routers import tags
 from app.routers.scoring import router as scoring_router
 from app.routers.expert_evaluations import router as expert_evaluation_router
 
+# Sprint 10 Dashboard
+from app.routers.dashboard import router as dashboard_router
+
+
+# =========================================================
+# DATABASE TABLE CREATION
+# =========================================================
 
 Base.metadata.create_all(bind=engine)
 
+
+# =========================================================
+# FASTAPI APPLICATION
+# =========================================================
 
 app = FastAPI(
     title="Expert Decision Replay Platform"
 )
 
+
+# =========================================================
+# EXISTING ROUTERS
+# =========================================================
 
 app.include_router(user_router)
 
@@ -45,3 +69,10 @@ app.include_router(tags.router)
 app.include_router(scoring_router)
 
 app.include_router(expert_evaluation_router)
+
+
+# =========================================================
+# SPRINT 10 - DASHBOARD ROUTER
+# =========================================================
+
+app.include_router(dashboard_router)
