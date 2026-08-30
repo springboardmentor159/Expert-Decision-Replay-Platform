@@ -37,6 +37,7 @@ def create_decision(
         title=decision.title,
         problem_statement=decision.problem_statement,
         category=decision.category,
+        rationale=decision.rationale,
         status=DecisionStatus.DRAFT,
         created_by=current_user.id
     )
@@ -117,10 +118,24 @@ def update_decision(
             detail="Decision not found"
         )
 
-    # Only these fields can be changed by the client
-    decision.title = decision_data.title
-    decision.problem_statement = decision_data.problem_statement
-    decision.category = decision_data.category
+    # Only the creator can update the decision
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this decision"
+        )
+
+    if decision_data.title is not None:
+        decision.title = decision_data.title
+
+    if decision_data.problem_statement is not None:
+        decision.problem_statement = decision_data.problem_statement
+
+    if decision_data.category is not None:
+        decision.category = decision_data.category
+
+    if decision_data.rationale is not None:
+        decision.rationale = decision_data.rationale
 
     db.commit()
     db.refresh(decision)
@@ -147,6 +162,13 @@ def update_decision_status(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
+        )
+
+    # Only the creator can change the decision status
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this decision status"
         )
 
     decision.status = status_data.status

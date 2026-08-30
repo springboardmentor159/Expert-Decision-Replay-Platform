@@ -16,6 +16,12 @@ class Comment(Base):
         nullable=False
     )
 
+    thread_id = Column(
+        Integer,
+        ForeignKey("discussion_threads.id"),
+        nullable=True
+    )
+
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
@@ -40,8 +46,12 @@ class Comment(Base):
         back_populates="comments"
     )
 
+    thread = relationship(
+        "DiscussionThread",
+        back_populates="comments"
+    )
+
     user = relationship(
         "User",
         back_populates="comments"
     )
-    

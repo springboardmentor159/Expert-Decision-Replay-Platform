@@ -10,12 +10,14 @@ class DecisionCreate(BaseModel):
     title: str
     problem_statement: str
     category: str
+    rationale: Optional[str] = None
 
 
 class DecisionUpdate(BaseModel):
-    title: str
-    problem_statement: str
-    category: str
+    title: Optional[str] = None
+    problem_statement: Optional[str] = None
+    category: Optional[str] = None
+    rationale: Optional[str] = None
 
 
 class DecisionStatusUpdate(BaseModel):
@@ -27,6 +29,7 @@ class DecisionResponse(BaseModel):
     title: str
     problem_statement: str
     category: str
+    rationale: Optional[str] = None
     status: DecisionStatus
     created_by: int
     created_at: datetime

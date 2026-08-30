@@ -15,6 +15,7 @@ class CommentUpdate(BaseModel):
 class CommentResponse(BaseModel):
     id: int
     decision_id: int
+    thread_id: Optional[int] = None
     user_id: int
     content: str
     created_at: datetime

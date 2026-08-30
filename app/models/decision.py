@@ -1,4 +1,12 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum as SQLAlchemyEnum
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    ForeignKey,
+    DateTime,
+    Enum as SQLAlchemyEnum,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -10,24 +18,46 @@ class Decision(Base):
     __tablename__ = "decisions"
 
     id = Column(Integer, primary_key=True, index=True)
+
     title = Column(String, nullable=False)
+
     problem_statement = Column(Text, nullable=False)
+
     category = Column(String, nullable=False)
+
+    # Decision rationale
+    rationale = Column(
+        Text,
+        nullable=True
+    )
+
     status = Column(
         SQLAlchemyEnum(DecisionStatus),
         nullable=False,
         default=DecisionStatus.DRAFT
     )
 
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now()
     )
 
-    creator = relationship("User", back_populates="decisions")
+    creator = relationship(
+        "User",
+        back_populates="decisions"
+    )
 
     alternatives = relationship(
         "Alternative",
@@ -36,6 +66,18 @@ class Decision(Base):
 
     comments = relationship(
         "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    threads = relationship(
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    meeting_notes = relationship(
+        "MeetingNote",
         back_populates="decision",
         cascade="all, delete-orphan"
     )
