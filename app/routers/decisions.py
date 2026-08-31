@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
@@ -14,6 +14,7 @@ from app.schemas.decision import (
     DecisionResponse,
     DecisionUpdate,
     DecisionStatusUpdate,
+    DecisionListResponse,
 )
 from app.core.security import get_current_user
 
@@ -54,11 +55,12 @@ def create_decision(
 
 
 # ==========================================
-# GET ALL DECISIONS + FILTERING + SEARCH
+# GET ALL DECISIONS
+# FILTERING + SEARCH + SORTING + PAGINATION
 # ==========================================
 @router.get(
     "",
-    response_model=List[DecisionResponse]
+    response_model=DecisionListResponse
 )
 def get_decisions(
     status_filter: Optional[DecisionStatus] = Query(
@@ -68,24 +70,46 @@ def get_decisions(
     category: Optional[str] = None,
     tag: Optional[str] = None,
     search: Optional[str] = None,
+
+    sort_by: str = Query(
+        default="newest",
+        pattern="^(newest|oldest|updated|title)$"
+    ),
+
+    page: int = Query(
+        default=1,
+        ge=1
+    ),
+    page_size: int = Query(
+        default=10,
+        ge=1,
+        le=100
+    ),
+
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     query = db.query(Decision)
 
-    # Filter by status
+    # ==========================================
+    # FILTER BY STATUS
+    # ==========================================
     if status_filter is not None:
         query = query.filter(
             Decision.status == status_filter
         )
 
-    # Filter by category
+    # ==========================================
+    # FILTER BY CATEGORY
+    # ==========================================
     if category is not None:
         query = query.filter(
             Decision.category == category
         )
 
-    # Filter by tag name
+    # ==========================================
+    # FILTER BY TAG NAME
+    # ==========================================
     if tag is not None:
         query = (
             query
@@ -93,7 +117,9 @@ def get_decisions(
             .filter(Tag.name == tag)
         )
 
-    # Search by title, problem statement, or rationale
+    # ==========================================
+    # SEARCH
+    # ==========================================
     if search is not None:
         search_term = f"%{search}%"
 
@@ -105,7 +131,53 @@ def get_decisions(
             )
         )
 
-    return query.distinct().all()
+    # ==========================================
+    # SORTING
+    # ==========================================
+    if sort_by == "newest":
+        query = query.order_by(
+            Decision.created_at.desc()
+        )
+
+    elif sort_by == "oldest":
+        query = query.order_by(
+            Decision.created_at.asc()
+        )
+
+    elif sort_by == "updated":
+        query = query.order_by(
+            Decision.updated_at.desc()
+        )
+
+    elif sort_by == "title":
+        query = query.order_by(
+            Decision.title.asc()
+        )
+
+    # Remove duplicate decisions
+    query = query.distinct()
+
+    # ==========================================
+    # TOTAL RESULTS
+    # ==========================================
+    total = query.count()
+
+    # ==========================================
+    # PAGINATION
+    # ==========================================
+    items = (
+        query
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    return {
+        "items": items,
+        "page": page,
+        "page_size": page_size,
+        "total": total
+    }
 
 
 # ==========================================

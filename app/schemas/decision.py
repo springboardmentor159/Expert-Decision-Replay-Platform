@@ -1,11 +1,14 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
 from app.models.decision_status import DecisionStatus
 
 
+# ==========================================
+# CREATE DECISION
+# ==========================================
 class DecisionCreate(BaseModel):
     title: str
     problem_statement: str
@@ -13,6 +16,9 @@ class DecisionCreate(BaseModel):
     rationale: Optional[str] = None
 
 
+# ==========================================
+# UPDATE DECISION
+# ==========================================
 class DecisionUpdate(BaseModel):
     title: Optional[str] = None
     problem_statement: Optional[str] = None
@@ -20,10 +26,16 @@ class DecisionUpdate(BaseModel):
     rationale: Optional[str] = None
 
 
+# ==========================================
+# UPDATE DECISION STATUS
+# ==========================================
 class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
 
+# ==========================================
+# DECISION RESPONSE
+# ==========================================
 class DecisionResponse(BaseModel):
     id: int
     title: str
@@ -37,3 +49,13 @@ class DecisionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ==========================================
+# PAGINATED DECISION RESPONSE
+# ==========================================
+class DecisionListResponse(BaseModel):
+    items: List[DecisionResponse]
+    page: int
+    page_size: int
+    total: int
