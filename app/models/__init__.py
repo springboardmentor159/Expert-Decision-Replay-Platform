@@ -5,3 +5,6 @@ from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
 from app.models.activity_log import ActivityLog
+from app.models.audit_log import AuditLog
+from app.models.security_log import SecurityLog
+from app.models.access_log import AccessLog

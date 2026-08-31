@@ -10,6 +10,8 @@ from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.alternative import AlternativeCreate, AlternativeResponse
 from app.services.activity_service import log_activity
+from app.services.audit_service import log_audit
+
 
 router = APIRouter(
     tags=["Alternatives"]
@@ -66,6 +68,19 @@ def create_alternative(
         description=f"User {current_user.id} added Alternative {new_alternative.id}"
     )
 
+    log_audit(
+        db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Alternative",
+        entity_id=new_alternative.id,
+        description=f"User {current_user.id} created Alternative {new_alternative.id}",
+        new_value={
+            "name": new_alternative.name,
+            "decision_id": decision_id,
+        },
+    )
+
     db.commit()
     db.refresh(new_alternative)
 
@@ -106,7 +121,10 @@ def get_alternatives(
     return alternatives
 
 
-
+# ---------------------------------------------------------
+# GET ONE ALTERNATIVE
+# GET /alternatives/{alternative_id}
+# ---------------------------------------------------------
 @router.get(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -156,6 +174,12 @@ def update_alternative(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alternative not found"
         )
+    old_data = {
+        "name": alternative.name,
+        "description": alternative.description,
+        "pros": alternative.pros,
+        "cons": alternative.cons,
+    }
 
     alternative.name = alternative_data.name
     alternative.description = alternative_data.description
@@ -174,12 +198,26 @@ def update_alternative(
         description=f"User {current_user.id} updated Alternative {alternative.id}"
     )
 
+    log_audit(
+        db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Alternative",
+        entity_id=alternative.id,
+        description=f"User {current_user.id} updated Alternative {alternative.id}",
+        old_value=old_data,
+        new_value={
+            "name": alternative.name,
+            "description": alternative.description,
+            "pros": alternative.pros,
+            "cons": alternative.cons,
+        },
+    )
+
     db.commit()
     db.refresh(alternative)
 
     return alternative
-
-
 @router.get(
     "/decisions/{decision_id}/alternatives/compare"
 )
@@ -199,7 +237,6 @@ def compare_alternatives(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
-
     alternatives = (
         db.query(Alternative)
         .filter(Alternative.decision_id == decision_id)
@@ -222,12 +259,6 @@ def compare_alternatives(
             for alternative in alternatives
         ]
     }
-
-
-# ---------------------------------------------------------
-# DELETE ALTERNATIVE
-# DELETE /alternatives/{alternative_id}
-# ---------------------------------------------------------
 @router.delete(
     "/alternatives/{alternative_id}",
     status_code=status.HTTP_204_NO_CONTENT
@@ -248,6 +279,14 @@ def delete_alternative(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alternative not found"
         )
+    log_audit(
+        db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Alternative",
+        entity_id=alternative.id,
+        description=f"User {current_user.id} deleted Alternative {alternative.id}",
+    )
 
     db.delete(alternative)
     db.commit()

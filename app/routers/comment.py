@@ -10,6 +10,8 @@ from app.models.decision import Decision
 from app.models.user import User
 from app.models.discussion_thread import DiscussionThread
 from app.schemas.comment import CommentCreate, CommentResponse
+from app.services.activity_service import log_activity
+from app.services.audit_service import log_audit
 
 
 router = APIRouter(
@@ -17,6 +19,10 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------
+# CREATE COMMENT
+# POST /threads/{thread_id}/comments
+# ---------------------------------------------------------
 @router.post(
     "/threads/{thread_id}/comments",
     response_model=CommentResponse,
@@ -48,10 +54,40 @@ def create_thread_reply(
     )
 
     db.add(new_comment)
+    db.flush()
+
+    log_activity(
+        db,
+        user_id=current_user.id,
+        action="comment_created",
+        entity_type="comment",
+        entity_id=new_comment.id,
+        description=f"User {current_user.id} added Comment {new_comment.id}"
+    )
+
+    log_audit(
+        db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_comment.id,
+        description=f"User {current_user.id} created Comment {new_comment.id}",
+        new_value={
+            "thread_id": thread_id,
+            "decision_id": thread.decision_id,
+        },
+    )
+
     db.commit()
     db.refresh(new_comment)
 
     return new_comment
+
+
+# ---------------------------------------------------------
+# GET COMMENTS FOR A THREAD
+# GET /threads/{thread_id}/comments
+# ---------------------------------------------------------
 @router.get(
     "/threads/{thread_id}/comments",
     response_model=List[CommentResponse]

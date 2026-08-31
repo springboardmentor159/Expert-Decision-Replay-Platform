@@ -44,3 +44,15 @@ class User(Base):
         "ActivityLog",
         back_populates="user"
     )
+    audit_logs = relationship(
+        "AuditLog",
+        back_populates="user"
+    )
+    security_logs = relationship(
+        "SecurityLog",
+        back_populates="user"
+    )
+    access_logs = relationship(
+        "AccessLog",
+        back_populates="user"
+    )

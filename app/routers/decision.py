@@ -9,10 +9,12 @@ from app.db.session import get_db
 
 from app.models.user import User
 from app.models.decision import Decision
-
+from app.models.alternative import Alternative
+from app.models.discussion_thread import DiscussionThread
+from app.models.comment import Comment
 from app.models.tag import Tag
 
-
+from app.schemas.timeline import TimelineEvent
 from app.schemas.tag import TagAssignment, TagResponse
 from app.schemas.decision import (
     DecisionCreate,
@@ -22,11 +24,13 @@ from app.schemas.decision import (
     DecisionListItem,
 )
 from app.services.activity_service import log_activity
+from app.services.audit_service import log_audit
 
 router = APIRouter(
     prefix="/decisions",
     tags=["Decisions"]
 )
+
 
 
 @router.post(
@@ -58,6 +62,20 @@ def create_decision(
         entity_type="decision",
         entity_id=new_decision.id,
         description=f"User {current_user.id} created Decision {new_decision.id}"
+    )
+
+    log_audit(
+        db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=f"User {current_user.id} created Decision {new_decision.id}",
+        new_value={
+            "title": new_decision.title,
+            "category": new_decision.category,
+            "status": new_decision.status,
+        },
     )
 
     db.commit()
@@ -121,7 +139,6 @@ def search_decisions(
         "updated_at": Decision.updated_at,
         "title": Decision.title,
     }
-
     if sort not in allowed_sort_fields:
         raise HTTPException(status_code=422, detail="Invalid sort field")
 
@@ -143,8 +160,6 @@ def search_decisions(
         page_size=page_size,
         total=total
     )
-
-
 @router.get(
     "/{decision_id}",
     response_model=DecisionResponse
@@ -165,10 +180,7 @@ def get_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
-
     return decision
-
-
 @router.put(
     "/{decision_id}",
     response_model=DecisionResponse
@@ -190,12 +202,19 @@ def update_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
-
     if decision.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this decision"
         )
+
+    
+    old_data = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category,
+        "rationale": decision.rationale,
+    }
 
     if decision_data.title is not None:
         decision.title = decision_data.title
@@ -205,8 +224,7 @@ def update_decision(
         decision.category = decision_data.category
     if decision_data.rationale is not None:
         decision.rationale = decision_data.rationale
-
-    log_activity(
+        log_activity(
         db,
         user_id=current_user.id,
         action="decision_updated",
@@ -215,15 +233,30 @@ def update_decision(
         description=f"User {current_user.id} updated Decision {decision.id}"
     )
 
+    log_audit(
+        db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"User {current_user.id} updated Decision {decision.id}",
+        old_value=old_data,
+        new_value={
+            "title": decision.title,
+            "problem_statement": decision.problem_statement,
+            "category": decision.category,
+            "rationale": decision.rationale,
+        },
+    )
+
     db.commit()
     db.refresh(decision)
 
     return decision
-
-
+@router.post(
     "/{decision_id}/submit",
     response_model=DecisionResponse
-
+)
 def submit_decision(
     decision_id: int,
     db: Session = Depends(get_db),
@@ -264,44 +297,21 @@ def submit_decision(
         description=f"User {current_user.id} submitted Decision {decision.id} for review"
     )
 
+    log_audit(
+        db,
+        user_id=current_user.id,
+        action="SUBMIT",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"User {current_user.id} submitted Decision {decision.id} for review",
+        old_value={"status": "Draft"},
+        new_value={"status": "Under Review"},
+    )
+
     db.commit()
     db.refresh(decision)
 
     return decision
-
-
-@router.delete(
-    "/{decision_id}",
-    status_code=status.HTTP_204_NO_CONTENT
-)
-def delete_decision(
-    decision_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
-        .first()
-    )
-
-    if decision is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Decision not found"
-        )
-
-    if decision.created_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this decision"
-        )
-
-    db.delete(decision)
-    db.commit()
-
-    return None
-
 
 @router.post(
     "/{decision_id}/tags",
@@ -324,7 +334,6 @@ def assign_tags_to_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
-
     tags = db.query(Tag).filter(Tag.id.in_(tag_data.tag_ids)).all()
     found_tag_ids = {tag.id for tag in tags}
     missing_tag_ids = set(tag_data.tag_ids) - found_tag_ids
@@ -344,5 +353,3 @@ def assign_tags_to_decision(
     db.refresh(decision)
 
     return decision.tags
-
-

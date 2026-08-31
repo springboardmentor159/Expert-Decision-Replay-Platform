@@ -14,6 +14,7 @@ from app.routers import (
     decision_version,
     dashboard,
     activities,
+    audit_logs,
 )
 
 app = FastAPI(
@@ -33,6 +34,7 @@ app.include_router(timeline.router)
 app.include_router(decision_version.router)
 app.include_router(dashboard.router)
 app.include_router(activities.router)
+app.include_router(audit_logs.router)
 @app.get("/")
 def root():
     return {
