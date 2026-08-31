@@ -14,6 +14,7 @@ import app.models.alternative
 import app.models.comment
 import app.models.discussion_thread
 import app.models.meeting_note
+import app.models.tag
 
 
 # Alembic Config object

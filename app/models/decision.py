@@ -25,7 +25,6 @@ class Decision(Base):
 
     category = Column(String, nullable=False)
 
-    # Decision rationale
     rationale = Column(
         Text,
         nullable=True
@@ -80,4 +79,11 @@ class Decision(Base):
         "MeetingNote",
         back_populates="decision",
         cascade="all, delete-orphan"
+    )
+
+    # Many-to-many relationship with tags
+    tags = relationship(
+        "Tag",
+        secondary="decision_tags",
+        back_populates="decisions"
     )

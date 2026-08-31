@@ -1,11 +1,13 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.decision import Decision
 from app.models.decision_status import DecisionStatus
+from app.models.tag import Tag
 from app.models.user import User
 from app.schemas.decision import (
     DecisionCreate,
@@ -22,7 +24,9 @@ router = APIRouter(
 )
 
 
+# ==========================================
 # CREATE DECISION
+# ==========================================
 @router.post(
     "",
     response_model=DecisionResponse,
@@ -49,7 +53,9 @@ def create_decision(
     return new_decision
 
 
-# GET ALL DECISIONS + FILTERING
+# ==========================================
+# GET ALL DECISIONS + FILTERING + SEARCH
+# ==========================================
 @router.get(
     "",
     response_model=List[DecisionResponse]
@@ -60,21 +66,51 @@ def get_decisions(
         alias="status"
     ),
     category: Optional[str] = None,
+    tag: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     query = db.query(Decision)
 
+    # Filter by status
     if status_filter is not None:
-        query = query.filter(Decision.status == status_filter)
+        query = query.filter(
+            Decision.status == status_filter
+        )
 
+    # Filter by category
     if category is not None:
-        query = query.filter(Decision.category == category)
+        query = query.filter(
+            Decision.category == category
+        )
 
-    return query.all()
+    # Filter by tag name
+    if tag is not None:
+        query = (
+            query
+            .join(Decision.tags)
+            .filter(Tag.name == tag)
+        )
+
+    # Search by title, problem statement, or rationale
+    if search is not None:
+        search_term = f"%{search}%"
+
+        query = query.filter(
+            or_(
+                Decision.title.ilike(search_term),
+                Decision.problem_statement.ilike(search_term),
+                Decision.rationale.ilike(search_term),
+            )
+        )
+
+    return query.distinct().all()
 
 
+# ==========================================
 # GET DECISION BY ID
+# ==========================================
 @router.get(
     "/{decision_id}",
     response_model=DecisionResponse
@@ -97,7 +133,9 @@ def get_decision(
     return decision
 
 
+# ==========================================
 # UPDATE DECISION
+# ==========================================
 @router.put(
     "/{decision_id}",
     response_model=DecisionResponse
@@ -125,6 +163,7 @@ def update_decision(
             detail="You do not have permission to update this decision"
         )
 
+    # Update only provided fields
     if decision_data.title is not None:
         decision.title = decision_data.title
 
@@ -143,7 +182,9 @@ def update_decision(
     return decision
 
 
+# ==========================================
 # UPDATE DECISION STATUS
+# ==========================================
 @router.patch(
     "/{decision_id}/status",
     response_model=DecisionResponse
