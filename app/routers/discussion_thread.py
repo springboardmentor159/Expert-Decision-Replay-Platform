@@ -11,6 +11,7 @@ from app.models.decision import Decision
 from app.models.discussion_thread import DiscussionThread
 from app.models.enums import UserRole
 from app.models.user import User
+from app.services.activity import log_activity
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.discussion_thread import ThreadCreate, ThreadResponse, ThreadUpdate
 
@@ -68,6 +69,15 @@ def create_thread(
     db.add(new_thread)
     db.commit()
     db.refresh(new_thread)
+
+    log_activity(
+        db,
+        current_user.id,
+        "create",
+        "discussion_thread",
+        new_thread.id,
+        f"Created discussion thread '{new_thread.title}' for decision {decision_id}",
+    )
 
     return new_thread
 

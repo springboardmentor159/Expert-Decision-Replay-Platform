@@ -896,7 +896,253 @@ tests\test_user_enhancements.py ........                                 [100%]
 - `decisions`: **0 rows**
 - `users`: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
 
+---
 
+## Sprint 9: Activity Log Model & Automatic Activity Logging — COMPLETE (2026-08-27)
 
+### 0. FLAG — Approval Workflow Dependency Check (BLOCKED)
 
+The sprint spec referenced "an approval workflow implemented in Sprint 8 (Approval
+model, approval statuses, assigned reviewers)". **This does NOT exist in the codebase.**
+A case-insensitive search for `approval` across `app/` returned **zero matches** — there
+is no Approval model, no approval status enum, and no reviewer-assignment logic anywhere.
+Sprint 8 in this repo was actually *Discussion Threads*, not an approval workflow.
+
+**Consequence:** Approval assignment / approval / rejection logging could NOT be
+implemented. Those three logging actions are **explicitly blocked and deferred** to
+Part C/D of the overall task, which themselves depend on the (still-missing) approval
+workflow. Everything else in this sprint was completed.
+
+### 1. What was built & Files Touched
+
+- `app/models/activity_log.py` — new SQLAlchemy `ActivityLog` model:
+  `id` (PK), `user_id` (FK → users.id, indexed, NOT NULL), `action` (String, NOT NULL),
+  `entity_type` (String, NOT NULL), `entity_id` (Integer, nullable), `description`
+  (Text, nullable), `created_at` (timestamptz, NOT NULL, server default now()).
+- `app/models/__init__.py` & `alembic/env.py` — registered `ActivityLog` model.
+- `app/services/activity.py` — **reusable `log_activity(db, user_id, action,
+  entity_type, entity_id=None, description=None)` helper**. Adds the row, flushes, and
+  commits the audit entry independently of the surrounding transaction so activity is
+  always persisted (works both inside request handlers and standalone). This is the single
+  shared logging path — no logging code duplicated across routes.
+- `app/routers/decision.py` — wires `log_activity()` into:
+  - `create_decision` → action `"create"`, entity_type `"decision"`
+  - `update_decision` → action `"update"`, entity_type `"decision"`
+  - `update_decision_status` → action `"status_change"`, entity_type `"decision"`
+    (description records old → new status)
+- `app/routers/alternative.py` — `create_alternative` → `"create"/"alternative"`;
+  `update_alternative` → `"update"/"alternative"`.
+- `app/routers/comment.py` — `create_comment` → `"create"/"comment"`;
+  `update_comment` → `"update"/"comment"`.
+- `app/routers/discussion_thread.py` — `create_thread` → `"create"/"discussion_thread"`.
+- `alembic/versions/6a0d2fb180b3_create_activity_log_table.py` — migration generated via
+  `alembic revision --autogenerate`, reviewed (only adds `activity_log` table + FK to
+  users + two indexes), and applied (`alembic upgrade head`; `alembic current` = head
+  `6a0d2fb180b3`).
+- `tests/test_activity_log.py` — 6 new tests, each performs a real action via TestClient
+  and asserts the matching `activity_log` row exists (correct user_id / action /
+  entity_type / entity_id).
+- `verify_activity_log.py` — standalone Swagger-style E2E script (live PostgreSQL +
+  direct `psycopg2` verification + cleanup).
+
+### 2. Actions logged (automatic, via `log_activity()`)
+
+| Action | entity_type | action value |
+| --- | --- | --- |
+| Decision creation | `decision` | `create` |
+| Decision update | `decision` | `update` |
+| Decision status change | `decision` | `status_change` |
+| Alternative creation | `alternative` | `create` |
+| Alternative update | `alternative` | `update` |
+| Comment creation | `comment` | `create` |
+| Comment update | `comment` | `update` |
+| Discussion thread creation | `discussion_thread` | `create` |
+
+### 3. Actions BLOCKED — pending the approval workflow
+
+- Approval assignment
+- Approval
+- Rejection
+
+These are skipped intentionally because no Approval model / status / reviewer exists in the
+codebase. They belong to Part C/D and cannot be built until the approval workflow is added.
+
+### 4. Swagger / E2E Testing Workflow Verification (Real PostgreSQL `expert_decision_replay`)
+
+Run via `verify_activity_log.py` (FastAPI TestClient pointed at the live DB):
+
+| Step | Action | Result |
+| --- | --- | --- |
+| 1 | Create Decision | **PASS** — decision id=31, 1 `activity_log` row (`create`/`decision`) |
+| 2 | Update Decision | **PASS** — 200, 1 row (`update`/`decision`) |
+| 3 | Change status → "Under Review" | **PASS** — 200, 1 row (`status_change`/`decision`, desc "from 'Draft' to 'Under Review'") |
+| 4 | Create Alternative | **PASS** — alt id=14, 1 row (`create`/`alternative`) |
+| 5 | Create Comment | **PASS** — comment id=11, 1 row (`create`/`comment`) |
+| 6 | Create Discussion Thread | **PASS** — thread id=3, 1 row (`create`/`discussion_thread`) |
+
+### 5. PostgreSQL Direct Verification
+
+Table structure (from `information_schema`):
+
+```
+id           integer                      NOT NULL
+user_id      integer                      NOT NULL   (FK → users.id)
+action       character varying            NOT NULL
+entity_type  character varying            NOT NULL
+entity_id    integer                      NULL
+description  text                         NULL
+created_at   timestamp with time zone     NOT NULL
+```
+
+Entries created for the test run (correct `user_id` / `entity_type` / `entity_id` /
+`action`):
+
+```
+(38, 'decision',          31, 'create')
+(38, 'decision',          31, 'update')
+(38, 'decision',          31, 'status_change')
+(38, 'alternative',       14, 'create')
+(38, 'comment',           11, 'create')
+(38, 'discussion_thread',  3, 'create')
+```
+
+### 6. Full Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 119 items
+
+tests\test_activity_log.py ......                                      [  5%]
+tests\test_alternative.py .........................                    [ 26%]
+tests\test_auth.py ...                                                 [ 28%]
+tests\test_comment.py ................                                 [ 42%]
+tests\test_decision_filtering.py ......                                [ 47%]
+tests\test_decision_status.py .............                            [ 57%]
+tests\test_meeting_note.py ..................                          [ 73%]
+tests\test_security.py ....                                            [ 76%]
+tests\test_thread.py ....................                              [ 93%]
+tests\test_user_enhancements.py ........                               [100%]
+
+====================== 119 passed, 2 warnings in 35.35s =======================
+```
+
+### 7. Post-Verification Database State (cleanup confirmed)
+
+- `activity_log`: **0 rows**
+- `meeting_notes`: **0 rows**
+- `discussion_threads`: **0 rows**
+- `comments`: **0 rows**
+- `alternatives`: **0 rows**
+- `decisions`: **0 rows**
+- `users`: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
+
+Test user `actlog_verify@example.com` and all of its cascaded entities + its activity_log
+rows were deleted by the cleanup step.
+
+---
+
+## Sprint 9 (Part B): Dashboard Endpoints — COMPLETE (2026-08-27)
+
+### 0. FLAG — Approval Workflow Still Missing (carried from Part A)
+
+Part A confirmed the **approval workflow does NOT exist** in the codebase (no Approval
+model, statuses, or assigned reviewers). Therefore `GET /dashboard/manager/pending-approvals`
+is **BLOCKED / deferred** and implemented as an explicit 501 rather than fabricated.
+
+### 1. What was built & Files Touched
+
+- `app/schemas/dashboard.py` — `EmployeeDashboard` (user_id, total_decisions,
+  decisions_by_status list, recent_activity list), `ManagerStatistics` (scope, total,
+  draft, under_review, approved, rejected, archived), and `ActivityItem` for the recent
+  activity feed.
+- `app/routers/dashboard.py` — three endpoints, all requiring JWT:
+  - `GET /dashboard/employee` — **any authenticated user**. Returns the caller's own
+    decisions grouped by status (SQL `COUNT`/`GROUP BY` filtered by `created_by =
+    current_user.id`, derived from JWT — no query param) plus their recent activity from
+    `activity_log` (filtered by `user_id`, latest 20).
+  - `GET /dashboard/manager/statistics` — **Manager / Administrator only** (403 otherwise).
+    Aggregates decision counts by status via SQL `COUNT`/`GROUP BY` over the whole table.
+    Returns org-wide totals for total/draft/under_review/approved/rejected/archived.
+  - `GET /dashboard/manager/pending-approvals` — **BLOCKED**. Authorization gate
+    (Manager/Admin → 403 for others) is enforced first; then it returns **501 Not
+    Implemented** with a clear message that the approval workflow is not yet present.
+- `app/main.py` — registered `dashboard_router`.
+- `tests/test_dashboard.py` — 8 tests (own-stats scoping, activity feed, live re-fetch
+  after create/alt/comment, manager counts match, employee 403, manager pending 501,
+  employee pending 403, all-no-token 401).
+- `verify_dashboard.py` — standalone Swagger-style E2E script (live PostgreSQL + direct
+  SQL GROUP BY comparison + cleanup).
+
+### 2. Authorization Matrix
+
+| Method | Endpoint | Auth | Role | Result if wrong role |
+| --- | --- | --- | --- | --- |
+| GET | `/dashboard/employee` | JWT | Any authenticated user | 401 without token |
+| GET | `/dashboard/manager/statistics` | JWT | Manager / Administrator | 403 for Employee/Reviewer; 401 without token |
+| GET | `/dashboard/manager/pending-approvals` | JWT | Manager / Administrator | 403 for Employee/Reviewer; 501 (blocked) for authorized roles; 401 without token |
+
+### 3. Scoping / Limitation (documented)
+
+`/dashboard/manager/statistics` is **org-wide**. There is no team / reporting-line
+concept on the `User` model yet, so manager statistics cannot be team-scoped. This is a
+known limitation flagged for when a team/manager hierarchy is introduced.
+
+### 4. Swagger / E2E Testing Workflow Verification (Real PostgreSQL `expert_decision_replay`)
+
+Run via `verify_dashboard.py` (FastAPI TestClient pointed at the live DB):
+
+| Step | Action | Result |
+| --- | --- | --- |
+| 1 | Login as Employee → GET `/dashboard/employee` | **PASS** — 200, `user_id` = own id, `total_decisions` = 0, all statuses 0 |
+| 2 | Employee creates decision + alternative + comment → re-fetch | **PASS** — `total_decisions` = 1; recent_activity contains `create/decision`, `create/alternative`, `create/comment` |
+| 3 | Manager → GET `/dashboard/manager/statistics` | **PASS** — 200, `scope=org-wide`, counts exactly match a direct SQL `GROUP BY` (`draft=1, approved=1, total=2` in the run) |
+| 4 | Manager → GET `/dashboard/manager/pending-approvals` | **PASS (blocked)** — 501 with detail naming the missing approval workflow |
+| 5 | Employee → GET `/dashboard/manager/statistics` | **PASS** — 403 `Not authorized to view manager dashboards` |
+| 6 | All dashboard endpoints without token | **PASS** — all 3 return 401 `Not authenticated` |
+
+### 5. PostgreSQL Direct Verification
+
+Direct `GROUP BY` query `SELECT status, count(*) FROM decisions GROUP BY status` returned
+`[('Approved', 1), ('Draft', 1)]` during the run — exactly matching the manager
+statistics payload (`approved=1, draft=1, total=2`). Employee dashboard counts were
+confirmed scoped to the single test employee's own created decision only.
+
+### 6. Full Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+collected 127 items
+
+tests\test_activity_log.py ......                                      [  4%]
+tests\test_alternative.py .........................                    [ 24%]
+tests\test_auth.py ...                                                 [ 26%]
+tests\test_comment.py ................                                 [ 39%]
+tests\test_dashboard.py ........                                       [ 45%]
+tests\test_decision_filtering.py ......                                [ 50%]
+tests\test_decision_status.py .............                            [ 60%]
+tests\test_meeting_note.py ..................                          [ 74%]
+tests\test_security.py ....                                            [ 77%]
+tests\test_thread.py ....................                              [ 93%]
+tests\test_user_enhancements.py ........                               [100%]
+
+====================== 127 passed, 2 warnings in 46.92s =======================
+```
+
+### 7. Post-Verification Database State (cleanup confirmed)
+
+- `activity_log`: **0 rows**
+- `discussion_threads`: **0 rows**
+- `comments`: **0 rows**
+- `alternatives`: **0 rows**
+- `decisions`: **0 rows**
+- `users`: **1 row** (only pre-existing baseline user `employee_live_new@example.com` remains)
+- `meeting_notes`: **0 rows**
+
+Both test users (`dash_verify_emp@example.com`, `dash_verify_mgr@example.com`) and all of
+their cascaded entities + activity_log rows were deleted by the cleanup step.
 

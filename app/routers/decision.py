@@ -9,6 +9,7 @@ from app.db.database import get_db
 from app.models.decision import Decision
 from app.models.enums import DecisionStatus, UserRole
 from app.models.user import User
+from app.services.activity import log_activity
 from app.schemas.decision import (
     DecisionCreate,
     DecisionRationaleUpdate,
@@ -44,6 +45,15 @@ def create_decision(
     db.add(new_decision)
     db.commit()
     db.refresh(new_decision)
+
+    log_activity(
+        db,
+        current_user.id,
+        "create",
+        "decision",
+        new_decision.id,
+        f"Created decision '{new_decision.title}'",
+    )
 
     return new_decision
 
@@ -122,6 +132,15 @@ def update_decision(
     db.commit()
     db.refresh(decision)
 
+    log_activity(
+        db,
+        current_user.id,
+        "update",
+        "decision",
+        decision.id,
+        f"Updated decision '{decision.title}'",
+    )
+
     return decision
 
 
@@ -143,11 +162,21 @@ def update_decision_status(
             detail="Decision not found"
         )
 
+    old_status = decision.status.value if isinstance(decision.status, DecisionStatus) else decision.status
     decision.status = status_data.status
     decision.updated_at = func.now()
 
     db.commit()
     db.refresh(decision)
+
+    log_activity(
+        db,
+        current_user.id,
+        "status_change",
+        "decision",
+        decision.id,
+        f"Changed decision status from '{old_status}' to '{decision.status.value if isinstance(decision.status, DecisionStatus) else decision.status}'",
+    )
 
     return decision
 

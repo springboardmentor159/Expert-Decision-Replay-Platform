@@ -12,6 +12,9 @@ from app.models.alternative import Alternative
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
+from app.models.activity_log import ActivityLog
+from app.models.activity_log import ActivityLog
+from app.models.activity_log import ActivityLog
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

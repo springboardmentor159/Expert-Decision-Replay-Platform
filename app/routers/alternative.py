@@ -9,6 +9,7 @@ from app.db.database import get_db
 from app.models.alternative import Alternative
 from app.models.decision import Decision
 from app.models.user import User
+from app.services.activity import log_activity
 from app.schemas.alternative import (
     AlternativeCompareResponse,
     AlternativeCreate,
@@ -64,6 +65,15 @@ def create_alternative(
     db.add(new_alternative)
     db.commit()
     db.refresh(new_alternative)
+
+    log_activity(
+        db,
+        current_user.id,
+        "create",
+        "alternative",
+        new_alternative.id,
+        f"Created alternative '{new_alternative.name}' for decision {decision_id}",
+    )
 
     return new_alternative
 
@@ -174,5 +184,14 @@ def update_alternative(
 
     db.commit()
     db.refresh(alternative)
+
+    log_activity(
+        db,
+        current_user.id,
+        "update",
+        "alternative",
+        alternative.id,
+        f"Updated alternative '{alternative.name}'",
+    )
 
     return alternative
