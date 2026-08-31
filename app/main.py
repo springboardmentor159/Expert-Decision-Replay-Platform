@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routes.auth import router as auth_router
+from app.routers.activities import router as activities_router
 from app.routers.alternative import alternatives_router, router as alternative_router
 from app.routers.comment import comments_router, router as comment_router
 from app.routers.dashboard import router as dashboard_router
@@ -25,6 +26,7 @@ app.include_router(thread_router)
 app.include_router(threads_router)
 app.include_router(meeting_note_router)
 app.include_router(meeting_notes_router)
+app.include_router(activities_router)
 
 
 @app.get("/")
