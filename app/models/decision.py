@@ -26,3 +26,4 @@ class Decision(Base):
     meeting_notes = relationship("MeetingNote", back_populates="decision", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary="decision_tags", back_populates="decisions")
     approvals = relationship("Approval", back_populates="decision", cascade="all, delete-orphan")
+    versions = relationship("DecisionVersion", back_populates="decision", cascade="all, delete-orphan", order_by="DecisionVersion.version_number")

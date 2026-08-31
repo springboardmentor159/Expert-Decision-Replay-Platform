@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -15,7 +15,7 @@ from app.schemas.alternative import (
     AlternativeResponse,
     AlternativeUpdate,
 )
-from app.services.activity_logger import log_activity
+from app.services.audit_service import get_client_ip, log_audit
 
 router = APIRouter(tags=["Alternatives"])
 
@@ -29,6 +29,7 @@ router = APIRouter(tags=["Alternatives"])
 def create_alternative(
     decision_id: int,
     alternative_in: AlternativeCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -56,13 +57,23 @@ def create_alternative(
     db.commit()
     db.refresh(new_alternative)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="create",
+        action="CREATE",
         entity_type="Alternative",
         entity_id=new_alternative.id,
-        description=f"User {current_user.full_name} added alternative '{new_alternative.name}' to Decision #{decision_id}"
+        description=f"User {current_user.full_name} added alternative '{new_alternative.name}' to Decision #{decision_id}",
+        new_value={
+            "name": new_alternative.name,
+            "decision_id": decision_id,
+            "feasibility_score": new_alternative.feasibility_score,
+            "risk_level": new_alternative.risk_level
+        },
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return new_alternative
@@ -146,6 +157,7 @@ def get_alternative(
 def update_alternative(
     alternative_id: int,
     alternative_in: AlternativeUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -155,6 +167,16 @@ def update_alternative(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alternative not found"
         )
+
+    old_value = {
+        "name": alternative.name,
+        "description": alternative.description,
+        "pros": alternative.pros,
+        "cons": alternative.cons,
+        "estimated_cost": alternative.estimated_cost,
+        "feasibility_score": alternative.feasibility_score,
+        "risk_level": alternative.risk_level
+    }
 
     if alternative_in.name is not None:
         alternative.name = alternative_in.name
@@ -175,13 +197,71 @@ def update_alternative(
     db.commit()
     db.refresh(alternative)
 
-    log_activity(
+    new_value = {
+        "name": alternative.name,
+        "description": alternative.description,
+        "pros": alternative.pros,
+        "cons": alternative.cons,
+        "estimated_cost": alternative.estimated_cost,
+        "feasibility_score": alternative.feasibility_score,
+        "risk_level": alternative.risk_level
+    }
+
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="update",
+        action="UPDATE",
         entity_type="Alternative",
         entity_id=alternative.id,
-        description=f"User {current_user.full_name} updated alternative '{alternative.name}'"
+        description=f"User {current_user.full_name} updated alternative '{alternative.name}'",
+        old_value=old_value,
+        new_value=new_value,
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return alternative
+
+
+@router.delete(
+    "/alternatives/{alternative_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete an alternative"
+)
+def delete_alternative(
+    alternative_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    alternative = db.query(Alternative).filter(Alternative.id == alternative_id).first()
+    if not alternative:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alternative not found"
+        )
+
+    alt_name = alternative.name
+    alt_id = alternative.id
+    alt_decision_id = alternative.decision_id
+
+    db.delete(alternative)
+    db.commit()
+
+    client_ip = get_client_ip(request)
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Alternative",
+        entity_id=alt_id,
+        description=f"User {current_user.full_name} deleted alternative '{alt_name}' from Decision #{alt_decision_id}",
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
+    )
+
+    return {"message": "Alternative deleted successfully"}
+

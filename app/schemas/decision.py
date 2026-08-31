@@ -87,3 +87,27 @@ class DecisionTimelineResponse(BaseModel):
     title: str
     current_status: str
     events: List[TimelineEvent]
+
+
+class DecisionHistoryItem(BaseModel):
+    id: Optional[int] = None
+    action: str
+    event_type: Optional[str] = None
+    entity_type: str
+    entity_id: Optional[int] = None
+    user_id: Optional[int] = None
+    user_name: Optional[str] = None
+    description: str
+    old_value: Optional[Any] = None
+    new_value: Optional[Any] = None
+    timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DecisionHistoryResponse(BaseModel):
+    decision_id: int
+    title: str
+    total_events: int
+    history: List[DecisionHistoryItem]
+

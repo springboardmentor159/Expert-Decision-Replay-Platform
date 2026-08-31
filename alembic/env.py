@@ -18,7 +18,12 @@ from app.models import (
     decision_tags,
     ActivityLog,
     Approval,
+    AuditLog,
+    DecisionVersion,
+    SecurityLog,
+    AccessLog,
 )
+
 
 config = context.config
 

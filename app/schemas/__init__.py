@@ -23,6 +23,10 @@ from app.schemas.alternative import (
 from app.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
 from app.schemas.discussion_thread import ThreadCreate, ThreadUpdate, ThreadResponse
 from app.schemas.meeting_note import MeetingNoteCreate, MeetingNoteUpdate, MeetingNoteResponse
+from app.schemas.audit_log import AuditLogResponse, PaginatedAuditLogResponse
+from app.schemas.decision_version import DecisionVersionResponse, DecisionVersionListItem
+from app.schemas.security_log import SecurityLogResponse, PaginatedSecurityLogResponse
+from app.schemas.access_log import AccessLogResponse, PaginatedAccessLogResponse
 
 __all__ = [
     "UserCreate",
@@ -51,4 +55,13 @@ __all__ = [
     "MeetingNoteCreate",
     "MeetingNoteUpdate",
     "MeetingNoteResponse",
+    "AuditLogResponse",
+    "PaginatedAuditLogResponse",
+    "DecisionVersionResponse",
+    "DecisionVersionListItem",
+    "SecurityLogResponse",
+    "PaginatedSecurityLogResponse",
+    "AccessLogResponse",
+    "PaginatedAccessLogResponse",
 ]
+

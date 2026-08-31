@@ -1,17 +1,26 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status as http_status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.db.database import get_db
+from app.models.alternative import Alternative
+from app.models.approval import Approval
+from app.models.audit_log import AuditLog
+from app.models.comment import Comment
 from app.models.decision import Decision
+from app.models.decision_version import DecisionVersion
+from app.models.discussion_thread import DiscussionThread
+from app.models.meeting_note import MeetingNote
 from app.models.tag import Tag
 from app.models.user import User
 from app.schemas.decision import (
     DecisionCreate,
+    DecisionHistoryItem,
+    DecisionHistoryResponse,
     DecisionRationaleResponse,
     DecisionRationaleUpdate,
     DecisionResponse,
@@ -23,8 +32,15 @@ from app.schemas.decision import (
     DecisionUpdate,
     TimelineEvent,
 )
+from app.schemas.decision_version import DecisionVersionListItem, DecisionVersionResponse
 from app.schemas.tag import DecisionTagAssign, TagResponse
 from app.services.activity_logger import log_activity
+from app.services.audit_service import (
+    create_decision_version,
+    get_client_ip,
+    log_access_event,
+    log_audit,
+)
 
 router = APIRouter(
     prefix="/decisions",
@@ -46,6 +62,7 @@ ALLOWED_SORT_FIELDS = {
 )
 def create_decision(
     decision: DecisionCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -60,13 +77,31 @@ def create_decision(
     db.commit()
     db.refresh(new_decision)
 
-    log_activity(
+    # 1. Create Initial Version (Version 1)
+    create_decision_version(
+        db=db,
+        decision=new_decision,
+        created_by=current_user.id
+    )
+
+    # 2. Log Audit record
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="create",
+        action="CREATE",
         entity_type="Decision",
         entity_id=new_decision.id,
-        description=f"User {current_user.full_name} created decision '{new_decision.title}'"
+        description=f"User {current_user.full_name} created decision '{new_decision.title}'",
+        new_value={
+            "title": new_decision.title,
+            "problem_statement": new_decision.problem_statement,
+            "category": new_decision.category,
+            "status": new_decision.status
+        },
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return new_decision
@@ -215,6 +250,7 @@ def get_decisions(
 )
 def get_decision(
     decision_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -224,6 +260,18 @@ def get_decision(
             status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
+
+    # Log access event
+    client_ip = get_client_ip(request)
+    log_access_event(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Decision",
+        resource_id=decision.id,
+        action="VIEW",
+        ip_address=client_ip
+    )
+
     return decision
 
 
@@ -235,6 +283,7 @@ def get_decision(
 def update_decision(
     decision_id: int,
     decision_update: DecisionUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -251,6 +300,12 @@ def update_decision(
             detail="Cannot modify an archived decision"
         )
 
+    old_value = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category
+    }
+
     decision.title = decision_update.title
     decision.problem_statement = decision_update.problem_statement
     decision.category = decision_update.category
@@ -259,13 +314,32 @@ def update_decision(
     db.commit()
     db.refresh(decision)
 
-    log_activity(
+    new_value = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category
+    }
+
+    # Create next sequential version
+    create_decision_version(
+        db=db,
+        decision=decision,
+        created_by=current_user.id
+    )
+
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="update",
+        action="UPDATE",
         entity_type="Decision",
         entity_id=decision.id,
-        description=f"User {current_user.full_name} updated decision '{decision.title}'"
+        description=f"User {current_user.full_name} updated decision '{decision.title}'",
+        old_value=old_value,
+        new_value=new_value,
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return decision
@@ -279,6 +353,7 @@ def update_decision(
 def update_decision_status(
     decision_id: int,
     status_update: DecisionStatusUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -304,13 +379,28 @@ def update_decision_status(
     db.commit()
     db.refresh(decision)
 
-    log_activity(
+    # Create next version upon major status change
+    create_decision_version(
+        db=db,
+        decision=decision,
+        created_by=current_user.id
+    )
+
+    action_name = "SUBMIT" if new_status == "Under Review" else "UPDATE"
+    client_ip = get_client_ip(request)
+
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="status_change",
+        action=action_name,
         entity_type="Decision",
         entity_id=decision.id,
-        description=f"User {current_user.full_name} changed status of decision '{decision.title}' from '{old_status}' to '{new_status}'"
+        description=f"User {current_user.full_name} changed status of decision '{decision.title}' from '{old_status}' to '{new_status}'",
+        old_value={"status": old_status},
+        new_value={"status": new_status},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return decision
@@ -325,6 +415,7 @@ def update_decision_status(
 def update_decision_rationale(
     decision_id: int,
     rationale_update: DecisionRationaleUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -347,18 +438,25 @@ def update_decision_rationale(
             detail="Not authorized to update decision rationale"
         )
 
+    old_rationale = decision.rationale
     decision.rationale = rationale_update.rationale
     decision.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(decision)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="update_rationale",
+        action="UPDATE",
         entity_type="Decision",
         entity_id=decision.id,
-        description=f"User {current_user.full_name} recorded rationale for decision '{decision.title}'"
+        description=f"User {current_user.full_name} recorded rationale for decision '{decision.title}'",
+        old_value={"rationale": old_rationale},
+        new_value={"rationale": decision.rationale},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return DecisionRationaleResponse(
@@ -392,6 +490,142 @@ def get_decision_rationale(
 
 
 # =============================================================================
+# DECISION VERSIONS API
+# =============================================================================
+
+@router.get(
+    "/{decision_id}/versions",
+    response_model=List[DecisionVersionListItem],
+    summary="Get all versions of a decision"
+)
+def get_decision_versions(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    versions = (
+        db.query(DecisionVersion)
+        .filter(DecisionVersion.decision_id == decision_id)
+        .order_by(DecisionVersion.version_number.asc())
+        .all()
+    )
+    return versions
+
+
+@router.get(
+    "/{decision_id}/versions/{version_number}",
+    response_model=DecisionVersionResponse,
+    summary="Get specific version snapshot of a decision"
+)
+def get_specific_decision_version(
+    decision_id: int,
+    version_number: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    version_record = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id,
+            DecisionVersion.version_number == version_number
+        )
+        .first()
+    )
+    if not version_record:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=f"Decision version {version_number} not found"
+        )
+
+    return version_record
+
+
+# =============================================================================
+# DECISION CHANGE HISTORY API
+# =============================================================================
+
+@router.get(
+    "/{decision_id}/history",
+    response_model=DecisionHistoryResponse,
+    summary="Get chronological change history for a decision and related entities"
+)
+def get_decision_history(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    # Collect IDs for related entities to capture full decision lifecycle
+    alt_ids = [a.id for a in decision.alternatives]
+    comment_ids = [c.id for c in decision.comments]
+    thread_ids = [t.id for t in decision.threads]
+    note_ids = [n.id for n in decision.meeting_notes]
+    approval_ids = [ap.id for ap in decision.approvals]
+
+    # Query audit logs for Decision and its sub-entities
+    filters = [
+        (AuditLog.entity_type == "Decision") & (AuditLog.entity_id == decision_id)
+    ]
+    if alt_ids:
+        filters.append((AuditLog.entity_type == "Alternative") & (AuditLog.entity_id.in_(alt_ids)))
+    if comment_ids:
+        filters.append((AuditLog.entity_type == "Comment") & (AuditLog.entity_id.in_(comment_ids)))
+    if thread_ids:
+        filters.append((AuditLog.entity_type == "DiscussionThread") & (AuditLog.entity_id.in_(thread_ids)))
+    if note_ids:
+        filters.append((AuditLog.entity_type == "MeetingNote") & (AuditLog.entity_id.in_(note_ids)))
+    if approval_ids:
+        filters.append((AuditLog.entity_type == "Approval") & (AuditLog.entity_id.in_(approval_ids)))
+
+    audit_logs = db.query(AuditLog).filter(or_(*filters)).order_by(AuditLog.created_at.asc()).all()
+
+    history_items: List[DecisionHistoryItem] = []
+    for log in audit_logs:
+        history_items.append(
+            DecisionHistoryItem(
+                id=log.id,
+                action=log.action,
+                event_type=f"{log.entity_type} {log.action.capitalize()}",
+                entity_type=log.entity_type,
+                entity_id=log.entity_id,
+                user_id=log.user_id,
+                user_name=log.user.full_name if log.user else None,
+                description=log.description,
+                old_value=log.old_value,
+                new_value=log.new_value,
+                timestamp=log.created_at
+            )
+        )
+
+    return DecisionHistoryResponse(
+        decision_id=decision.id,
+        title=decision.title,
+        total_events=len(history_items),
+        history=history_items
+    )
+
+
+# =============================================================================
 # TAG ASSOCIATIONS FOR DECISIONS
 # =============================================================================
 
@@ -404,6 +638,7 @@ def get_decision_rationale(
 def assign_tags_to_decision(
     decision_id: int,
     tag_data: DecisionTagAssign,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -441,13 +676,18 @@ def assign_tags_to_decision(
     db.refresh(decision)
 
     tag_names = ", ".join([t.name for t in existing_tags])
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="assign_tags",
+        action="UPDATE",
         entity_type="Decision",
         entity_id=decision.id,
-        description=f"User {current_user.full_name} assigned tags [{tag_names}] to Decision #{decision.id}"
+        description=f"User {current_user.full_name} assigned tags [{tag_names}] to Decision #{decision.id}",
+        new_value={"tags": [t.name for t in decision.tags]},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return decision
@@ -480,6 +720,7 @@ def get_decision_tags(
 def remove_tag_from_decision(
     decision_id: int,
     tag_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -511,13 +752,17 @@ def remove_tag_from_decision(
     decision.tags.remove(tag_to_remove)
     db.commit()
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="remove_tag",
+        action="UPDATE",
         entity_type="Decision",
         entity_id=decision.id,
-        description=f"User {current_user.full_name} removed tag '{tag_to_remove.name}' from Decision #{decision.id}"
+        description=f"User {current_user.full_name} removed tag '{tag_to_remove.name}' from Decision #{decision.id}",
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return {"message": f"Tag '{tag_to_remove.name}' removed from decision successfully"}

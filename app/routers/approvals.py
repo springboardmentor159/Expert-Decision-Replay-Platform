@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status as http_status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -10,7 +10,7 @@ from app.models.approval import Approval
 from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.approval import ApprovalAction, ApprovalCreate, ApprovalResponse, ApprovalStatus
-from app.services.activity_logger import log_activity
+from app.services.audit_service import get_client_ip, log_audit
 
 router = APIRouter(
     prefix="/approvals",
@@ -26,6 +26,7 @@ router = APIRouter(
 )
 def create_approval(
     approval_data: ApprovalCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -65,13 +66,18 @@ def create_approval(
     db.commit()
     db.refresh(new_approval)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="approval_assigned",
+        action="SUBMIT",
         entity_type="Approval",
         entity_id=new_approval.id,
-        description=f"User {current_user.full_name} assigned approval for Decision #{decision.id} ({decision.title}) to {reviewer.full_name}"
+        description=f"User {current_user.full_name} assigned approval for Decision #{decision.id} ({decision.title}) to {reviewer.full_name}",
+        new_value={"decision_id": decision.id, "reviewer_id": reviewer.id, "status": "Pending"},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return new_approval
@@ -126,6 +132,7 @@ def get_approval(
 )
 def approve_decision(
     approval_id: int,
+    request: Request,
     action: Optional[ApprovalAction] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -143,6 +150,7 @@ def approve_decision(
             detail=f"Approval has already been processed with status '{approval.status}'"
         )
 
+    old_status = approval.status
     approval.status = "Approved"
     approval.completed_at = datetime.utcnow()
     if action and action.comments:
@@ -155,13 +163,19 @@ def approve_decision(
     db.commit()
     db.refresh(approval)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="approve",
+        action="APPROVE",
         entity_type="Approval",
         entity_id=approval.id,
-        description=f"User {current_user.full_name} approved Decision #{approval.decision_id}"
+        description=f"User {current_user.full_name} approved Decision #{approval.decision_id}",
+        old_value={"status": old_status},
+        new_value={"status": "Approved", "comments": approval.comments},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return approval
@@ -174,6 +188,7 @@ def approve_decision(
 )
 def reject_decision(
     approval_id: int,
+    request: Request,
     action: Optional[ApprovalAction] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -191,6 +206,7 @@ def reject_decision(
             detail=f"Approval has already been processed with status '{approval.status}'"
         )
 
+    old_status = approval.status
     approval.status = "Rejected"
     approval.completed_at = datetime.utcnow()
     if action and action.comments:
@@ -203,13 +219,20 @@ def reject_decision(
     db.commit()
     db.refresh(approval)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="reject",
+        action="REJECT",
         entity_type="Approval",
         entity_id=approval.id,
-        description=f"User {current_user.full_name} rejected Decision #{approval.decision_id}"
+        description=f"User {current_user.full_name} rejected Decision #{approval.decision_id}",
+        old_value={"status": old_status},
+        new_value={"status": "Rejected", "comments": approval.comments},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return approval
+

@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -9,7 +9,7 @@ from app.models.comment import Comment
 from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentResponse, CommentUpdate
-from app.services.activity_logger import log_activity
+from app.services.audit_service import get_client_ip, log_audit
 
 router = APIRouter(tags=["Comments"])
 
@@ -23,6 +23,7 @@ router = APIRouter(tags=["Comments"])
 def create_comment(
     decision_id: int,
     comment_in: CommentCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -42,13 +43,18 @@ def create_comment(
     db.commit()
     db.refresh(new_comment)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="create",
+        action="CREATE",
         entity_type="Comment",
         entity_id=new_comment.id,
-        description=f"User {current_user.full_name} added a comment on Decision #{decision_id}"
+        description=f"User {current_user.full_name} added a comment on Decision #{decision_id}",
+        new_value={"content": new_comment.content, "decision_id": decision_id},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return new_comment
@@ -108,6 +114,7 @@ def get_comment_by_id(
 def update_comment(
     comment_id: int,
     comment_in: CommentUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -124,17 +131,24 @@ def update_comment(
             detail="Not authorized to update this comment"
         )
 
+    old_content = comment.content
     comment.content = comment_in.content
     db.commit()
     db.refresh(comment)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="update",
+        action="UPDATE",
         entity_type="Comment",
         entity_id=comment.id,
-        description=f"User {current_user.full_name} updated comment #{comment.id}"
+        description=f"User {current_user.full_name} updated comment #{comment.id}",
+        old_value={"content": old_content},
+        new_value={"content": comment.content},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return comment
@@ -147,6 +161,7 @@ def update_comment(
 )
 def delete_comment(
     comment_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -163,6 +178,24 @@ def delete_comment(
             detail="Not authorized to delete this comment"
         )
 
+    c_id = comment.id
+    c_decision_id = comment.decision_id
+
     db.delete(comment)
     db.commit()
+
+    client_ip = get_client_ip(request)
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Comment",
+        entity_id=c_id,
+        description=f"User {current_user.full_name} deleted comment #{c_id} from Decision #{c_decision_id}",
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
+    )
+
     return {"message": "Comment deleted successfully"}
+

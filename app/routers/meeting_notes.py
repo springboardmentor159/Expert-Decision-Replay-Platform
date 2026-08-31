@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -14,7 +14,7 @@ from app.schemas.meeting_note import (
     MeetingNoteResponse,
     MeetingNoteUpdate,
 )
-from app.services.activity_logger import log_activity
+from app.services.audit_service import get_client_ip, log_audit
 
 router = APIRouter(tags=["Meeting Notes"])
 
@@ -28,6 +28,7 @@ router = APIRouter(tags=["Meeting Notes"])
 def create_meeting_note(
     decision_id: int,
     note_in: MeetingNoteCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -51,13 +52,18 @@ def create_meeting_note(
     db.commit()
     db.refresh(new_note)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="create",
+        action="CREATE",
         entity_type="MeetingNote",
         entity_id=new_note.id,
-        description=f"User {current_user.full_name} added meeting note '{new_note.title}' on Decision #{decision_id}"
+        description=f"User {current_user.full_name} added meeting note '{new_note.title}' on Decision #{decision_id}",
+        new_value={"title": new_note.title, "decision_id": decision_id},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return new_note
@@ -114,6 +120,7 @@ def get_meeting_note_by_id(
 def update_meeting_note(
     note_id: int,
     note_in: MeetingNoteUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -130,6 +137,11 @@ def update_meeting_note(
             detail="Not authorized to update this meeting note"
         )
 
+    old_value = {
+        "title": note.title,
+        "content": note.content
+    }
+
     if note_in.title is not None:
         note.title = note_in.title
     if note_in.content is not None:
@@ -140,13 +152,24 @@ def update_meeting_note(
     db.commit()
     db.refresh(note)
 
-    log_activity(
+    new_value = {
+        "title": note.title,
+        "content": note.content
+    }
+
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="update",
+        action="UPDATE",
         entity_type="MeetingNote",
         entity_id=note.id,
-        description=f"User {current_user.full_name} updated meeting note '{note.title}'"
+        description=f"User {current_user.full_name} updated meeting note '{note.title}'",
+        old_value=old_value,
+        new_value=new_value,
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return note
@@ -159,6 +182,7 @@ def update_meeting_note(
 )
 def delete_meeting_note(
     note_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -175,6 +199,25 @@ def delete_meeting_note(
             detail="Not authorized to delete this meeting note"
         )
 
+    n_id = note.id
+    n_title = note.title
+    n_decision_id = note.decision_id
+
     db.delete(note)
     db.commit()
+
+    client_ip = get_client_ip(request)
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="MeetingNote",
+        entity_id=n_id,
+        description=f"User {current_user.full_name} deleted meeting note '{n_title}' from Decision #{n_decision_id}",
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
+    )
+
     return {"message": "Meeting note deleted successfully"}
+

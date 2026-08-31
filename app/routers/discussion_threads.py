@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -11,7 +11,7 @@ from app.models.discussion_thread import DiscussionThread
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.discussion_thread import ThreadCreate, ThreadResponse, ThreadUpdate
-from app.services.activity_logger import log_activity
+from app.services.audit_service import get_client_ip, log_audit
 
 router = APIRouter(tags=["Discussion Threads"])
 
@@ -25,6 +25,7 @@ router = APIRouter(tags=["Discussion Threads"])
 def create_thread(
     decision_id: int,
     thread_in: ThreadCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -46,13 +47,18 @@ def create_thread(
     db.commit()
     db.refresh(new_thread)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="create",
+        action="CREATE",
         entity_type="DiscussionThread",
         entity_id=new_thread.id,
-        description=f"User {current_user.full_name} created discussion thread '{new_thread.title}' on Decision #{decision_id}"
+        description=f"User {current_user.full_name} created discussion thread '{new_thread.title}' on Decision #{decision_id}",
+        new_value={"title": new_thread.title, "decision_id": decision_id, "status": new_thread.status},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return new_thread
@@ -112,6 +118,7 @@ def get_thread_by_id(
 def update_thread(
     thread_id: int,
     thread_in: ThreadUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -128,6 +135,12 @@ def update_thread(
             detail="Not authorized to update this thread"
         )
 
+    old_value = {
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status
+    }
+
     if thread_in.title is not None:
         thread.title = thread_in.title
     if thread_in.description is not None:
@@ -138,13 +151,25 @@ def update_thread(
     db.commit()
     db.refresh(thread)
 
-    log_activity(
+    new_value = {
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status
+    }
+
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="update",
+        action="UPDATE",
         entity_type="DiscussionThread",
         entity_id=thread.id,
-        description=f"User {current_user.full_name} updated discussion thread '{thread.title}'"
+        description=f"User {current_user.full_name} updated discussion thread '{thread.title}'",
+        old_value=old_value,
+        new_value=new_value,
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     thread.replies = db.query(Comment).filter(Comment.thread_id == thread.id).all()
@@ -158,6 +183,7 @@ def update_thread(
 )
 def delete_thread(
     thread_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -174,8 +200,26 @@ def delete_thread(
             detail="Not authorized to delete this thread"
         )
 
+    t_id = thread.id
+    t_title = thread.title
+    t_decision_id = thread.decision_id
+
     db.delete(thread)
     db.commit()
+
+    client_ip = get_client_ip(request)
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=t_id,
+        description=f"User {current_user.full_name} deleted thread '{t_title}' from Decision #{t_decision_id}",
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
+    )
+
     return {"message": "Thread deleted successfully"}
 
 
@@ -188,6 +232,7 @@ def delete_thread(
 def create_thread_comment(
     thread_id: int,
     comment_in: CommentCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -208,13 +253,18 @@ def create_thread_comment(
     db.commit()
     db.refresh(new_reply)
 
-    log_activity(
+    client_ip = get_client_ip(request)
+    log_audit(
         db=db,
         user_id=current_user.id,
-        action="create",
+        action="CREATE",
         entity_type="Comment",
         entity_id=new_reply.id,
-        description=f"User {current_user.full_name} replied to thread '{thread.title}'"
+        description=f"User {current_user.full_name} replied to thread '{thread.title}'",
+        new_value={"content": new_reply.content, "thread_id": thread_id},
+        ip_address=client_ip,
+        request_method=request.method,
+        endpoint=str(request.url.path)
     )
 
     return new_reply
@@ -240,3 +290,4 @@ def get_thread_comments(
 
     replies = db.query(Comment).filter(Comment.thread_id == thread_id).all()
     return replies
+
