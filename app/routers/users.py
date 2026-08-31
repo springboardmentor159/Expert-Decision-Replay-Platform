@@ -5,12 +5,15 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
+from app.models.security_log import SecurityLog
+
 from app.core.security import (
     hash_password,
     verify_password,
     create_access_token,
     get_current_user
 )
+
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
@@ -25,7 +28,9 @@ router = APIRouter(
 )
 
 
+# =========================================================
 # CREATE USER
+# =========================================================
 
 @router.post(
     "",
@@ -66,7 +71,9 @@ def create_user(
     return new_user
 
 
+# =========================================================
 # GET ALL USERS
+# =========================================================
 
 @router.get(
     "",
@@ -74,34 +81,89 @@ def create_user(
 )
 def get_users(
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
+
     return db.query(User).order_by(User.id).all()
+
+
+# =========================================================
 # LOGIN USER
+# =========================================================
 
 @router.post("/login")
 def login_user(
     user_data: UserLogin,
     db: Session = Depends(get_db)
 ):
+
     user = db.query(User).filter(
         User.email == user_data.email
     ).first()
 
+    # -----------------------------------------------------
+    # Failed login - user does not exist
+    # -----------------------------------------------------
+
     if not user:
+
+        # No user_id because the user does not exist
+        security_log = SecurityLog(
+            user_id=None,
+            event_type="LOGIN_FAILED",
+            description="Login failed: user not found",
+            ip_address=None
+        )
+
+        db.add(security_log)
+        db.commit()
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
+
+    # -----------------------------------------------------
+    # Failed login - wrong password
+    # -----------------------------------------------------
 
     if not verify_password(
         user_data.password,
         user.hashed_password
     ):
+
+        security_log = SecurityLog(
+            user_id=user.id,
+            event_type="LOGIN_FAILED",
+            description="Login failed: invalid password",
+            ip_address=None
+        )
+
+        db.add(security_log)
+        db.commit()
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
+
+    # -----------------------------------------------------
+    # Successful login
+    # -----------------------------------------------------
+
+    security_log = SecurityLog(
+        user_id=user.id,
+        event_type="LOGIN_SUCCESS",
+        description=f"User {user.id} logged in successfully",
+        ip_address=None
+    )
+
+    db.add(security_log)
+    db.commit()
+
+    # -----------------------------------------------------
+    # Create JWT
+    # -----------------------------------------------------
 
     access_token = create_access_token(
         data={
@@ -114,7 +176,11 @@ def login_user(
         "access_token": access_token,
         "token_type": "bearer"
     }
+
+
+# =========================================================
 # GET USER BY ID
+# =========================================================
 
 @router.get(
     "/{user_id}",
@@ -123,7 +189,7 @@ def login_user(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
 
     user = db.query(User).filter(
@@ -131,6 +197,7 @@ def get_user(
     ).first()
 
     if not user:
+
         raise HTTPException(
             status_code=404,
             detail="User not found"
@@ -139,7 +206,9 @@ def get_user(
     return user
 
 
+# =========================================================
 # UPDATE USER
+# =========================================================
 
 @router.put(
     "/{user_id}",
@@ -149,7 +218,7 @@ def update_user(
     user_id: int,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
 
     user = db.query(User).filter(
@@ -157,6 +226,7 @@ def update_user(
     ).first()
 
     if not user:
+
         raise HTTPException(
             status_code=404,
             detail="User not found"
@@ -189,7 +259,9 @@ def update_user(
     return user
 
 
+# =========================================================
 # DELETE USER
+# =========================================================
 
 @router.delete(
     "/{user_id}"
@@ -197,7 +269,7 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user)
 ):
 
     user = db.query(User).filter(
@@ -205,6 +277,7 @@ def delete_user(
     ).first()
 
     if not user:
+
         raise HTTPException(
             status_code=404,
             detail="User not found"

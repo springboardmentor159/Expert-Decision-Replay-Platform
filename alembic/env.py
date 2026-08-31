@@ -16,7 +16,10 @@ from app.models.meeting_note import MeetingNote
 from app.models.tag import Tag
 from app.models.approval import Approval
 from app.models.activity_log import ActivityLog
-
+from app.models.audit_log import AuditLog
+from app.models.decision_version import DecisionVersion
+from app.models.security_log import SecurityLog
+from app.models.access_log import AccessLog
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

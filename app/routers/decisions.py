@@ -9,6 +9,9 @@ from app.models.decision import Decision
 from app.models.tag import Tag
 from app.models.decision_activity import DecisionActivity
 from app.models.activity_log import ActivityLog
+from app.models.audit_log import AuditLog
+from app.models.decision_version import DecisionVersion
+from app.models.access_log import AccessLog
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -46,7 +49,7 @@ def create_decision(
 
     user_id = int(current_user["sub"])
 
-    # Create decision
+    # Create Decision
     new_decision = Decision(
         title=decision.title,
         problem_statement=decision.problem_statement,
@@ -59,10 +62,19 @@ def create_decision(
     db.commit()
     db.refresh(new_decision)
 
-    # -----------------------------------------------------
-    # Decision Timeline Activity
-    # -----------------------------------------------------
+    # Audit Log
+    audit = AuditLog(
+        user_id=user_id,
+        action="CREATE",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=f"Decision {new_decision.id} created",
+        new_value=new_decision.title
+    )
 
+    db.add(audit)
+
+    # Decision Timeline Activity
     timeline_activity = DecisionActivity(
         decision_id=new_decision.id,
         activity_type="Created",
@@ -72,10 +84,7 @@ def create_decision(
 
     db.add(timeline_activity)
 
-    # -----------------------------------------------------
-    # Sprint 10 Activity Log
-    # -----------------------------------------------------
-
+    # Activity Log
     log = ActivityLog(
         user_id=user_id,
         action="Decision Created",
@@ -114,28 +123,19 @@ def get_decisions(
 
     query = db.query(Decision)
 
-    # -----------------------------------------------------
-    # Filter by status
-    # -----------------------------------------------------
-
+    # Filter by Status
     if status:
         query = query.filter(
             Decision.status == status
         )
 
-    # -----------------------------------------------------
-    # Filter by category
-    # -----------------------------------------------------
-
+    # Filter by Category
     if category:
         query = query.filter(
             Decision.category == category
         )
 
-    # -----------------------------------------------------
     # Search
-    # -----------------------------------------------------
-
     if search:
 
         search_pattern = f"%{search}%"
@@ -145,10 +145,7 @@ def get_decisions(
             (Decision.problem_statement.ilike(search_pattern))
         )
 
-    # -----------------------------------------------------
-    # Filter by tag
-    # -----------------------------------------------------
-
+    # Filter by Tag
     if tag:
 
         query = query.join(
@@ -157,10 +154,7 @@ def get_decisions(
             Tag.name == tag
         )
 
-    # -----------------------------------------------------
-    # Pagination validation
-    # -----------------------------------------------------
-
+    # Pagination Validation
     if page < 1:
 
         raise HTTPException(
@@ -175,10 +169,7 @@ def get_decisions(
             detail="Limit must be between 1 and 100"
         )
 
-    # -----------------------------------------------------
-    # Allowed sorting fields
-    # -----------------------------------------------------
-
+    # Allowed Sorting Fields
     allowed_sort_fields = {
 
         "created_at": Decision.created_at,
@@ -198,10 +189,7 @@ def get_decisions(
 
     sort_column = allowed_sort_fields[sort_by]
 
-    # -----------------------------------------------------
     # Sorting
-    # -----------------------------------------------------
-
     if sort_order.lower() == "asc":
 
         query = query.order_by(
@@ -221,10 +209,7 @@ def get_decisions(
             detail="sort_order must be 'asc' or 'desc'"
         )
 
-    # -----------------------------------------------------
     # Pagination
-    # -----------------------------------------------------
-
     offset = (page - 1) * limit
 
     return (
@@ -287,15 +272,9 @@ def assign_tags(
             decision.tags.append(tag)
             added_tags.append(tag)
 
-    db.commit()
-
-    # -----------------------------------------------------
-    # Timeline + Activity Log
-    # -----------------------------------------------------
-
+    # Timeline + Activity Logs
     for tag in added_tags:
 
-        # Decision timeline
         timeline_activity = DecisionActivity(
             decision_id=decision.id,
             activity_type="Tag Added",
@@ -305,7 +284,6 @@ def assign_tags(
 
         db.add(timeline_activity)
 
-        # Sprint 10 activity log
         log = ActivityLog(
             user_id=user_id,
             action="Tag Added",
@@ -419,12 +397,7 @@ def remove_tag(
 
     decision.tags.remove(tag)
 
-    db.commit()
-
-    # -----------------------------------------------------
     # Timeline Activity
-    # -----------------------------------------------------
-
     timeline_activity = DecisionActivity(
         decision_id=decision.id,
         activity_type="Tag Removed",
@@ -434,10 +407,7 @@ def remove_tag(
 
     db.add(timeline_activity)
 
-    # -----------------------------------------------------
-    # Sprint 10 Activity Log
-    # -----------------------------------------------------
-
+    # Activity Log
     log = ActivityLog(
         user_id=user_id,
         action="Tag Removed",
@@ -508,18 +478,22 @@ def get_decision_timeline(
 
 
 # =========================================================
-# GET DECISION BY ID
+# GET DECISION HISTORY
 # =========================================================
 
 @router.get(
-    "/{decision_id}",
-    response_model=DecisionResponse
+    "/{decision_id}/history"
 )
-def get_decision(
+def get_decision_history(
     decision_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+
+    # IMPORTANT:
+    # First check whether the Decision exists.
+    # This prevents a non-existing decision from
+    # incorrectly returning 200 with an empty history.
 
     decision = (
         db.query(Decision)
@@ -533,6 +507,201 @@ def get_decision(
             status_code=404,
             detail="Decision not found"
         )
+
+    versions = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id
+        )
+        .order_by(
+            DecisionVersion.version_number.asc()
+        )
+        .all()
+    )
+
+    return {
+        "decision_id": decision_id,
+        "history": [
+            {
+                "id": version.id,
+                "decision_id": version.decision_id,
+                "version_number": version.version_number,
+                "title": version.title,
+                "problem_statement": version.problem_statement,
+                "category": version.category,
+                "rationale": version.rationale,
+                "status": version.status,
+                "created_by": version.created_by,
+                "created_at": version.created_at
+            }
+            for version in versions
+        ]
+    }
+
+
+# =========================================================
+# GET ALL DECISION VERSIONS
+# =========================================================
+
+@router.get(
+    "/{decision_id}/versions"
+)
+def get_decision_versions(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+
+    # IMPORTANT:
+    # Check the Decision first.
+    # Non-existing Decision must return 404.
+
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    versions = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id
+        )
+        .order_by(
+            DecisionVersion.version_number.asc()
+        )
+        .all()
+    )
+
+    return {
+        "decision_id": decision_id,
+        "versions": [
+            {
+                "id": version.id,
+                "decision_id": version.decision_id,
+                "version_number": version.version_number,
+                "title": version.title,
+                "problem_statement": version.problem_statement,
+                "category": version.category,
+                "rationale": version.rationale,
+                "status": version.status,
+                "created_by": version.created_by,
+                "created_at": version.created_at
+            }
+            for version in versions
+        ]
+    }
+
+
+# =========================================================
+# GET SPECIFIC DECISION VERSION
+# =========================================================
+
+@router.get(
+    "/{decision_id}/versions/{version_number}"
+)
+def get_specific_decision_version(
+    decision_id: int,
+    version_number: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+
+    # First check Decision
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    # Then find requested version
+    version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id,
+            DecisionVersion.version_number == version_number
+        )
+        .first()
+    )
+
+    if version is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Decision version not found"
+        )
+
+    return {
+        "id": version.id,
+        "decision_id": version.decision_id,
+        "version_number": version.version_number,
+        "title": version.title,
+        "problem_statement": version.problem_statement,
+        "category": version.category,
+        "rationale": version.rationale,
+        "status": version.status,
+        "created_by": version.created_by,
+        "created_at": version.created_at
+    }
+
+
+# =========================================================
+# GET DECISION BY ID
+# =========================================================
+
+@router.get(
+    "/{decision_id}",
+    response_model=DecisionResponse
+)
+def get_decision(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+
+    user_id = int(current_user["sub"])
+
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    # =====================================================
+    # SPRINT 11 - ACCESS LOG
+    # =====================================================
+
+    access_log = AccessLog(
+        user_id=user_id,
+        resource_type="Decision",
+        resource_id=decision.id,
+        action="VIEW",
+        ip_address=None
+    )
+
+    db.add(access_log)
+    db.commit()
 
     return decision
 
@@ -554,6 +723,7 @@ def update_decision(
 
     user_id = int(current_user["sub"])
 
+    # Find Decision
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
@@ -567,6 +737,47 @@ def update_decision(
             detail="Decision not found"
         )
 
+    # =====================================================
+    # CREATE VERSION BEFORE UPDATE
+    # =====================================================
+
+    last_version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision.id
+        )
+        .order_by(
+            DecisionVersion.version_number.desc()
+        )
+        .first()
+    )
+
+    if last_version:
+        next_version_number = (
+            last_version.version_number + 1
+        )
+    else:
+        next_version_number = 1
+
+    version = DecisionVersion(
+        decision_id=decision.id,
+        version_number=next_version_number,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        category=decision.category,
+        rationale=decision.rationale,
+        status=decision.status,
+        created_by=user_id
+    )
+
+    db.add(version)
+
+    # =====================================================
+    # UPDATE DECISION
+    # =====================================================
+
+    old_title = decision.title
+
     decision.title = decision_data.title
     decision.problem_statement = decision_data.problem_statement
     decision.category = decision_data.category
@@ -574,32 +785,57 @@ def update_decision(
     db.commit()
     db.refresh(decision)
 
-    # -----------------------------------------------------
-    # Timeline Activity
-    # -----------------------------------------------------
+    # =====================================================
+    # DECISION TIMELINE
+    # =====================================================
 
     timeline_activity = DecisionActivity(
         decision_id=decision.id,
         activity_type="Decision Updated",
-        description="Decision details updated",
+        description=(
+            f"Decision updated and version "
+            f"{next_version_number} created"
+        ),
         created_by=user_id
     )
 
     db.add(timeline_activity)
 
-    # -----------------------------------------------------
-    # Sprint 10 Activity Log
-    # -----------------------------------------------------
+    # =====================================================
+    # ACTIVITY LOG
+    # =====================================================
 
     log = ActivityLog(
         user_id=user_id,
         action="Decision Updated",
         entity_type="Decision",
         entity_id=decision.id,
-        description=f"Decision {decision.id} updated"
+        description=(
+            f"Decision {decision.id} updated; "
+            f"version {next_version_number} created"
+        )
     )
 
     db.add(log)
+
+    # =====================================================
+    # AUDIT LOG
+    # =====================================================
+
+    audit = AuditLog(
+        user_id=user_id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"Decision {decision.id} updated; "
+            f"version {next_version_number} created"
+        ),
+        old_value=old_title,
+        new_value=decision.title
+    )
+
+    db.add(audit)
 
     db.commit()
 
@@ -644,23 +880,20 @@ def update_decision_status(
     db.commit()
     db.refresh(decision)
 
-    # -----------------------------------------------------
     # Timeline Activity
-    # -----------------------------------------------------
-
     timeline_activity = DecisionActivity(
         decision_id=decision.id,
         activity_type="Status Changed",
-        description=f"Status changed from {old_status} to {new_status}",
+        description=(
+            f"Status changed from "
+            f"{old_status} to {new_status}"
+        ),
         created_by=user_id
     )
 
     db.add(timeline_activity)
 
-    # -----------------------------------------------------
-    # Sprint 10 Activity Log
-    # -----------------------------------------------------
-
+    # Activity Log
     log = ActivityLog(
         user_id=user_id,
         action="Decision Status Changed",
@@ -713,10 +946,7 @@ def update_decision_rationale(
     db.commit()
     db.refresh(decision)
 
-    # -----------------------------------------------------
     # Timeline Activity
-    # -----------------------------------------------------
-
     timeline_activity = DecisionActivity(
         decision_id=decision.id,
         activity_type="Rationale Updated",
@@ -726,10 +956,7 @@ def update_decision_rationale(
 
     db.add(timeline_activity)
 
-    # -----------------------------------------------------
-    # Sprint 10 Activity Log
-    # -----------------------------------------------------
-
+    # Activity Log
     log = ActivityLog(
         user_id=user_id,
         action="Rationale Updated",

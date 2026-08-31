@@ -3,8 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.core.security import get_current_user
+
 from app.models.comment import Comment
 from app.models.decision import Decision
+from app.models.activity_log import ActivityLog
+
 from app.schemas.comment import (
     CommentCreate,
     CommentUpdate,
@@ -17,6 +20,10 @@ router = APIRouter(
 )
 
 
+# =========================================================
+# CREATE COMMENT
+# =========================================================
+
 @router.post(
     "/decisions/{decision_id}/comments",
     response_model=CommentResponse,
@@ -28,9 +35,15 @@ def create_comment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+
+    user_id = int(current_user["sub"])
+
+    # Check decision exists
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if decision is None:
         raise HTTPException(
@@ -38,9 +51,10 @@ def create_comment(
             detail="Decision not found"
         )
 
+    # Create comment
     comment = Comment(
         decision_id=decision_id,
-        user_id=int(current_user["sub"]),
+        user_id=user_id,
         content=comment_data.content
     )
 
@@ -48,8 +62,27 @@ def create_comment(
     db.commit()
     db.refresh(comment)
 
+    # -----------------------------------------------------
+    # Sprint 10 Activity Log
+    # -----------------------------------------------------
+
+    log = ActivityLog(
+        user_id=user_id,
+        action="Comment Created",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Comment {comment.id} added to decision {decision_id}"
+    )
+
+    db.add(log)
+    db.commit()
+
     return comment
 
+
+# =========================================================
+# GET COMMENTS FOR DECISION
+# =========================================================
 
 @router.get(
     "/decisions/{decision_id}/comments",
@@ -60,9 +93,13 @@ def get_comments(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+
+    # Check decision exists
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if decision is None:
         raise HTTPException(
@@ -70,11 +107,19 @@ def get_comments(
             detail="Decision not found"
         )
 
-    return db.query(Comment).filter(
-        Comment.decision_id == decision_id,
-        Comment.thread_id.is_(None)
-    ).all()
+    return (
+        db.query(Comment)
+        .filter(
+            Comment.decision_id == decision_id,
+            Comment.thread_id.is_(None)
+        )
+        .all()
+    )
 
+
+# =========================================================
+# GET COMMENT BY ID
+# =========================================================
 
 @router.get(
     "/comments/{comment_id}",
@@ -85,9 +130,12 @@ def get_comment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    comment = db.query(Comment).filter(
-        Comment.id == comment_id
-    ).first()
+
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
+        .first()
+    )
 
     if comment is None:
         raise HTTPException(
@@ -97,6 +145,10 @@ def get_comment(
 
     return comment
 
+
+# =========================================================
+# UPDATE COMMENT
+# =========================================================
 
 @router.put(
     "/comments/{comment_id}",
@@ -108,9 +160,14 @@ def update_comment(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    comment = db.query(Comment).filter(
-        Comment.id == comment_id
-    ).first()
+
+    user_id = int(current_user["sub"])
+
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
+        .first()
+    )
 
     if comment is None:
         raise HTTPException(
@@ -118,7 +175,8 @@ def update_comment(
             detail="Comment not found"
         )
 
-    if comment.user_id != int(current_user["sub"]):
+    # Only the comment owner can update it
+    if comment.user_id != user_id:
         raise HTTPException(
             status_code=403,
             detail="You can only update your own comment"
@@ -129,18 +187,44 @@ def update_comment(
     db.commit()
     db.refresh(comment)
 
+    # -----------------------------------------------------
+    # Sprint 10 Activity Log
+    # -----------------------------------------------------
+
+    log = ActivityLog(
+        user_id=user_id,
+        action="Comment Updated",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Comment {comment.id} updated"
+    )
+
+    db.add(log)
+    db.commit()
+
     return comment
 
 
-@router.delete("/comments/{comment_id}")
+# =========================================================
+# DELETE COMMENT
+# =========================================================
+
+@router.delete(
+    "/comments/{comment_id}"
+)
 def delete_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    comment = db.query(Comment).filter(
-        Comment.id == comment_id
-    ).first()
+
+    user_id = int(current_user["sub"])
+
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
+        .first()
+    )
 
     if comment is None:
         raise HTTPException(
@@ -148,13 +232,37 @@ def delete_comment(
             detail="Comment not found"
         )
 
-    if comment.user_id != int(current_user["sub"]):
+    # Only the comment owner can delete it
+    if comment.user_id != user_id:
         raise HTTPException(
             status_code=403,
             detail="You can only delete your own comment"
         )
 
+    # Save information before deleting
+    comment_id_value = comment.id
+    decision_id = comment.decision_id
+
+    # Delete comment
     db.delete(comment)
+    db.commit()
+
+    # -----------------------------------------------------
+    # Sprint 10 Activity Log
+    # -----------------------------------------------------
+
+    log = ActivityLog(
+        user_id=user_id,
+        action="Comment Deleted",
+        entity_type="Comment",
+        entity_id=comment_id_value,
+        description=(
+            f"Comment {comment_id_value} deleted "
+            f"from decision {decision_id}"
+        )
+    )
+
+    db.add(log)
     db.commit()
 
     return {

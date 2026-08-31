@@ -10,6 +10,7 @@ from app.routers import tags
 from app.routers import activities
 from app.routers import approvals
 from app.routers import dashboard
+from app.routers.audit import router as audit_router
 
 
 app = FastAPI(
@@ -36,3 +37,5 @@ app.include_router(activities.router)
 app.include_router(approvals.router)
 
 app.include_router(dashboard.router)
+
+app.include_router(audit_router)
