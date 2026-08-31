@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.models.alternative import Alternative
 from app.models.decision import Decision
 from app.models.user import User
 from app.services.activity import log_activity
+from app.services.audit import log_audit
 from app.schemas.alternative import (
     AlternativeCompareResponse,
     AlternativeCreate,
@@ -44,6 +45,7 @@ def _get_decision_or_404(db: Session, decision_id: int) -> Decision:
     status_code=status.HTTP_201_CREATED
 )
 def create_alternative(
+    request: Request,
     decision_id: int,
     alternative_data: AlternativeCreate,
     db: Session = Depends(get_db),
@@ -73,6 +75,16 @@ def create_alternative(
         "alternative",
         new_alternative.id,
         f"Created alternative '{new_alternative.name}' for decision {decision_id}",
+    )
+
+    log_audit(
+        db,
+        current_user.id,
+        "create",
+        "alternative",
+        new_alternative.id,
+        f"Created alternative '{new_alternative.name}' for decision {decision_id}",
+        ip_address=request.client.host if request.client else None,
     )
 
     return new_alternative
@@ -144,6 +156,7 @@ def get_alternative(
     response_model=AlternativeResponse
 )
 def update_alternative(
+    request: Request,
     alternative_id: int,
     alternative_data: AlternativeUpdate,
     db: Session = Depends(get_db),
@@ -194,4 +207,49 @@ def update_alternative(
         f"Updated alternative '{alternative.name}'",
     )
 
+    log_audit(
+        db,
+        current_user.id,
+        "update",
+        "alternative",
+        alternative.id,
+        f"Updated alternative '{alternative.name}'",
+        ip_address=request.client.host if request.client else None,
+    )
+
     return alternative
+
+
+@alternatives_router.delete(
+    "/{alternative_id}"
+)
+def delete_alternative(
+    request: Request,
+    alternative_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    alternative = db.query(Alternative).filter(
+        Alternative.id == alternative_id
+    ).first()
+
+    if not alternative:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alternative not found"
+        )
+
+    db.delete(alternative)
+    db.commit()
+
+    log_audit(
+        db,
+        current_user.id,
+        "delete",
+        "alternative",
+        alternative_id,
+        f"Deleted alternative {alternative_id}",
+        ip_address=request.client.host if request.client else None,
+    )
+
+    return {"message": "Alternative deleted successfully"}

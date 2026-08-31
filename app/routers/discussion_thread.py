@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.models.discussion_thread import DiscussionThread
 from app.models.enums import UserRole
 from app.models.user import User
 from app.services.activity import log_activity
+from app.services.audit import log_audit
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.discussion_thread import ThreadCreate, ThreadResponse, ThreadUpdate
 
@@ -52,6 +53,7 @@ def _get_thread_or_404(db: Session, thread_id: int) -> DiscussionThread:
     status_code=status.HTTP_201_CREATED
 )
 def create_thread(
+    request: Request,
     decision_id: int,
     thread_data: ThreadCreate,
     db: Session = Depends(get_db),
@@ -77,6 +79,16 @@ def create_thread(
         "discussion_thread",
         new_thread.id,
         f"Created discussion thread '{new_thread.title}' for decision {decision_id}",
+    )
+
+    log_audit(
+        db,
+        current_user.id,
+        "create",
+        "discussion_thread",
+        new_thread.id,
+        f"Created discussion thread '{new_thread.title}' for decision {decision_id}",
+        ip_address=request.client.host if request.client else None,
     )
 
     return new_thread
@@ -117,6 +129,7 @@ def get_thread(
     response_model=ThreadResponse
 )
 def update_thread(
+    request: Request,
     thread_id: int,
     thread_data: ThreadUpdate,
     db: Session = Depends(get_db),
@@ -142,6 +155,16 @@ def update_thread(
     db.commit()
     db.refresh(thread)
 
+    log_audit(
+        db,
+        current_user.id,
+        "update",
+        "discussion_thread",
+        thread.id,
+        f"Updated discussion thread '{thread.title}'",
+        ip_address=request.client.host if request.client else None,
+    )
+
     return thread
 
 
@@ -149,6 +172,7 @@ def update_thread(
     "/{thread_id}"
 )
 def delete_thread(
+    request: Request,
     thread_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -163,6 +187,16 @@ def delete_thread(
 
     db.delete(thread)
     db.commit()
+
+    log_audit(
+        db,
+        current_user.id,
+        "delete",
+        "discussion_thread",
+        thread_id,
+        f"Deleted discussion thread {thread_id}",
+        ip_address=request.client.host if request.client else None,
+    )
 
     return {"message": "Thread deleted successfully"}
 

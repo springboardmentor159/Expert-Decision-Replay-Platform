@@ -1,9 +1,11 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import DecisionStatus
+from app.schemas.audit_log import AuditLogResponse
+from app.schemas.decision_version import DecisionVersionResponse
 
 
 class DecisionCreate(BaseModel):
@@ -36,6 +38,16 @@ class DecisionResponse(BaseModel):
     rationale: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DecisionVersionListResponse(BaseModel):
+    versions: List["DecisionVersionResponse"]
+
+
+class DecisionHistoryResponse(BaseModel):
+    items: List["AuditLogResponse"]
 
     model_config = ConfigDict(from_attributes=True)
 

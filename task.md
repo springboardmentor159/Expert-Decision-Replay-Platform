@@ -1387,3 +1387,254 @@ statuses, assigned reviewers) is built. Both endpoints enforce role authorizatio
 
 **No new migrations** — all changes are in Python code only (schemas, routers, tests).
 
+---
+
+## Sprint 10: Audit Logs Endpoint, Security Logging & Access Logging — COMPLETE (2026-08-31)
+
+### 1. What was built & Files Touched
+
+- `app/schemas/audit_log.py` — added `PaginatedAuditLogResponse` (items, total, page, page_size,
+  pages) for the new paginated audit-logs endpoint.
+- `app/routers/audit.py` — added `audit_logs_router` (prefix `/audit-logs`) with three endpoints:
+  - `GET /audit-logs` — paginated audit log listing with RBAC, filters, and date range support
+  - `GET /audit-logs/{log_id}` — single audit log retrieval with RBAC
+  - Retained existing `GET /audit/logs` and `GET /audit/logs/{log_id}` for backward compatibility
+  - Added `_parse_date()` helper for YYYY-MM-DD validation
+  - Added `log_security(unauthorized_access)` on 403 forbidden access in single-log endpoint
+- `app/api/deps.py` — modified `get_current_user` to accept `Request` and log `SecurityLog` for:
+  - Missing authentication credentials (no token) → `unauthorized_access`
+  - Invalid or expired JWT token → `unauthorized_access`
+  - User not found for token subject → `unauthorized_access`
+- `app/routers/security.py` — added `Request` parameter and `log_security(unauthorized_access)`
+  on 403 responses (both list and single-log endpoints).
+- `app/routers/access_log.py` — added `Request` parameter and `log_security(unauthorized_access)`
+  on 403 responses (both list and single-log endpoints).
+- `app/services/audit.py` — extended `SENSITIVE_FIELDS` with `db_password`, `database_url`,
+  `credentials`, `api_key`, `authorization` to prevent leaking DB credentials and other secrets.
+- `app/main.py` — registered `audit_logs_router`.
+- `tests/test_audit_logs.py` — 54 new tests covering all functionality.
+
+### 2. New Endpoint Inventory
+
+| Method | Endpoint | Auth | Role | Behavior |
+| --- | --- | --- | --- | --- |
+| GET | `/audit-logs` | JWT | Any authenticated | 200 paginated audit logs; admin/manager see all, others see own; filters + page/page_size pagination |
+| GET | `/audit-logs/{log_id}` | JWT | Any authenticated | 200 single audit log or 404; 403 if non-admin and not own log |
+| GET | `/audit/logs` | JWT | Any authenticated | 200 list (legacy offset/limit); admin/manager see all, others see own |
+| GET | `/audit/logs/{log_id}` | JWT | Any authenticated | 200 single log (legacy); 403 if non-admin and not own log |
+
+### 3. `GET /audit-logs` — Query Parameters
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `page` | int | 1 | Page number (1-indexed, ge=1) |
+| `page_size` | int | 50 | Items per page (1–200) |
+| `user` | int | None | Filter by user ID (admin/manager only) |
+| `action` | AuditAction enum | None | Filter by action (create, update, delete, status_change, login, logout, login_failed, access, export, approve, reject) |
+| `entity_type` | AuditEntityType enum | None | Filter by entity type (decision, alternative, comment, discussion_thread, meeting_note, user, auth, system) |
+| `entity_id` | int | None | Filter by entity ID |
+| `start_date` | str | None | Filter by start date (YYYY-MM-DD format) |
+| `end_date` | str | None | Filter by end date (YYYY-MM-DD format, inclusive) |
+
+### 4. Response Shape — `PaginatedAuditLogResponse`
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "user_id": 5,
+      "action": "create",
+      "entity_type": "decision",
+      "entity_id": 10,
+      "description": "Created decision 'My Decision'",
+      "old_values": null,
+      "new_values": "{\"title\": \"My Decision\"}",
+      "ip_address": "127.0.0.1",
+      "created_at": "2026-08-31T12:00:00Z"
+    }
+  ],
+  "total": 25,
+  "page": 1,
+  "page_size": 10,
+  "pages": 3
+}
+```
+
+### 5. Security Logging — Where Architecture Permits
+
+| Event | Trigger | Where Logged | event_type |
+| --- | --- | --- | --- |
+| Login success | POST /login with valid credentials | `app/api/routes/auth.py` | `login` |
+| Login failure | POST /login with wrong password or unknown email | `app/api/routes/auth.py` | `login_failed` |
+| Logout | POST /login/logout with valid JWT | `app/api/routes/auth.py` | `logout` |
+| Invalid JWT | Any endpoint with malformed/expired Bearer token | `app/api/deps.py` | `unauthorized_access` |
+| Missing token | Any endpoint without Authorization header | `app/api/deps.py` | `unauthorized_access` |
+| User not found | JWT valid but user_id doesn't exist in DB | `app/api/deps.py` | `unauthorized_access` |
+| Forbidden access (audit) | Non-admin viewing another user's audit log | `app/routers/audit.py` | `unauthorized_access` |
+| Forbidden access (security) | Non-admin/manager accessing security logs | `app/routers/security.py` | `unauthorized_access` |
+| Forbidden access (access) | Non-admin/manager accessing access logs | `app/routers/access_log.py` | `unauthorized_access` |
+
+### 6. Audit Record Protection
+
+- No PUT or DELETE endpoints exist for audit logs (read-only by design).
+- Verified: `PUT /audit-logs` → 405/404; `DELETE /audit-logs` → 405/404; `PUT /audit/logs` → 405/404; `DELETE /audit/logs` → 405/404.
+- Only Administrators and Managers can view organization-wide audit/security/access logs.
+- Employees and Reviewers can only view their own audit history.
+
+### 7. Sensitive Data Sanitization
+
+The `SENSITIVE_FIELDS` set in `app/services/audit.py` masks the following fields in `old_values`/`new_values` JSON:
+
+```python
+SENSITIVE_FIELDS = {
+    "password", "secret", "token", "password_hash", "secret_key",
+    "db_password", "database_url", "credentials", "api_key", "authorization",
+}
+```
+
+- Any field whose lowercase name matches is replaced with `"***"` before storage.
+- Verified via tests: `password`, `db_password`, `token`, `api_key`, `secret_key`, `authorization` → all `"***"`.
+- Non-sensitive fields (`title`, `category`, `status`) are preserved unchanged.
+- No raw passwords, JWT secrets, DB credentials, or API keys appear in log descriptions.
+
+### 8. Authorization Matrix
+
+| Endpoint | Auth | Employee | Reviewer | Manager | Administrator | No Token |
+| --- | --- | --- | --- | --- | --- | --- |
+| `GET /audit-logs` | JWT | 200 (own) | 200 (own) | 200 (all) | 200 (all) | 401 |
+| `GET /audit-logs/{id}` | JWT | 200 (own) / 403 | 200 (own) / 403 | 200 (all) | 200 (all) | 401 |
+| `GET /audit/logs` | JWT | 200 (own) | 200 (own) | 200 (all) | 200 (all) | 401 |
+| `GET /audit/logs/{id}` | JWT | 200 (own) / 403 | 200 (own) / 403 | 200 (all) | 200 (all) | 401 |
+| `GET /security/logs` | JWT | 403 | 403 | 200 | 200 | 401 |
+| `GET /security/logs/{id}` | JWT | 403 | 403 | 200 | 200 | 401 |
+| `GET /access/logs` | JWT | 403 | 403 | 200 | 200 | 401 |
+| `GET /access/logs/{id}` | JWT | 403 | 403 | 200 | 200 | 401 |
+
+### 9. Date Filter Behavior
+
+- Format: `YYYY-MM-DD` (ISO 8601)
+- Invalid format → **422** `{"detail": "Invalid date format: '...'. Expected YYYY-MM-DD."}`
+- `start_date` after `end_date` → **422** `{"detail": "start_date must not be after end_date."}`
+- Both optional; one without the other is valid
+- End date is inclusive (query uses `< end_date + 1 day`)
+- Empty range (no matching data) → **200** with empty items and total=0
+
+### 10. Pagination Behavior
+
+- Default: `page=1, page_size=50`
+- Maximum `page_size`: 200
+- Minimum `page`: 1
+- Response includes `total` (matching records), `pages` (ceiling of total/page_size)
+- All filtering done at DB level via SQLAlchemy; no full-table scan into Python
+
+### 11. Test Coverage (54 new tests in test_audit_logs.py)
+
+| Category | Tests | What they cover |
+| --- | --- | --- |
+| Pagination | 6 | Page 1, page 2, empty page, defaults, max limit, invalid page |
+| Filters | 6 | user, action, entity_type, entity_id, invalid action (422), invalid entity_type (422) |
+| Date Filters | 6 | start_date, end_date, date range, invalid format (422), invalid end format (422), reversed range (422) |
+| RBAC | 5 | Requires auth, employee scoping, admin sees all, manager sees all, employee can't filter others |
+| Single Log RBAC | 3 | Get by ID, not found (404), employee can't view other's log (403) |
+| Security Logging | 4 | Invalid JWT → security_log, missing token → security_log, forbidden access (security router), forbidden access (access router) |
+| Sensitive Data | 3 | Password/db_password/token sanitized, api_key/secret_key/authorization sanitized, non-sensitive fields preserved |
+| Audit Protection | 4 | No PUT/DELETE on /audit-logs, no PUT/DELETE on /audit/logs |
+| Security Logs | 8 | Login success, login failure, requires admin/manager, admin can view, manager can view, filter by event type, invalid event type (422), get by ID, not found |
+| Access Logs | 5 | Requires admin/manager, admin can view, filter by method, filter by status_code, get by ID, not found |
+| Integration | 3 | Full workflow creates all log types, login/logout creates security logs |
+
+### 12. Full Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 246 items
+
+...246 passed, 11 warnings in 72.71s
+```
+
+**Zero regressions. Zero failures. 54 new tests added.**
+
+### 13. Files Changed Summary
+
+**Modified:**
+- `app/schemas/audit_log.py` — added `PaginatedAuditLogResponse`
+- `app/routers/audit.py` — added `audit_logs_router` with `/audit-logs` endpoints, `_parse_date()`, security logging on 403
+- `app/api/deps.py` — `get_current_user` now logs `SecurityLog(unauthorized_access)` for invalid JWT, missing token, user not found
+- `app/routers/security.py` — added `Request` param, `log_security(unauthorized_access)` on 403
+- `app/routers/access_log.py` — added `Request` param, `log_security(unauthorized_access)` on 403
+- `app/services/audit.py` — extended `SENSITIVE_FIELDS` with `db_password`, `database_url`, `credentials`, `api_key`, `authorization`
+- `app/main.py` — registered `audit_logs_router`
+
+**Created:**
+- `tests/test_audit_logs.py` — 54 tests for all new functionality
+
+**No new migrations** — all changes are in Python code only (schemas, routers, deps, services, tests).
+
+---
+
+## Sprint 11 — Swagger Workflow Verification (Testing Only)
+
+### 1. Objective
+
+Full end-to-end workflow verification of audit/security/access logging, decision versioning, RBAC, and error handling. No new code changes — testing-only sprint.
+
+### 2. Test File Created
+
+`tests/test_sprint11_workflow.py` — 34 tests
+
+### 3. Test Categories
+
+| Category | Tests | What they verify |
+| --- | --- | --- |
+| Login Workflow | 3 | Login → security_log(event_type=login) + audit_log(action=login); login_failed → security_log(event_type=login_failed); logout → security_log(event_type=logout) |
+| Create Decision | 1 | Audit(action=create, entity_type=decision, entity_id) + DecisionVersion(version_number=1, status="Draft") |
+| Update Decision | 1 | Audit(action=update) with old_values.title="Original" + new_values.title="Revised"; DecisionVersion(version_number=2) |
+| Status Change | 1 | Audit(action=status_change) with old_values.status="Draft" + new_values.status="Under Review"; DecisionVersion(version_number=2) |
+| Create Alternative | 1 | Audit(action=create, entity_type=alternative) |
+| Create Comment | 1 | Audit(action=create, entity_type=comment) |
+| Full Lifecycle | 1 | Draft→Under Review→Approved: 4 audit entries (create, update, status_change, status_change); 4 sequential versions |
+| History Endpoint | 1 | GET /decisions/{id}/history returns all audit entries for that decision |
+| Versions Endpoint | 2 | GET /decisions/{id}/versions returns all versions in desc order; GET /decisions/{id}/versions/{n} returns specific version |
+| Admin Audit-Logs | 1 | Admin can access GET /audit-logs and see all users' entries |
+| Employee Scoping | 3 | Employee sees only own audit logs; employee gets 403 on /security/logs; employee gets 403 on /access/logs |
+| No JWT / Invalid JWT | 2 | All protected endpoints return 401 without JWT; invalid JWT returns 401 + creates security_log(unauthorized_access) |
+| Error 404 | 5 | Nonexistent decision/update/status_change/version returns 404; nonexistent version of existing decision returns 404 |
+| Error 422 | 7 | Invalid action, entity_type, date format, reversed date range, page_size>200, page<1, invalid security event_type |
+| DB Verification | 4 | Correct user_id/action/entity_type/entity_id/timestamps; sequential version numbers; security_log on forbidden_access; no sensitive data in audit values |
+
+### 4. Key DB Record Assertions
+
+- **audit_log**: `user_id` matches creator, `action` matches operation (`create`/`update`/`status_change`/`login`/`logout`), `entity_type` matches entity (`decision`/`alternative`/`comment`/`auth`), `entity_id` matches created record, `old_values`/`new_values` JSON strings contain correct before/after state
+- **decision_version**: `version_number` starts at 1 and increments sequentially; `status` records the status BEFORE the change; `title`/`problem_statement`/`category` snapshot the pre-update state
+- **security_log**: `event_type` matches event (`login`/`logout`/`login_failed`/`unauthorized_access`), `user_id` set correctly, `description` contains meaningful text
+- **sensitive data**: fields `password`, `db_password`, `token`, `api_key`, `secret_key`, `authorization` are all replaced with `"***"`
+
+### 5. Full Regression Test Results
+
+```
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Bhargav\Desktop\expert-decision-replay
+plugins: anyio-4.14.2
+collected 280 items
+
+...280 passed, 13 warnings in 87.99s
+```
+
+**280 total tests passing (246 original + 34 Sprint 11). Zero regressions.**
+
+### 6. Sprint 11 Summary
+
+| Metric | Value |
+| --- | --- |
+| New tests | 34 |
+| Total tests | 280 |
+| Pass rate | 100% |
+| Regressions | 0 |
+| Code changes | None (testing only) |
+| New migrations | None |
+

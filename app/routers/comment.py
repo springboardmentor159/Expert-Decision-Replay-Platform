@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from app.models.decision import Decision
 from app.models.enums import UserRole
 from app.models.user import User
 from app.services.activity import log_activity
+from app.services.audit import log_audit
 from app.schemas.comment import CommentCreate, CommentResponse, CommentUpdate
 
 router = APIRouter(
@@ -40,6 +41,7 @@ def _get_decision_or_404(db: Session, decision_id: int) -> Decision:
     status_code=status.HTTP_201_CREATED
 )
 def create_comment(
+    request: Request,
     decision_id: int,
     comment_data: CommentCreate,
     db: Session = Depends(get_db),
@@ -64,6 +66,16 @@ def create_comment(
         "comment",
         new_comment.id,
         f"Created comment on decision {decision_id}",
+    )
+
+    log_audit(
+        db,
+        current_user.id,
+        "create",
+        "comment",
+        new_comment.id,
+        f"Created comment on decision {decision_id}",
+        ip_address=request.client.host if request.client else None,
     )
 
     return new_comment
@@ -114,6 +126,7 @@ def get_comment(
     response_model=CommentResponse
 )
 def update_comment(
+    request: Request,
     comment_id: int,
     comment_data: CommentUpdate,
     db: Session = Depends(get_db),
@@ -151,6 +164,16 @@ def update_comment(
         f"Updated comment {comment.id}",
     )
 
+    log_audit(
+        db,
+        current_user.id,
+        "update",
+        "comment",
+        comment.id,
+        f"Updated comment {comment.id}",
+        ip_address=request.client.host if request.client else None,
+    )
+
     return comment
 
 
@@ -158,6 +181,7 @@ def update_comment(
     "/{comment_id}"
 )
 def delete_comment(
+    request: Request,
     comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -181,6 +205,16 @@ def delete_comment(
 
     db.delete(comment)
     db.commit()
+
+    log_audit(
+        db,
+        current_user.id,
+        "delete",
+        "comment",
+        comment_id,
+        f"Deleted comment {comment_id}",
+        ip_address=request.client.host if request.client else None,
+    )
 
     return {
         "message": "Comment deleted successfully"

@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.models.decision import Decision
 from app.models.enums import UserRole
 from app.models.meeting_note import MeetingNote
 from app.models.user import User
+from app.services.audit import log_audit
 from app.schemas.meeting_note import MeetingNoteCreate, MeetingNoteResponse, MeetingNoteUpdate
 
 router = APIRouter(
@@ -49,6 +50,7 @@ def _get_note_or_404(db: Session, note_id: int) -> MeetingNote:
     status_code=status.HTTP_201_CREATED
 )
 def create_meeting_note(
+    request: Request,
     decision_id: int,
     note_data: MeetingNoteCreate,
     db: Session = Depends(get_db),
@@ -67,6 +69,16 @@ def create_meeting_note(
     db.add(new_note)
     db.commit()
     db.refresh(new_note)
+
+    log_audit(
+        db,
+        current_user.id,
+        "create",
+        "meeting_note",
+        new_note.id,
+        f"Created meeting note '{new_note.title}' for decision {decision_id}",
+        ip_address=request.client.host if request.client else None,
+    )
 
     return new_note
 
@@ -106,6 +118,7 @@ def get_meeting_note(
     response_model=MeetingNoteResponse
 )
 def update_meeting_note(
+    request: Request,
     note_id: int,
     note_data: MeetingNoteUpdate,
     db: Session = Depends(get_db),
@@ -131,6 +144,16 @@ def update_meeting_note(
     db.commit()
     db.refresh(note)
 
+    log_audit(
+        db,
+        current_user.id,
+        "update",
+        "meeting_note",
+        note.id,
+        f"Updated meeting note '{note.title}'",
+        ip_address=request.client.host if request.client else None,
+    )
+
     return note
 
 
@@ -138,6 +161,7 @@ def update_meeting_note(
     "/{note_id}"
 )
 def delete_meeting_note(
+    request: Request,
     note_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -152,5 +176,15 @@ def delete_meeting_note(
 
     db.delete(note)
     db.commit()
+
+    log_audit(
+        db,
+        current_user.id,
+        "delete",
+        "meeting_note",
+        note_id,
+        f"Deleted meeting note {note_id}",
+        ip_address=request.client.host if request.client else None,
+    )
 
     return {"message": "Meeting note deleted successfully"}
