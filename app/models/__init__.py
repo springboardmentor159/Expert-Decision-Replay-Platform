@@ -7,3 +7,8 @@ from app.models.expert_evaluation import ExpertEvaluation
 from app.models.tag import Tag
 from app.models.discussion_thread import DiscussionThread
 from app.models.activity_log import ActivityLog
+from app.models.audit_log import AuditLog
+from app.models.decision_version import DecisionVersion
+from app.models.security_log import SecurityLog
+from app.models.access_log import AccessLog
+from app.models.approval import Approval

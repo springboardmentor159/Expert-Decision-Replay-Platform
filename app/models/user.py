@@ -8,26 +8,56 @@ from app.db.database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
-    full_name = Column(String, nullable=False)
-
-    email = Column(String, unique=True, nullable=False)
-
-    role = Column(
-        Enum(UserRole, name="user_role"),
+    full_name = Column(
+        String,
         nullable=False
     )
 
-    password = Column(String, nullable=False)
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
 
-    employee_id = Column(String, unique=True, nullable=True)
+    role = Column(
+        Enum(
+            UserRole,
+            name="user_role"
+        ),
+        nullable=False
+    )
 
-    department = Column(String, nullable=True)
+    password = Column(
+        String,
+        nullable=False
+    )
 
-    designation = Column(String, nullable=True)
+    employee_id = Column(
+        String,
+        unique=True,
+        nullable=True
+    )
 
-    phone_number = Column(String, nullable=True)
+    department = Column(
+        String,
+        nullable=True
+    )
+
+    designation = Column(
+        String,
+        nullable=True
+    )
+
+    phone_number = Column(
+        String,
+        nullable=True
+    )
 
     decisions = relationship(
         "Decision",
@@ -48,8 +78,14 @@ class User(Base):
         "ExpertEvaluation",
         back_populates="expert"
     )
+
     activity_logs = relationship(
         "ActivityLog",
         back_populates="user",
         cascade="all, delete-orphan"
+    )
+
+    audit_logs = relationship(
+        "AuditLog",
+        back_populates="user"
     )

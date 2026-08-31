@@ -49,7 +49,9 @@ class Decision(Base):
         Enum(
             DecisionStatus,
             name="decision_status",
-            values_callable=lambda enum: [item.value for item in enum]
+            values_callable=lambda enum: [
+                item.value for item in enum
+            ]
         ),
         nullable=False,
         default=DecisionStatus.DRAFT
@@ -73,6 +75,10 @@ class Decision(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+
+    # =====================================================
+    # RELATIONSHIPS
+    # =====================================================
 
     creator = relationship(
         "User",
@@ -100,8 +106,16 @@ class Decision(Base):
         secondary=decision_tags,
         back_populates="decisions"
     )
+
     expert_evaluations = relationship(
-    "ExpertEvaluation",
-    back_populates="decision",
-    cascade="all, delete-orphan"
-)
+        "ExpertEvaluation",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    versions = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        order_by="DecisionVersion.version_number"
+    )
