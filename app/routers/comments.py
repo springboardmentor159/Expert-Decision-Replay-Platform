@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -9,8 +9,8 @@ from app.models.comment import Comment
 from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentResponse, CommentUpdate
-
 from app.services.activity_logger import log_activity
+from app.services.audit_service import log_audit
 
 router = APIRouter(tags=["Comments"])
 
@@ -19,11 +19,12 @@ router = APIRouter(tags=["Comments"])
     "/decisions/{decision_id}/comments",
     response_model=CommentResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Add a comment to a decision"
+    summary="Add a comment to a decision (Automatic Audit Logging)"
 )
 def create_comment(
     decision_id: int,
     comment_in: CommentCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -42,6 +43,21 @@ def create_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_comment.id,
+        description=f"Comment added to decision '{decision.title}'",
+        ip_address=client_ip,
+        old_value=None,
+        new_value={"decision_id": decision_id, "content": new_comment.content},
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/comments"
+    )
 
     log_activity(
         db=db,
@@ -101,11 +117,12 @@ def get_comment(
     "/comments/{comment_id}",
     response_model=CommentResponse,
     status_code=status.HTTP_200_OK,
-    summary="Update a comment"
+    summary="Update a comment (Automatic Audit Diff)"
 )
 def update_comment(
     comment_id: int,
     comment_in: CommentUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -123,9 +140,26 @@ def update_comment(
             detail="You do not have permission to update this comment"
         )
 
+    old_snapshot = {"content": comment.content}
     comment.content = comment_in.content
     db.commit()
     db.refresh(comment)
+    new_snapshot = {"content": comment.content}
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Comment {comment.id} updated",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=new_snapshot,
+        request_method="PUT",
+        endpoint=f"/comments/{comment.id}"
+    )
 
     log_activity(
         db=db,
@@ -142,10 +176,11 @@ def update_comment(
 @router.delete(
     "/comments/{comment_id}",
     status_code=status.HTTP_200_OK,
-    summary="Delete a comment"
+    summary="Delete a comment (Automatic Audit Logging)"
 )
 def delete_comment(
     comment_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -162,6 +197,32 @@ def delete_comment(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this comment"
         )
+
+    old_snapshot = {"id": comment.id, "decision_id": comment.decision_id, "content": comment.content}
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Comment {comment.id} deleted",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=None,
+        request_method="DELETE",
+        endpoint=f"/comments/{comment.id}"
+    )
+
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="delete_comment",
+        entity_type="comment",
+        entity_id=comment.id,
+        description=f"User {current_user.full_name} deleted comment {comment.id}"
+    )
 
     db.delete(comment)
     db.commit()

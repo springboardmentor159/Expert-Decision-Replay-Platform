@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, List, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -10,8 +10,10 @@ from app.db.database import get_db
 from app.models.activity_log import ActivityLog
 from app.models.alternative import Alternative
 from app.models.approval import Approval
+from app.models.audit_log import AuditLog
 from app.models.comment import Comment
 from app.models.decision import Decision
+from app.models.decision_version import DecisionVersion
 from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
 from app.models.tag import Tag, decision_tags
@@ -29,8 +31,18 @@ from app.schemas.decision import (
     DecisionUpdate,
     PaginatedDecisionsResponse,
 )
+from app.schemas.decision_version import (
+    DecisionHistoryItem,
+    DecisionHistoryResponse,
+    DecisionVersionResponse,
+)
 from app.schemas.tag import TagAssign, TagSimpleResponse
 from app.services.activity_logger import log_activity
+from app.services.audit_service import (
+    create_decision_version,
+    log_access_event,
+    log_audit,
+)
 
 VALID_CATEGORIES = {
     "Technology",
@@ -64,6 +76,22 @@ def _validate_category(category_name: str) -> str:
         if valid.lower() == cat_clean.lower():
             return valid
     return cat_clean
+
+
+def _to_version_response(ver: DecisionVersion) -> DecisionVersionResponse:
+    return DecisionVersionResponse(
+        id=ver.id,
+        decision_id=ver.decision_id,
+        version_number=ver.version_number,
+        title=ver.title,
+        problem_statement=ver.problem_statement,
+        description=ver.description,
+        category=ver.category,
+        status=ver.status,
+        created_by=ver.created_by,
+        created_by_name=ver.creator.full_name if ver.creator else None,
+        created_at=ver.created_at,
+    )
 
 
 # --- 1. DECISION SEARCH (Sprint 9) ---
@@ -149,10 +177,12 @@ def search_decisions(
 @router.post(
     "",
     response_model=DecisionResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new decision (Automatic Version 1 and Audit Log)"
 )
 def create_decision(
     decision: DecisionCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -169,6 +199,36 @@ def create_decision(
     db.commit()
     db.refresh(new_decision)
 
+    # Automatically create initial Version 1 snapshot
+    create_decision_version(
+        db=db,
+        decision=new_decision,
+        user_id=current_user.id,
+        description="Initial version upon decision creation"
+    )
+
+    # Automatic Audit Logging
+    client_ip = request.client.host if request.client else None
+    new_snapshot = {
+        "title": new_decision.title,
+        "problem_statement": new_decision.problem_statement,
+        "category": new_decision.category,
+        "status": new_decision.status
+    }
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=f"Decision '{new_decision.title}' created in category '{validated_cat}'",
+        ip_address=client_ip,
+        old_value=None,
+        new_value=new_snapshot,
+        request_method="POST",
+        endpoint="/decisions"
+    )
+
     log_activity(
         db=db,
         user_id=current_user.id,
@@ -184,7 +244,8 @@ def create_decision(
 # --- 3. GET DECISIONS (Supports List and Optional Pagination / Filtering) ---
 @router.get(
     "",
-    response_model=Union[PaginatedDecisionsResponse, List[DecisionResponse]]
+    response_model=Union[PaginatedDecisionsResponse, List[DecisionResponse]],
+    summary="Get decisions with optional query filters and pagination"
 )
 def get_decisions(
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -259,13 +320,15 @@ def get_decisions(
     return query.distinct().all()
 
 
-# --- 4. GET DECISION BY ID ---
+# --- 4. GET DECISION BY ID (Access Tracked) ---
 @router.get(
     "/{decision_id}",
-    response_model=DecisionResponse
+    response_model=DecisionResponse,
+    summary="Get single decision by ID (Access Tracked)"
 )
 def get_decision(
     decision_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -275,17 +338,31 @@ def get_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
+
+    # Automatic Access Logging
+    client_ip = request.client.host if request.client else None
+    log_access_event(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Decision",
+        resource_id=decision.id,
+        action="VIEW",
+        ip_address=client_ip
+    )
+
     return decision
 
 
-# --- 5. UPDATE DECISION ---
+# --- 5. UPDATE DECISION (Automatic Versioning & Audit Diff) ---
 @router.put(
     "/{decision_id}",
-    response_model=DecisionResponse
+    response_model=DecisionResponse,
+    summary="Update decision details (Automatic Version Increment & Audit Diff)"
 )
 def update_decision(
     decision_id: int,
     decision_update: DecisionUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -304,12 +381,48 @@ def update_decision(
 
     validated_cat = _validate_category(decision_update.category)
 
+    old_snapshot = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category
+    }
+
     decision.title = decision_update.title
     decision.problem_statement = decision_update.problem_statement
     decision.category = validated_cat
 
     db.commit()
     db.refresh(decision)
+
+    new_snapshot = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category
+    }
+
+    # Automatically create new Decision Version
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
+        description=f"Updated by {current_user.full_name}"
+    )
+
+    # Automatic Audit Logging
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Decision '{decision.title}' updated by {current_user.full_name}",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=new_snapshot,
+        request_method="PUT",
+        endpoint=f"/decisions/{decision.id}"
+    )
 
     log_activity(
         db=db,
@@ -323,14 +436,16 @@ def update_decision(
     return decision
 
 
-# --- 6. UPDATE DECISION STATUS ---
+# --- 6. UPDATE DECISION STATUS (Automatic Versioning & Audit Diff) ---
 @router.patch(
     "/{decision_id}/status",
-    response_model=DecisionResponse
+    response_model=DecisionResponse,
+    summary="Update decision status (Automatic Version Increment & Audit Diff)"
 )
 def update_decision_status(
     decision_id: int,
     status_update: DecisionStatusUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -344,9 +459,36 @@ def update_decision_status(
     old_status = decision.status
     new_status = status_update.status.value
 
+    old_snapshot = {"status": old_status}
     decision.status = new_status
     db.commit()
     db.refresh(decision)
+
+    new_snapshot = {"status": new_status}
+
+    # Automatically create new Decision Version
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
+        description=f"Status changed from '{old_status}' to '{new_status}'"
+    )
+
+    # Automatic Audit Logging
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Decision status changed from '{old_status}' to '{new_status}' by {current_user.full_name}",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=new_snapshot,
+        request_method="PATCH",
+        endpoint=f"/decisions/{decision.id}/status"
+    )
 
     log_activity(
         db=db,
@@ -365,11 +507,12 @@ def update_decision_status(
     "/{decision_id}/rationale",
     response_model=DecisionResponse,
     status_code=status.HTTP_200_OK,
-    summary="Record or update decision rationale"
+    summary="Record or update decision rationale (Automatic Version & Audit)"
 )
 def update_decision_rationale(
     decision_id: int,
     rationale_update: DecisionRationaleUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -386,9 +529,36 @@ def update_decision_rationale(
             detail="You do not have permission to update rationale for this decision"
         )
 
+    old_snapshot = {"rationale": decision.rationale}
     decision.rationale = rationale_update.rationale
     db.commit()
     db.refresh(decision)
+
+    new_snapshot = {"rationale": decision.rationale}
+
+    # Automatically create new Decision Version
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
+        description=f"Rationale updated by {current_user.full_name}"
+    )
+
+    # Automatic Audit Logging
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Rationale updated for decision '{decision.title}'",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=new_snapshot,
+        request_method="PUT",
+        endpoint=f"/decisions/{decision.id}/rationale"
+    )
 
     log_activity(
         db=db,
@@ -437,6 +607,7 @@ def get_decision_rationale(
 def assign_tags_to_decision(
     decision_id: int,
     tag_in: TagAssign,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -447,7 +618,6 @@ def assign_tags_to_decision(
             detail="Decision not found"
         )
 
-    # Verify all tags exist
     tags = db.query(Tag).filter(Tag.id.in_(tag_in.tag_ids)).all()
     if len(tags) != len(set(tag_in.tag_ids)):
         raise HTTPException(
@@ -455,7 +625,6 @@ def assign_tags_to_decision(
             detail="One or more specified tags do not exist"
         )
 
-    # Add tags without duplicates
     existing_tag_ids = {t.id for t in decision.tags}
     for tag in tags:
         if tag.id not in existing_tag_ids:
@@ -465,6 +634,21 @@ def assign_tags_to_decision(
     db.refresh(decision)
 
     tag_names = ", ".join([t.name for t in tags])
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Assigned tags [{tag_names}] to decision '{decision.title}'",
+        ip_address=client_ip,
+        old_value=None,
+        new_value={"tags": [t.name for t in decision.tags]},
+        request_method="POST",
+        endpoint=f"/decisions/{decision.id}/tags"
+    )
+
     log_activity(
         db=db,
         user_id=current_user.id,
@@ -508,6 +692,7 @@ def get_decision_tags(
 def remove_tag_from_decision(
     decision_id: int,
     tag_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -533,6 +718,21 @@ def remove_tag_from_decision(
     decision.tags.remove(tag_to_remove)
     db.commit()
 
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Removed tag '{tag_to_remove.name}' from decision '{decision.title}'",
+        ip_address=client_ip,
+        old_value={"removed_tag": tag_to_remove.name},
+        new_value={"tags": [t.name for t in decision.tags]},
+        request_method="DELETE",
+        endpoint=f"/decisions/{decision.id}/tags/{tag_id}"
+    )
+
     log_activity(
         db=db,
         user_id=current_user.id,
@@ -545,7 +745,135 @@ def remove_tag_from_decision(
     return {"message": f"Tag '{tag_to_remove.name}' removed from decision successfully"}
 
 
-# --- 12. DECISION TIMELINE (Sprint 9) ---
+# --- 12. DECISION VERSIONS API (Sprint 11 Requirement) ---
+@router.get(
+    "/{decision_id}/versions",
+    response_model=List[DecisionVersionResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get all historical versions for a decision"
+)
+def get_decision_versions(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    versions = (
+        db.query(DecisionVersion)
+        .filter(DecisionVersion.decision_id == decision_id)
+        .order_by(DecisionVersion.version_number.asc())
+        .all()
+    )
+
+    return [_to_version_response(v) for v in versions]
+
+
+@router.get(
+    "/{decision_id}/versions/{version_number}",
+    response_model=DecisionVersionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a specific historical version of a decision"
+)
+def get_specific_decision_version(
+    decision_id: int,
+    version_number: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    version_record = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id,
+            DecisionVersion.version_number == version_number
+        )
+        .first()
+    )
+    if not version_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Version {version_number} not found for decision {decision_id}"
+        )
+
+    return _to_version_response(version_record)
+
+
+# --- 13. DECISION CHANGE HISTORY API (Sprint 11 Requirement) ---
+@router.get(
+    "/{decision_id}/history",
+    response_model=DecisionHistoryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get chronological change history and audit trail for a decision"
+)
+def get_decision_history(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    # Collect sub-entity IDs associated with this decision
+    alt_ids = [a.id for a in decision.alternatives]
+    comm_ids = [c.id for c in decision.comments]
+    thread_ids = [t.id for t in decision.threads]
+    mn_ids = [m.id for m in decision.meeting_notes]
+    apprv_ids = [ap.id for ap in decision.approvals]
+
+    # Query audit logs for Decision and related child entities
+    history_query = db.query(AuditLog).filter(
+        or_(
+            (AuditLog.entity_type == "Decision") & (AuditLog.entity_id == decision_id),
+            (AuditLog.entity_type == "Alternative") & (AuditLog.entity_id.in_(alt_ids) if alt_ids else False),
+            (AuditLog.entity_type == "Comment") & (AuditLog.entity_id.in_(comm_ids) if comm_ids else False),
+            (AuditLog.entity_type == "DiscussionThread") & (AuditLog.entity_id.in_(thread_ids) if thread_ids else False),
+            (AuditLog.entity_type == "MeetingNote") & (AuditLog.entity_id.in_(mn_ids) if mn_ids else False),
+            (AuditLog.entity_type == "Approval") & (AuditLog.entity_id.in_(apprv_ids) if apprv_ids else False),
+        )
+    ).order_by(AuditLog.created_at.asc()).all()
+
+    history_items: List[DecisionHistoryItem] = []
+    for log in history_query:
+        history_items.append(
+            DecisionHistoryItem(
+                id=log.id,
+                timestamp=log.created_at,
+                action=log.action,
+                entity_type=log.entity_type,
+                entity_id=log.entity_id,
+                description=log.description,
+                user_id=log.user_id,
+                user_name=log.user.full_name if log.user else None,
+                old_value=log.old_value,
+                new_value=log.new_value
+            )
+        )
+
+    return DecisionHistoryResponse(
+        decision_id=decision.id,
+        decision_title=decision.title,
+        total_events=len(history_items),
+        history=history_items
+    )
+
+
+# --- 14. DECISION TIMELINE (Sprint 9) ---
 @router.get(
     "/{decision_id}/timeline",
     response_model=DecisionTimelineResponse,
@@ -670,7 +998,6 @@ def get_decision_timeline(
                 )
             )
 
-    # Sort all events chronologically
     events.sort(key=lambda x: x.timestamp)
 
     return DecisionTimelineResponse(

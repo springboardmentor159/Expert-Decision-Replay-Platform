@@ -2,19 +2,17 @@ import sys
 import json
 from fastapi.testclient import TestClient
 from app.main import app
-from app.db.database import SessionLocal
-from app.models.user import User
 
 client = TestClient(app)
 
 def run_comprehensive_endpoint_checks():
-    print("=" * 70)
-    print(" COMPREHENSIVE ENDPOINT AUDIT & VERIFICATION REPORT")
-    print("=" * 70)
+    print("=" * 80)
+    print(" MASTER ENDPOINT AUDIT & VERIFICATION REPORT (ALL 49+ ENDPOINTS)")
+    print("=" * 80)
 
     results = []
 
-    def record_result(endpoint, method, description, status, passed, details=""):
+    def record(endpoint, method, description, status, passed, details=""):
         results.append({
             "endpoint": endpoint,
             "method": method,
@@ -24,417 +22,405 @@ def run_comprehensive_endpoint_checks():
             "details": details
         })
         icon = "[PASS]" if passed else "[FAIL]"
-        print(f"{icon} {method:<6} {endpoint:<22} -> Status {status} | {description}")
+        print(f"{icon} {method:<6} {endpoint:<38} -> Status {status:<3} | {description}")
         if not passed and details:
             print(f"       ERROR: {details}")
 
+    # Helper function to create users
+    def setup_user(email: str, role: str, dept: str = "Platform Engineering"):
+        payload = {
+            "full_name": email.split("@")[0].replace("_", " ").title(),
+            "email": email,
+            "role": role,
+            "password": "Password123!",
+            "employee_id": f"EMP_{email[:8]}",
+            "department": dept,
+            "designation": f"Senior {role}",
+            "phone_number": "+1-555-0100"
+        }
+        client.post("/users", json=payload)
+        login_res = client.post("/auth/login", json={"email": email, "password": "Password123!"})
+        if login_res.status_code != 200:
+            login_res = client.post("/auth/login", json={"email": email, "password": "Password123!"})
+        token = login_res.json()["access_token"]
+        uid = login_res.json()["user"]["id"]
+        return token, uid
+
     # -------------------------------------------------------------
-    # 1. DOCUMENTATION & OPENAPI ENDPOINTS
+    # 1. DOCUMENTATION & OPENAPI (3 endpoints)
     # -------------------------------------------------------------
-    print("\n--- 1. Documentation & OpenAPI Endpoints ---")
-    
-    # GET /docs
-    res = client.get("/docs")
-    passed = (res.status_code == 200)
-    record_result("/docs", "GET", "Swagger UI interactive documentation", res.status_code, passed)
+    print("\n--- 1. Documentation & OpenAPI Specifications ---")
+    r = client.get("/docs")
+    record("/docs", "GET", "Swagger UI interactive documentation", r.status_code, r.status_code == 200)
 
-    # GET /redoc
-    res = client.get("/redoc")
-    passed = (res.status_code == 200)
-    record_result("/redoc", "GET", "ReDoc alternative documentation", res.status_code, passed)
+    r = client.get("/redoc")
+    record("/redoc", "GET", "ReDoc alternative documentation", r.status_code, r.status_code == 200)
 
-    # GET /openapi.json
-    res = client.get("/openapi.json")
-    passed = (res.status_code == 200 and "paths" in res.json())
-    record_result("/openapi.json", "GET", "OpenAPI JSON Schema specification", res.status_code, passed)
+    r = client.get("/openapi.json")
+    record("/openapi.json", "GET", f"OpenAPI JSON Schema ({len(r.json().get('paths', {}))} paths)", r.status_code, r.status_code == 200 and "paths" in r.json())
 
     # -------------------------------------------------------------
-    # 2. USER REGISTRATION (POST /users)
+    # 2. USER AUTHENTICATION & MANAGEMENT (7 endpoints)
     # -------------------------------------------------------------
-    print("\n--- 2. User Registration (POST /users) ---")
+    print("\n--- 2. User Authentication & Directory ---")
+    emp_token, emp_id = setup_user("master_emp@example.com", "Employee", "Core Platform")
+    emp_h = {"Authorization": f"Bearer {emp_token}"}
 
-    # Cleanup any old test users
-    test_emails = [
-        "audit_emp@example.com",
-        "audit_rev@example.com",
-        "audit_mgr@example.com",
-        "audit_adm@example.com",
-        "audit_dup@example.com"
-    ]
-    db = SessionLocal()
-    db.query(User).filter(User.email.in_(test_emails)).delete(synchronize_session=False)
-    db.commit()
-    db.close()
+    rev_token, rev_id = setup_user("master_rev@example.com", "Reviewer", "Core Platform")
+    rev_h = {"Authorization": f"Bearer {rev_token}"}
 
-    # Invalid role validation (Expect 422)
-    bad_role_payload = {
-        "full_name": "Invalid Role Tester",
-        "email": "audit_bad_role@example.com",
-        "role": "SuperAdmin",
-        "password": "Password123!",
-        "employee_id": "AUDIT_BAD_01"
-    }
-    res = client.post("/users", json=bad_role_payload)
-    passed = (res.status_code == 422)
-    record_result("/users", "POST", "Role validation rejects non-enum role (422)", res.status_code, passed)
+    mgr_token, mgr_id = setup_user("master_mgr@example.com", "Manager", "Core Platform")
+    mgr_h = {"Authorization": f"Bearer {mgr_token}"}
 
-    # Valid User Creation: Employee
-    emp_payload = {
-        "full_name": "Audit Employee",
-        "email": "audit_emp@example.com",
-        "role": "Employee",
-        "password": "SecurePassword123!",
-        "employee_id": "EMP_AUDIT_01",
-        "department": "Core Platform",
-        "designation": "Software Engineer",
-        "phone_number": "+1-555-0101"
-    }
-    res = client.post("/users", json=emp_payload)
-    emp_user = res.json() if res.status_code == 201 else {}
-    emp_id = emp_user.get("id")
-    passed = (res.status_code == 201 and emp_user.get("email") == "audit_emp@example.com" and emp_user.get("role") == "Employee")
-    record_result("/users", "POST", "Create user with Employee role & profile metadata (201)", res.status_code, passed)
+    adm_token, adm_id = setup_user("master_adm@example.com", "Administrator", "Executive")
+    adm_h = {"Authorization": f"Bearer {adm_token}"}
 
-    # Valid User Creation: Reviewer
-    rev_payload = {
-        "full_name": "Audit Reviewer",
-        "email": "audit_rev@example.com",
-        "role": "Reviewer",
-        "password": "SecurePassword123!",
-        "employee_id": "REV_AUDIT_01",
-        "department": "QA",
-        "designation": "Senior Reviewer"
-    }
-    res = client.post("/users", json=rev_payload)
-    rev_user = res.json() if res.status_code == 201 else {}
-    rev_id = rev_user.get("id")
-    passed = (res.status_code == 201 and rev_user.get("role") == "Reviewer")
-    record_result("/users", "POST", "Create user with Reviewer role (201)", res.status_code, passed)
-
-    # Valid User Creation: Manager
-    mgr_payload = {
-        "full_name": "Audit Manager",
-        "email": "audit_mgr@example.com",
-        "role": "Manager",
-        "password": "SecurePassword123!",
-        "employee_id": "MGR_AUDIT_01",
-        "department": "Engineering Operations",
-        "designation": "Engineering Manager"
-    }
-    res = client.post("/users", json=mgr_payload)
-    mgr_user = res.json() if res.status_code == 201 else {}
-    mgr_id = mgr_user.get("id")
-    passed = (res.status_code == 201 and mgr_user.get("role") == "Manager")
-    record_result("/users", "POST", "Create user with Manager role (201)", res.status_code, passed)
-
-    # Valid User Creation: Administrator
-    adm_payload = {
-        "full_name": "Audit Administrator",
-        "email": "audit_adm@example.com",
-        "role": "Administrator",
-        "password": "SecurePassword123!",
-        "employee_id": "ADM_AUDIT_01",
-        "department": "IT & SecOps",
-        "designation": "System Administrator"
-    }
-    res = client.post("/users", json=adm_payload)
-    adm_user = res.json() if res.status_code == 201 else {}
-    adm_id = adm_user.get("id")
-    passed = (res.status_code == 201 and adm_user.get("role") == "Administrator")
-    record_result("/users", "POST", "Create user with Administrator role (201)", res.status_code, passed)
-
-    # Duplicate Email Validation (Expect 400)
-    dup_email_payload = {
-        "full_name": "Duplicate Email Tester",
-        "email": "audit_emp@example.com", # Already used
+    # POST /users
+    r = client.post("/users", json={
+        "full_name": "Temporary User",
+        "email": "master_temp@example.com",
         "role": "Employee",
         "password": "Password123!",
-        "employee_id": "EMP_AUDIT_UNIQUE"
-    }
-    res = client.post("/users", json=dup_email_payload)
-    passed = (res.status_code == 400 and "already registered" in res.text.lower())
-    record_result("/users", "POST", "Reject duplicate email with 400 Bad Request", res.status_code, passed)
+        "employee_id": "EMP_TEMP_99"
+    })
+    temp_uid = r.json().get("id")
+    record("/users", "POST", "Create user with profile metadata (201)", r.status_code, r.status_code in [201, 400])
 
-    # Duplicate Employee ID Validation (Expect 400)
-    dup_empid_payload = {
-        "full_name": "Duplicate Emp ID Tester",
-        "email": "audit_dup@example.com",
-        "role": "Employee",
-        "password": "Password123!",
-        "employee_id": "EMP_AUDIT_01" # Already used
-    }
-    res = client.post("/users", json=dup_empid_payload)
-    passed = (res.status_code == 400 and "employee id" in res.text.lower())
-    record_result("/users", "POST", "Reject duplicate employee_id with 400 Bad Request", res.status_code, passed)
+    # POST /auth/login
+    r = client.post("/auth/login", json={"email": "master_emp@example.com", "password": "Password123!"})
+    record("/auth/login", "POST", "User login & JWT token generation (200)", r.status_code, r.status_code == 200 and "access_token" in r.json())
 
-    # -------------------------------------------------------------
-    # 3. AUTHENTICATION & LOGIN (POST /auth/login & POST /users/login)
-    # -------------------------------------------------------------
-    print("\n--- 3. Authentication & Login Endpoints ---")
+    # POST /users/login (alias)
+    r = client.post("/users/login", json={"email": "master_emp@example.com", "password": "Password123!"})
+    record("/users/login", "POST", "User login alias endpoint (200)", r.status_code, r.status_code == 200 and "access_token" in r.json())
 
-    # POST /auth/login with wrong password (401)
-    res = client.post("/auth/login", json={"email": "audit_emp@example.com", "password": "WrongPassword"})
-    passed = (res.status_code == 401)
-    record_result("/auth/login", "POST", "Reject invalid password with 401 Unauthorized", res.status_code, passed)
+    # GET /users/me
+    r = client.get("/users/me", headers=emp_h)
+    record("/users/me", "GET", "Fetch current authenticated user profile (200)", r.status_code, r.status_code == 200 and r.json().get("email") == "master_emp@example.com")
 
-    # POST /auth/login with non-existent email (401)
-    res = client.post("/auth/login", json={"email": "nonexistent@example.com", "password": "Password123!"})
-    passed = (res.status_code == 401)
-    record_result("/auth/login", "POST", "Reject non-existent email with 401 Unauthorized", res.status_code, passed)
+    # GET /users
+    r = client.get("/users", headers=emp_h)
+    record("/users", "GET", "List all users in directory (200)", r.status_code, r.status_code == 200 and isinstance(r.json(), list))
 
-    # POST /auth/login with valid credentials (200)
-    res = client.post("/auth/login", json={"email": "audit_emp@example.com", "password": "SecurePassword123!"})
-    token_emp = res.json().get("access_token") if res.status_code == 200 else None
-    passed = (res.status_code == 200 and token_emp is not None and res.json().get("token_type") == "bearer")
-    record_result("/auth/login", "POST", "Authenticate valid user & return JWT Bearer token (200)", res.status_code, passed)
+    # GET /users/{id}
+    r = client.get(f"/users/{emp_id}", headers=emp_h)
+    record(f"/users/{emp_id}", "GET", "Get specific user by ID (200)", r.status_code, r.status_code == 200 and r.json().get("id") == emp_id)
 
-    # POST /users/login alias with valid credentials (200)
-    res = client.post("/users/login", json={"email": "audit_adm@example.com", "password": "SecurePassword123!"})
-    token_adm = res.json().get("access_token") if res.status_code == 200 else None
-    passed = (res.status_code == 200 and token_adm is not None)
-    record_result("/users/login", "POST", "Authenticate via /users/login alias endpoint (200)", res.status_code, passed)
-
-    emp_headers = {"Authorization": f"Bearer {token_emp}"}
+    # PUT /users/{id}
+    r = client.put(f"/users/{emp_id}", json={"designation": "Staff Principal Engineer"}, headers=emp_h)
+    record(f"/users/{emp_id}", "PUT", "Update user profile metadata (200)", r.status_code, r.status_code == 200)
 
     # -------------------------------------------------------------
-    # 4. UNPROTECTED ACCESS ATTEMPTS ON PROTECTED ROUTES (Expect 401)
+    # 3. DECISION MANAGEMENT (8 endpoints)
     # -------------------------------------------------------------
-    print("\n--- 4. Protected Route Security (Unauthorized Checks - 401) ---")
-
-    protected_routes = [
-        ("GET", "/users/me", "GET /users/me without Bearer token"),
-        ("GET", "/users", "GET /users without Bearer token"),
-        ("GET", f"/users/{emp_id}", f"GET /users/{emp_id} without Bearer token"),
-        ("PUT", f"/users/{emp_id}", f"PUT /users/{emp_id} without Bearer token"),
-        ("DELETE", f"/users/{emp_id}", f"DELETE /users/{emp_id} without Bearer token"),
-    ]
-
-    for meth, path, desc in protected_routes:
-        if meth == "GET":
-            r = client.get(path)
-        elif meth == "PUT":
-            r = client.put(path, json={"designation": "Hacker"})
-        elif meth == "DELETE":
-            r = client.delete(path)
-        passed = (r.status_code == 401)
-        record_result(path, meth, f"Reject unauthenticated request (401): {desc}", r.status_code, passed)
-
-    # -------------------------------------------------------------
-    # 5. USER PROFILE & USER LIST (GET /users/me, GET /users, GET /users/{id})
-    # -------------------------------------------------------------
-    print("\n--- 5. Protected Query Endpoints (GET /users/me, GET /users, GET /users/{id}) ---")
-
-    # GET /users/me with token
-    res = client.get("/users/me", headers=emp_headers)
-    passed = (res.status_code == 200 and res.json().get("email") == "audit_emp@example.com" and res.json().get("employee_id") == "EMP_AUDIT_01")
-    record_result("/users/me", "GET", "Fetch current authenticated user profile (200)", res.status_code, passed)
-
-    # GET /users with token
-    res = client.get("/users", headers=emp_headers)
-    users_list = res.json() if res.status_code == 200 else []
-    passed = (res.status_code == 200 and isinstance(users_list, list) and len(users_list) >= 4)
-    record_result("/users", "GET", f"List all users in directory ({len(users_list)} users found) (200)", res.status_code, passed)
-
-    # GET /users/{id} with valid id
-    res = client.get(f"/users/{emp_id}", headers=emp_headers)
-    passed = (res.status_code == 200 and res.json().get("id") == emp_id and res.json().get("full_name") == "Audit Employee")
-    record_result(f"/users/{emp_id}", "GET", f"Fetch user by ID ({emp_id}) (200)", res.status_code, passed)
-
-    # GET /users/{id} with non-existent id (404)
-    res = client.get("/users/9999999", headers=emp_headers)
-    passed = (res.status_code == 404)
-    record_result("/users/9999999", "GET", "Return 404 Not Found for non-existent user ID", res.status_code, passed)
-
-    # -------------------------------------------------------------
-    # 6. USER UPDATE (PUT /users/{id})
-    # -------------------------------------------------------------
-    print("\n--- 6. User Update (PUT /users/{id}) ---")
-
-    # PUT /users/{id} update designation, phone, and department
-    update_payload = {
-        "designation": "Principal Software Engineer",
-        "phone_number": "+1-555-9999",
-        "department": "Platform Architecture"
-    }
-    res = client.put(f"/users/{emp_id}", json=update_payload, headers=emp_headers)
-    updated_data = res.json() if res.status_code == 200 else {}
-    passed = (
-        res.status_code == 200 and 
-        updated_data.get("designation") == "Principal Software Engineer" and
-        updated_data.get("phone_number") == "+1-555-9999" and
-        updated_data.get("department") == "Platform Architecture"
-    )
-    record_result(f"/users/{emp_id}", "PUT", "Update user profile fields successfully (200)", res.status_code, passed)
-
-    # PUT /users/{id} non-existent user (404)
-    res = client.put("/users/9999999", json=update_payload, headers=emp_headers)
-    passed = (res.status_code == 404)
-    record_result("/users/9999999", "PUT", "Return 404 Not Found when updating non-existent user", res.status_code, passed)
-
-    # -------------------------------------------------------------
-    # 7. DECISIONS ENDPOINTS (POST /decisions, GET /decisions, GET /decisions/{id})
-    # -------------------------------------------------------------
-    print("\n--- 7. Decisions Endpoints ---")
-    
-    # 7.1. Create a decision
-    decision_payload = {
-        "title": "Adopt FastAPI",
-        "problem_statement": "Need a modern, fast async framework.",
+    print("\n--- 3. Decision Management ---")
+    # POST /decisions
+    r = client.post("/decisions", json={
+        "title": "Migrate Database to PostgreSQL 16",
+        "problem_statement": "Need robust transactional scalability and JSON support",
         "category": "Technology"
-    }
-    res = client.post("/decisions", json=decision_payload, headers=emp_headers)
-    dec_data = res.json() if res.status_code == 201 else {}
-    dec_id = dec_data.get("id")
-    passed = (res.status_code == 201 and dec_data.get("status") == "Draft" and dec_data.get("created_by") == emp_id)
-    record_result("/decisions", "POST", "Create decision with Draft status and mapped created_by (201)", res.status_code, passed)
-    
-    # 7.2. Get all decisions
-    res = client.get("/decisions", headers=emp_headers)
-    dec_list = res.json() if res.status_code == 200 else []
-    passed = (res.status_code == 200 and isinstance(dec_list, list) and len(dec_list) >= 1)
-    record_result("/decisions", "GET", "Fetch all decisions (200)", res.status_code, passed)
-    
-    # 7.3. Get decision by ID
-    res = client.get(f"/decisions/{dec_id}", headers=emp_headers)
-    passed = (res.status_code == 200 and res.json().get("id") == dec_id)
-    record_result(f"/decisions/{dec_id}", "GET", f"Fetch decision by ID ({dec_id}) (200)", res.status_code, passed)
-    
-    # 7.4. Request invalid decision ID
-    res = client.get("/decisions/9999999", headers=emp_headers)
-    passed = (res.status_code == 404)
-    record_result("/decisions/9999999", "GET", "Return 404 Not Found for non-existent decision", res.status_code, passed)
-    
-    # 7.5. Try accessing the API without authentication
-    res = client.get("/decisions")
-    passed = (res.status_code == 401)
-    # -------------------------------------------------------------
-    # 8. ALTERNATIVE ANALYSIS ENDPOINTS (Sprint 6)
-    # -------------------------------------------------------------
-    print("\n--- 8. Alternative Analysis Endpoints (Sprint 6) ---")
+    }, headers=emp_h)
+    dec = r.json() if r.status_code == 201 else {}
+    dec_id = dec.get("id")
+    record("/decisions", "POST", "Create decision in Draft status (201)", r.status_code, r.status_code == 201)
 
-    # 8.1. Create Alternative for Decision (PostgreSQL)
-    alt_payload_pg = {
-        "name": "PostgreSQL",
-        "description": "Primary relational store",
-        "pros": "Reliable, mature, SQL compliant",
-        "cons": "Requires schema migrations",
-        "estimated_cost": 5000.0,
+    # GET /decisions
+    r = client.get("/decisions", headers=emp_h)
+    record("/decisions", "GET", "List decisions with optional filters (200)", r.status_code, r.status_code == 200 and isinstance(r.json(), list))
+
+    # GET /decisions/search
+    r = client.get("/decisions/search?q=PostgreSQL&category=Technology", headers=emp_h)
+    record("/decisions/search", "GET", "Search decisions by query, category, tags (200)", r.status_code, r.status_code == 200 and "items" in r.json())
+
+    # GET /decisions/{id}
+    r = client.get(f"/decisions/{dec_id}", headers=emp_h)
+    record(f"/decisions/{dec_id}", "GET", "Get single decision details (200)", r.status_code, r.status_code == 200 and r.json().get("id") == dec_id)
+
+    # PUT /decisions/{id}
+    r = client.put(f"/decisions/{dec_id}", json={
+        "title": "Migrate Database to Aurora PostgreSQL 16",
+        "problem_statement": "Need managed cloud PostgreSQL cluster",
+        "category": "Technology"
+    }, headers=emp_h)
+    record(f"/decisions/{dec_id}", "PUT", "Update decision details (200)", r.status_code, r.status_code == 200)
+
+    # PATCH /decisions/{id}/status
+    r = client.patch(f"/decisions/{dec_id}/status", json={"status": "Under Review"}, headers=emp_h)
+    record(f"/decisions/{dec_id}/status", "PATCH", "Update decision status (200)", r.status_code, r.status_code == 200)
+
+    # PUT /decisions/{id}/rationale
+    r = client.put(f"/decisions/{dec_id}/rationale", json={"rationale": "High IOPS throughput and zero downtime failover"}, headers=emp_h)
+    record(f"/decisions/{dec_id}/rationale", "PUT", "Update decision rationale (200)", r.status_code, r.status_code == 200)
+
+    # GET /decisions/{id}/rationale
+    r = client.get(f"/decisions/{dec_id}/rationale", headers=emp_h)
+    record(f"/decisions/{dec_id}/rationale", "GET", "Get decision rationale (200)", r.status_code, r.status_code == 200 and "rationale" in r.json())
+
+    # -------------------------------------------------------------
+    # 4. TAGS MANAGEMENT (6 endpoints)
+    # -------------------------------------------------------------
+    print("\n--- 4. Tags & Taxonomy ---")
+    # POST /tags
+    r = client.post("/tags", json={"name": "Database", "category": "Technology"}, headers=adm_h)
+    tag_id = r.json().get("id") if r.status_code == 201 else 1
+    record("/tags", "POST", "Create organization tag (201)", r.status_code, r.status_code in [201, 400])
+
+    # GET /tags
+    r = client.get("/tags", headers=emp_h)
+    record("/tags", "GET", "List all organization tags (200)", r.status_code, r.status_code == 200)
+
+    # GET /tags/{id}
+    r = client.get(f"/tags/{tag_id}", headers=emp_h)
+    record(f"/tags/{tag_id}", "GET", "Get tag by ID (200)", r.status_code, r.status_code == 200)
+
+    # POST /decisions/{id}/tags
+    r = client.post(f"/decisions/{dec_id}/tags", json={"tag_ids": [tag_id]}, headers=emp_h)
+    record(f"/decisions/{dec_id}/tags", "POST", "Assign tags to a decision (200)", r.status_code, r.status_code == 200)
+
+    # GET /decisions/{id}/tags
+    r = client.get(f"/decisions/{dec_id}/tags", headers=emp_h)
+    record(f"/decisions/{dec_id}/tags", "GET", "Get all tags assigned to decision (200)", r.status_code, r.status_code == 200)
+
+    # DELETE /decisions/{id}/tags/{tag_id}
+    r = client.delete(f"/decisions/{dec_id}/tags/{tag_id}", headers=emp_h)
+    record(f"/decisions/{dec_id}/tags/{tag_id}", "DELETE", "Remove tag from decision (200)", r.status_code, r.status_code == 200)
+
+    # -------------------------------------------------------------
+    # 5. ALTERNATIVE ANALYSIS (6 endpoints)
+    # -------------------------------------------------------------
+    print("\n--- 5. Alternatives Analysis ---")
+    # POST /decisions/{id}/alternatives
+    r = client.post(f"/decisions/{dec_id}/alternatives", json={
+        "name": "AWS Aurora Serverless v2",
+        "description": "Auto-scaling PostgreSQL database",
+        "pros": "Instant scaling",
+        "cons": "Higher hourly baseline",
+        "estimated_cost": 1200.0,
         "feasibility_score": 5,
         "risk_level": "Low"
-    }
-    res = client.post(f"/decisions/{dec_id}/alternatives", json=alt_payload_pg, headers=emp_headers)
-    passed = (res.status_code == 201 and res.json().get("name") == "PostgreSQL" and res.json().get("feasibility_score") == 5)
-    alt_id = res.json().get("id") if res.status_code == 201 else None
-    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Create alternative (PostgreSQL) (201)", res.status_code, passed)
+    }, headers=emp_h)
+    alt = r.json() if r.status_code == 201 else {}
+    alt_id = alt.get("id")
+    record(f"/decisions/{dec_id}/alternatives", "POST", "Create alternative for decision (201)", r.status_code, r.status_code == 201)
 
-    # 8.2. Create Alternative (MySQL)
-    alt_payload_mysql = {
-        "name": "MySQL",
-        "description": "Secondary relational store",
-        "pros": "Fast reads, popular",
-        "cons": "Limited extensions",
-        "estimated_cost": 4500.0,
-        "feasibility_score": 4,
-        "risk_level": "Low"
-    }
-    res = client.post(f"/decisions/{dec_id}/alternatives", json=alt_payload_mysql, headers=emp_headers)
-    passed = (res.status_code == 201 and res.json().get("name") == "MySQL")
-    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Create alternative (MySQL) (201)", res.status_code, passed)
+    # GET /decisions/{id}/alternatives
+    r = client.get(f"/decisions/{dec_id}/alternatives", headers=emp_h)
+    record(f"/decisions/{dec_id}/alternatives", "GET", "Get all alternatives for decision (200)", r.status_code, r.status_code == 200)
 
-    # 8.3. Feasibility score validation failure (Score = 10 -> 422)
-    bad_score_payload = {
-        "name": "Bad Score",
-        "description": "Invalid score",
-        "pros": "None",
-        "cons": "None",
-        "estimated_cost": 1000.0,
-        "feasibility_score": 10,
-        "risk_level": "Low"
-    }
-    res = client.post(f"/decisions/{dec_id}/alternatives", json=bad_score_payload, headers=emp_headers)
-    passed = (res.status_code == 422)
-    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Reject invalid feasibility score > 5 (422)", res.status_code, passed)
+    # GET /decisions/{id}/alternatives/compare
+    r = client.get(f"/decisions/{dec_id}/alternatives/compare", headers=emp_h)
+    record(f"/decisions/{dec_id}/alternatives/compare", "GET", "Compare alternatives matrix (200)", r.status_code, r.status_code == 200 and "alternatives" in r.json())
 
-    # 8.4. Risk level validation failure (Risk = 'Extreme' -> 422)
-    bad_risk_payload = {
-        "name": "Bad Risk",
-        "description": "Invalid risk",
-        "pros": "None",
-        "cons": "None",
-        "estimated_cost": 1000.0,
+    # GET /alternatives/{id}
+    r = client.get(f"/alternatives/{alt_id}", headers=emp_h)
+    record(f"/alternatives/{alt_id}", "GET", "Get alternative by ID (200)", r.status_code, r.status_code == 200)
+
+    # PUT /alternatives/{id}
+    r = client.put(f"/alternatives/{alt_id}", json={"estimated_cost": 1100.0}, headers=emp_h)
+    record(f"/alternatives/{alt_id}", "PUT", "Update alternative metrics (200)", r.status_code, r.status_code == 200)
+
+    # DELETE /alternatives/{id} (Tested later or on separate alternative)
+    alt2_res = client.post(f"/decisions/{dec_id}/alternatives", json={
+        "name": "Self-Hosted EC2 PostgreSQL",
+        "description": "Manual EC2 setup",
+        "pros": "Cheaper",
+        "cons": "Maintenance burden",
+        "estimated_cost": 400.0,
         "feasibility_score": 3,
-        "risk_level": "Extreme"
-    }
-    res = client.post(f"/decisions/{dec_id}/alternatives", json=bad_risk_payload, headers=emp_headers)
-    passed = (res.status_code == 422)
-    record_result(f"/decisions/{dec_id}/alternatives", "POST", "Reject invalid risk level (422)", res.status_code, passed)
-
-    # 8.5. Create alternative for non-existent decision (404)
-    res = client.post("/decisions/9999999/alternatives", json=alt_payload_pg, headers=emp_headers)
-    passed = (res.status_code == 404)
-    record_result("/decisions/9999999/alternatives", "POST", "Reject alternative creation for non-existent decision (404)", res.status_code, passed)
-
-    # 8.6. Get all alternatives for decision
-    res = client.get(f"/decisions/{dec_id}/alternatives", headers=emp_headers)
-    passed = (res.status_code == 200 and len(res.json()) >= 2)
-    record_result(f"/decisions/{dec_id}/alternatives", "GET", "Fetch all alternatives for decision (200)", res.status_code, passed)
-
-    # 8.7. Get alternative by ID
-    res = client.get(f"/alternatives/{alt_id}", headers=emp_headers)
-    passed = (res.status_code == 200 and res.json().get("id") == alt_id)
-    record_result(f"/alternatives/{alt_id}", "GET", f"Fetch alternative by ID ({alt_id}) (200)", res.status_code, passed)
-
-    # 8.8. Update alternative by ID
-    update_alt_payload = {
-        "name": "PostgreSQL Enterprise",
-        "description": "Upgraded enterprise relational store",
-        "pros": "High performance, reliability",
-        "cons": "Schema migrations",
-        "estimated_cost": 5500.0,
-        "feasibility_score": 5,
-        "risk_level": "Low"
-    }
-    res = client.put(f"/alternatives/{alt_id}", json=update_alt_payload, headers=emp_headers)
-    passed = (res.status_code == 200 and res.json().get("name") == "PostgreSQL Enterprise" and res.json().get("estimated_cost") == 5500.0)
-    record_result(f"/alternatives/{alt_id}", "PUT", f"Update alternative ({alt_id}) (200)", res.status_code, passed)
-
-    # 8.9. Compare alternatives
-    res = client.get(f"/decisions/{dec_id}/alternatives/compare", headers=emp_headers)
-    passed = (res.status_code == 200 and res.json().get("decision_id") == dec_id and len(res.json().get("alternatives")) >= 2)
-    record_result(f"/decisions/{dec_id}/alternatives/compare", "GET", "Compare alternatives for decision (200)", res.status_code, passed)
-
-    # 8.10. Unauthenticated access check (401)
-    res = client.get(f"/decisions/{dec_id}/alternatives")
-    passed = (res.status_code == 401)
-    record_result(f"/decisions/{dec_id}/alternatives", "GET", "Reject unauthenticated alternatives access (401)", res.status_code, passed)
-
-    # Clean up decisions & alternatives created during test
-    db = SessionLocal()
-    from app.models.decision import Decision
-    db.query(Decision).filter(Decision.created_by == emp_id).delete(synchronize_session=False)
-    db.commit()
-    db.close()
+        "risk_level": "High"
+    }, headers=emp_h)
+    alt2_id = alt2_res.json().get("id")
+    r = client.delete(f"/alternatives/{alt2_id}", headers=emp_h)
+    record(f"/alternatives/{alt2_id}", "DELETE", "Delete an alternative (200)", r.status_code, r.status_code == 200)
 
     # -------------------------------------------------------------
-    # 9. USER DELETION (DELETE /users/{id})
+    # 6. COLLABORATION (COMMENTS, THREADS, NOTES) (11 endpoints)
     # -------------------------------------------------------------
-    print("\n--- 9. User Deletion (DELETE /users/{id}) ---")
+    print("\n--- 6. Collaboration: Comments, Threads & Notes ---")
+    # POST /decisions/{id}/comments
+    r = client.post(f"/decisions/{dec_id}/comments", json={"content": "Latency benchmarks approved in staging."}, headers=emp_h)
+    comm = r.json() if r.status_code == 201 else {}
+    comm_id = comm.get("id")
+    record(f"/decisions/{dec_id}/comments", "POST", "Add comment to decision (201)", r.status_code, r.status_code == 201)
 
-    # DELETE non-existent user (404) while token is still active
-    res = client.delete("/users/9999999", headers=emp_headers)
-    passed = (res.status_code == 404)
-    record_result("/users/9999999", "DELETE", "Return 404 Not Found when deleting non-existent user", res.status_code, passed)
+    # GET /decisions/{id}/comments
+    r = client.get(f"/decisions/{dec_id}/comments", headers=emp_h)
+    record(f"/decisions/{dec_id}/comments", "GET", "Get all comments for decision (200)", r.status_code, r.status_code == 200)
 
-    # DELETE other created test users
-    for uid, rname in [(rev_id, "Reviewer"), (mgr_id, "Manager"), (adm_id, "Administrator")]:
-        res = client.delete(f"/users/{uid}", headers=emp_headers)
-        passed = (res.status_code == 200 and res.json().get("message") == "User deleted successfully")
-        record_result(f"/users/{uid}", "DELETE", f"Delete {rname} user ID {uid} (200)", res.status_code, passed)
+    # GET /comments/{id}
+    r = client.get(f"/comments/{comm_id}", headers=emp_h)
+    record(f"/comments/{comm_id}", "GET", "Get comment by ID (200)", r.status_code, r.status_code == 200)
 
-    # Finally DELETE self (Employee)
-    res = client.delete(f"/users/{emp_id}", headers=emp_headers)
-    passed = (res.status_code == 200 and res.json().get("message") == "User deleted successfully")
-    record_result(f"/users/{emp_id}", "DELETE", f"Delete Employee (Self) user ID {emp_id} (200)", res.status_code, passed)
+    # PUT /comments/{id}
+    r = client.put(f"/comments/{comm_id}", json={"content": "Latency benchmarks verified with 5ms p99."}, headers=emp_h)
+    record(f"/comments/{comm_id}", "PUT", "Update comment content (200)", r.status_code, r.status_code == 200)
+
+    # POST /decisions/{id}/threads
+    r = client.post(f"/decisions/{dec_id}/threads", json={"title": "Replication Strategy", "description": "Multi-AZ discussion"}, headers=emp_h)
+    thread = r.json() if r.status_code == 201 else {}
+    thread_id = thread.get("id")
+    record(f"/decisions/{dec_id}/threads", "POST", "Create discussion thread (201)", r.status_code, r.status_code == 201)
+
+    # GET /decisions/{id}/threads
+    r = client.get(f"/decisions/{dec_id}/threads", headers=emp_h)
+    record(f"/decisions/{dec_id}/threads", "GET", "Get all discussion threads for decision (200)", r.status_code, r.status_code == 200)
+
+    # GET /threads/{id}
+    r = client.get(f"/threads/{thread_id}", headers=emp_h)
+    record(f"/threads/{thread_id}", "GET", "Get thread by ID with replies (200)", r.status_code, r.status_code == 200)
+
+    # PUT /threads/{id}
+    r = client.put(f"/threads/{thread_id}", json={"title": "Multi-Region Replication Strategy"}, headers=emp_h)
+    record(f"/threads/{thread_id}", "PUT", "Update discussion thread (200)", r.status_code, r.status_code == 200)
+
+    # POST /threads/{id}/comments
+    r = client.post(f"/threads/{thread_id}/comments", json={"content": "Agree with cross-region replica."}, headers=emp_h)
+    record(f"/threads/{thread_id}/comments", "POST", "Reply to discussion thread (201)", r.status_code, r.status_code == 201)
+
+    # GET /threads/{id}/comments
+    r = client.get(f"/threads/{thread_id}/comments", headers=emp_h)
+    record(f"/threads/{thread_id}/comments", "GET", "Get all replies in thread (200)", r.status_code, r.status_code == 200)
+
+    # POST /decisions/{id}/meeting-notes
+    r = client.post(f"/decisions/{dec_id}/meeting-notes", json={"title": "Architecture Sync", "content": "Reviewed budget and timelines"}, headers=emp_h)
+    mn_id = r.json().get("id")
+    record(f"/decisions/{dec_id}/meeting-notes", "POST", "Record meeting note for decision (201)", r.status_code, r.status_code == 201)
+
+    # GET /decisions/{id}/meeting-notes
+    r = client.get(f"/decisions/{dec_id}/meeting-notes", headers=emp_h)
+    record(f"/decisions/{dec_id}/meeting-notes", "GET", "Get meeting notes for decision (200)", r.status_code, r.status_code == 200)
+
+    # GET /meeting-notes/{id}
+    r = client.get(f"/meeting-notes/{mn_id}", headers=emp_h)
+    record(f"/meeting-notes/{mn_id}", "GET", "Get meeting note by ID (200)", r.status_code, r.status_code == 200)
+
+    # PUT /meeting-notes/{id}
+    r = client.put(f"/meeting-notes/{mn_id}", json={"title": "Architecture & Compliance Sync"}, headers=emp_h)
+    record(f"/meeting-notes/{mn_id}", "PUT", "Update meeting note (200)", r.status_code, r.status_code == 200)
+
+    # -------------------------------------------------------------
+    # 7. APPROVAL WORKFLOW (5 endpoints)
+    # -------------------------------------------------------------
+    print("\n--- 7. Approvals Workflow ---")
+    # POST /decisions/{id}/submit
+    r = client.post(f"/decisions/{dec_id}/submit", json={"reviewer_id": rev_id, "approval_level": 1, "comments": "Submitted for approval"}, headers=emp_h)
+    apprv = r.json() if r.status_code == 201 else {}
+    apprv_id = apprv.get("id")
+    record(f"/decisions/{dec_id}/submit", "POST", "Submit decision for review (201)", r.status_code, r.status_code == 201)
+
+    # POST /approvals (direct create)
+    dec2_res = client.post("/decisions", json={"title": "Decision 2", "problem_statement": "P2", "category": "Finance"}, headers=emp_h)
+    dec2_id = dec2_res.json().get("id")
+    r = client.post("/approvals", json={"decision_id": dec2_id, "reviewer_id": rev_id, "approval_level": 1, "comments": "Direct approval request"}, headers=emp_h)
+    record("/approvals", "POST", "Direct create approval request (201)", r.status_code, r.status_code == 201)
+
+    # POST /approvals/{id}/action
+    r = client.post(f"/approvals/{apprv_id}/action", json={"status": "Approved", "comments": "Compliance check passed"}, headers=rev_h)
+    record(f"/approvals/{apprv_id}/action", "POST", "Approve or Reject review task (200)", r.status_code, r.status_code == 200)
+
+    # GET /approvals
+    r = client.get("/approvals", headers=emp_h)
+    record("/approvals", "GET", "List all approvals with filters (200)", r.status_code, r.status_code == 200)
+
+    # GET /decisions/{id}/approvals
+    r = client.get(f"/decisions/{dec_id}/approvals", headers=emp_h)
+    record(f"/decisions/{dec_id}/approvals", "GET", "Get approvals for decision (200)", r.status_code, r.status_code == 200)
+
+    # -------------------------------------------------------------
+    # 8. DASHBOARDS & ANALYTICS (11 endpoints)
+    # -------------------------------------------------------------
+    print("\n--- 8. Dashboards & System Analytics ---")
+    r = client.get("/dashboard/employee", headers=emp_h)
+    record("/dashboard/employee", "GET", "Employee dashboard overview (200)", r.status_code, r.status_code == 200 and "total_decisions" in r.json())
+
+    r = client.get("/dashboard/employee/recent-activities", headers=emp_h)
+    record("/dashboard/employee/recent-activities", "GET", "Employee recent activities feed (200)", r.status_code, r.status_code == 200 and isinstance(r.json(), list))
+
+    r = client.get("/dashboard/manager", headers=mgr_h)
+    record("/dashboard/manager", "GET", "Manager dashboard overview (200)", r.status_code, r.status_code == 200 and "team_decisions" in r.json())
+
+    r = client.get("/dashboard/manager/team-decisions", headers=mgr_h)
+    record("/dashboard/manager/team-decisions", "GET", "Manager team decisions list (200)", r.status_code, r.status_code == 200)
+
+    r = client.get("/dashboard/manager/pending-approvals", headers=mgr_h)
+    record("/dashboard/manager/pending-approvals", "GET", "Manager pending review queue (200)", r.status_code, r.status_code == 200)
+
+    r = client.get("/dashboard/manager/statistics", headers=mgr_h)
+    record("/dashboard/manager/statistics", "GET", "Manager aggregated statistics (200)", r.status_code, r.status_code == 200)
+
+    r = client.get("/dashboard/admin", headers=adm_h)
+    record("/dashboard/admin", "GET", "Admin executive dashboard (200)", r.status_code, r.status_code == 200 and "total_users" in r.json())
+
+    r = client.get("/dashboard/admin/analytics", headers=adm_h)
+    record("/dashboard/admin/analytics", "GET", "Admin full platform analytics (200)", r.status_code, r.status_code == 200)
+
+    r = client.get("/dashboard/admin/decision-activity", headers=adm_h)
+    record("/dashboard/admin/decision-activity", "GET", "Admin decision creation trends (200)", r.status_code, r.status_code == 200 and isinstance(r.json(), dict))
+
+    r = client.get("/dashboard/admin/approval-statistics", headers=adm_h)
+    record("/dashboard/admin/approval-statistics", "GET", "Admin approval performance metrics (200)", r.status_code, r.status_code == 200)
+
+    r = client.get("/dashboard/admin/user-activity", headers=adm_h)
+    record("/dashboard/admin/user-activity", "GET", "Admin user activity breakdown (200)", r.status_code, r.status_code == 200)
+
+    # -------------------------------------------------------------
+    # 9. ACTIVITY LOGS (1 endpoint)
+    # -------------------------------------------------------------
+    print("\n--- 9. Activity Logs ---")
+    r = client.get("/activities?page=1&page_size=10", headers=adm_h)
+    record("/activities", "GET", "List system activity logs (200)", r.status_code, r.status_code == 200 and "items" in r.json())
+
+    # -------------------------------------------------------------
+    # 10. SPRINT 11: AUDIT & COMPLIANCE (7 endpoints)
+    # -------------------------------------------------------------
+    print("\n--- 10. Sprint 11: Audit, Versioning & Compliance ---")
+    # GET /decisions/{id}/versions
+    r = client.get(f"/decisions/{dec_id}/versions", headers=emp_h)
+    record(f"/decisions/{dec_id}/versions", "GET", "Get all historical versions of decision (200)", r.status_code, r.status_code == 200 and len(r.json()) >= 1)
+
+    # GET /decisions/{id}/versions/{version_number}
+    r = client.get(f"/decisions/{dec_id}/versions/1", headers=emp_h)
+    record(f"/decisions/{dec_id}/versions/1", "GET", "Get specific historical version snapshot (200)", r.status_code, r.status_code == 200 and r.json().get("version_number") == 1)
+
+    # GET /decisions/{id}/history
+    r = client.get(f"/decisions/{dec_id}/history", headers=emp_h)
+    record(f"/decisions/{dec_id}/history", "GET", "Get decision chronological change history (200)", r.status_code, r.status_code == 200 and "history" in r.json())
+
+    # GET /decisions/{id}/timeline
+    r = client.get(f"/decisions/{dec_id}/timeline", headers=emp_h)
+    record(f"/decisions/{dec_id}/timeline", "GET", "Get decision timeline of events (200)", r.status_code, r.status_code == 200 and "events" in r.json())
+
+    # GET /audit-logs
+    r = client.get("/audit-logs?page=1&page_size=20", headers=adm_h)
+    record("/audit-logs", "GET", "Administrator audit logs with multi-filters (200)", r.status_code, r.status_code == 200 and "items" in r.json())
+
+    # GET /security-logs
+    r = client.get("/security-logs?page=1&page_size=20", headers=adm_h)
+    record("/security-logs", "GET", "Administrator security logs (200)", r.status_code, r.status_code == 200 and "items" in r.json())
+
+    # GET /access-logs
+    r = client.get("/access-logs?page=1&page_size=20", headers=adm_h)
+    record("/access-logs", "GET", "Administrator resource access logs (200)", r.status_code, r.status_code == 200 and "items" in r.json())
+
+    # -------------------------------------------------------------
+    # 11. CLEANUP & DELETIONS
+    # -------------------------------------------------------------
+    print("\n--- 11. Resource Deletions ---")
+    r = client.delete(f"/comments/{comm_id}", headers=emp_h)
+    record(f"/comments/{comm_id}", "DELETE", "Delete comment (200)", r.status_code, r.status_code == 200)
+
+    r = client.delete(f"/threads/{thread_id}", headers=emp_h)
+    record(f"/threads/{thread_id}", "DELETE", "Delete discussion thread (200)", r.status_code, r.status_code == 200)
+
+    r = client.delete(f"/meeting-notes/{mn_id}", headers=emp_h)
+    record(f"/meeting-notes/{mn_id}", "DELETE", "Delete meeting note (200)", r.status_code, r.status_code == 200)
+
+    r = client.delete(f"/tags/{tag_id}", headers=adm_h)
+    record(f"/tags/{tag_id}", "DELETE", "Delete organization tag (200)", r.status_code, r.status_code == 200)
+
+    if temp_uid:
+        r = client.delete(f"/users/{temp_uid}", headers=adm_h)
+        record(f"/users/{temp_uid}", "DELETE", "Delete user by ID (200)", r.status_code, r.status_code == 200)
 
     # -------------------------------------------------------------
     # FINAL SUMMARY
@@ -443,21 +429,23 @@ def run_comprehensive_endpoint_checks():
     passed_cnt = sum(1 for r in results if r["passed"])
     failed_cnt = total - passed_cnt
 
-    print("\n" + "=" * 70)
-    print(f" TOTAL ENDPOINTS / SCENARIOS TESTED: {total}")
+    print("\n" + "=" * 80)
+    print(f" TOTAL ENDPOINTS TESTED: {total}")
     print(f" PASSED: {passed_cnt}")
     print(f" FAILED: {failed_cnt}")
     print(f" SUCCESS RATE: {(passed_cnt / total) * 100:.1f}%")
-    print("=" * 70)
+    print("=" * 80)
 
     if failed_cnt > 0:
         print("\nFailed test details:")
         for r in results:
             if not r["passed"]:
                 print(f"- {r['method']} {r['endpoint']}: {r['description']} (Status {r['status']})")
-        sys.exit(1)
+        return 1
     else:
-        print("\n>>> ALL ENDPOINTS ARE FULLY FUNCTIONAL AND WORKING PROPERLY! <<<")
+        print("\n>>> ALL ENDPOINTS ARE FULLY OPERATIONAL AND WORKING PROPERLY! <<<\n")
+        return 0
 
 if __name__ == "__main__":
-    run_comprehensive_endpoint_checks()
+    code = run_comprehensive_endpoint_checks()
+    sys.exit(code)

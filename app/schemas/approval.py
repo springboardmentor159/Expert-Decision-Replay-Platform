@@ -12,7 +12,7 @@ class ApprovalStatus(str, Enum):
 
 
 class ApprovalCreate(BaseModel):
-    decision_id: int
+    decision_id: Optional[int] = None
     reviewer_id: int
     approval_level: Optional[int] = 1
     comments: Optional[str] = None

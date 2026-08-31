@@ -23,3 +23,4 @@ class User(Base):
     meeting_notes = relationship("MeetingNote", back_populates="creator", cascade="all, delete-orphan")
     approvals_assigned = relationship("Approval", back_populates="reviewer", cascade="all, delete-orphan")
     activities = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
+    audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")

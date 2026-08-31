@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -16,8 +16,8 @@ from app.schemas.discussion_thread import (
     ThreadResponse,
     ThreadUpdate,
 )
-
 from app.services.activity_logger import log_activity
+from app.services.audit_service import log_audit
 
 router = APIRouter(tags=["Discussion Threads"])
 
@@ -26,11 +26,12 @@ router = APIRouter(tags=["Discussion Threads"])
     "/decisions/{decision_id}/threads",
     response_model=ThreadResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Create a new discussion thread for a decision"
+    summary="Create a new discussion thread for a decision (Automatic Audit Logging)"
 )
 def create_thread(
     decision_id: int,
     thread_in: ThreadCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -51,6 +52,21 @@ def create_thread(
     db.add(new_thread)
     db.commit()
     db.refresh(new_thread)
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=f"Discussion thread '{new_thread.title}' opened on decision '{decision.title}'",
+        ip_address=client_ip,
+        old_value=None,
+        new_value={"title": new_thread.title, "decision_id": decision_id, "status": new_thread.status},
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/threads"
+    )
 
     log_activity(
         db=db,
@@ -110,11 +126,12 @@ def get_thread(
     "/threads/{thread_id}",
     response_model=ThreadResponse,
     status_code=status.HTTP_200_OK,
-    summary="Update a discussion thread"
+    summary="Update a discussion thread (Automatic Audit Diff)"
 )
 def update_thread(
     thread_id: int,
     thread_in: ThreadUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -132,6 +149,12 @@ def update_thread(
             detail="You do not have permission to update this thread"
         )
 
+    old_snapshot = {
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status
+    }
+
     if thread_in.title is not None:
         thread.title = thread_in.title
     if thread_in.description is not None:
@@ -141,6 +164,27 @@ def update_thread(
 
     db.commit()
     db.refresh(thread)
+
+    new_snapshot = {
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status
+    }
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"Discussion thread '{thread.title}' updated",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=new_snapshot,
+        request_method="PUT",
+        endpoint=f"/threads/{thread.id}"
+    )
 
     log_activity(
         db=db,
@@ -157,10 +201,11 @@ def update_thread(
 @router.delete(
     "/threads/{thread_id}",
     status_code=status.HTTP_200_OK,
-    summary="Delete a discussion thread"
+    summary="Delete a discussion thread (Automatic Audit Logging)"
 )
 def delete_thread(
     thread_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -178,6 +223,23 @@ def delete_thread(
             detail="You do not have permission to delete this thread"
         )
 
+    old_snapshot = {"id": thread.id, "title": thread.title, "decision_id": thread.decision_id}
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"Discussion thread '{thread.title}' deleted",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=None,
+        request_method="DELETE",
+        endpoint=f"/threads/{thread.id}"
+    )
+
     db.delete(thread)
     db.commit()
     return {"message": "Thread deleted successfully"}
@@ -187,11 +249,12 @@ def delete_thread(
     "/threads/{thread_id}/comments",
     response_model=CommentResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Add a reply to a discussion thread"
+    summary="Add a reply to a discussion thread (Automatic Audit Logging)"
 )
 def create_thread_reply(
     thread_id: int,
     comment_in: CommentCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -211,6 +274,21 @@ def create_thread_reply(
     db.add(new_reply)
     db.commit()
     db.refresh(new_reply)
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_reply.id,
+        description=f"Reply added to discussion thread '{thread.title}'",
+        ip_address=client_ip,
+        old_value=None,
+        new_value={"thread_id": thread.id, "decision_id": thread.decision_id, "content": new_reply.content},
+        request_method="POST",
+        endpoint=f"/threads/{thread_id}/comments"
+    )
 
     log_activity(
         db=db,

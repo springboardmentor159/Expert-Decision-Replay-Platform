@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -14,8 +14,8 @@ from app.schemas.meeting_note import (
     MeetingNoteResponse,
     MeetingNoteUpdate,
 )
-
 from app.services.activity_logger import log_activity
+from app.services.audit_service import log_audit
 
 router = APIRouter(tags=["Meeting Notes"])
 
@@ -24,11 +24,12 @@ router = APIRouter(tags=["Meeting Notes"])
     "/decisions/{decision_id}/meeting-notes",
     response_model=MeetingNoteResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Record a meeting note for a decision"
+    summary="Record a meeting note for a decision (Automatic Audit Logging)"
 )
 def create_meeting_note(
     decision_id: int,
     note_in: MeetingNoteCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -51,6 +52,21 @@ def create_meeting_note(
     db.add(new_note)
     db.commit()
     db.refresh(new_note)
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="MeetingNote",
+        entity_id=new_note.id,
+        description=f"Meeting note '{new_note.title}' recorded for decision '{decision.title}'",
+        ip_address=client_ip,
+        old_value=None,
+        new_value={"title": new_note.title, "decision_id": decision_id, "meeting_date": str(meeting_dt)},
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/meeting-notes"
+    )
 
     log_activity(
         db=db,
@@ -110,11 +126,12 @@ def get_meeting_note(
     "/meeting-notes/{note_id}",
     response_model=MeetingNoteResponse,
     status_code=status.HTTP_200_OK,
-    summary="Update a meeting note"
+    summary="Update a meeting note (Automatic Audit Diff)"
 )
 def update_meeting_note(
     note_id: int,
     note_in: MeetingNoteUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -132,6 +149,12 @@ def update_meeting_note(
             detail="You do not have permission to update this meeting note"
         )
 
+    old_snapshot = {
+        "title": note.title,
+        "content": note.content,
+        "meeting_date": str(note.meeting_date) if note.meeting_date else None
+    }
+
     if note_in.title is not None:
         note.title = note_in.title
     if note_in.content is not None:
@@ -141,6 +164,27 @@ def update_meeting_note(
 
     db.commit()
     db.refresh(note)
+
+    new_snapshot = {
+        "title": note.title,
+        "content": note.content,
+        "meeting_date": str(note.meeting_date) if note.meeting_date else None
+    }
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="MeetingNote",
+        entity_id=note.id,
+        description=f"Meeting note '{note.title}' updated",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=new_snapshot,
+        request_method="PUT",
+        endpoint=f"/meeting-notes/{note.id}"
+    )
 
     log_activity(
         db=db,
@@ -157,10 +201,11 @@ def update_meeting_note(
 @router.delete(
     "/meeting-notes/{note_id}",
     status_code=status.HTTP_200_OK,
-    summary="Delete a meeting note"
+    summary="Delete a meeting note (Automatic Audit Logging)"
 )
 def delete_meeting_note(
     note_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -177,6 +222,23 @@ def delete_meeting_note(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this meeting note"
         )
+
+    old_snapshot = {"id": note.id, "title": note.title, "decision_id": note.decision_id}
+
+    client_ip = request.client.host if request.client else None
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="MeetingNote",
+        entity_id=note.id,
+        description=f"Meeting note '{note.title}' deleted",
+        ip_address=client_ip,
+        old_value=old_snapshot,
+        new_value=None,
+        request_method="DELETE",
+        endpoint=f"/meeting-notes/{note.id}"
+    )
 
     db.delete(note)
     db.commit()

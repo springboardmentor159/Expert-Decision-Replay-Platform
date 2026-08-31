@@ -40,6 +40,26 @@ from app.schemas.dashboard import (
     UserActivityResponse,
     ActiveUserItem,
 )
+from app.schemas.audit import (
+    AuditAction,
+    AuditEntityType,
+    AuditLogResponse,
+    PaginatedAuditLogsResponse,
+)
+from app.schemas.decision_version import (
+    DecisionVersionResponse,
+    DecisionHistoryItem,
+    DecisionHistoryResponse,
+)
+from app.schemas.security_log import (
+    SecurityEventType,
+    SecurityLogResponse,
+    PaginatedSecurityLogsResponse,
+)
+from app.schemas.access_log import (
+    AccessLogResponse,
+    PaginatedAccessLogsResponse,
+)
 
 __all__ = [
     "UserCreate",
@@ -94,4 +114,16 @@ __all__ = [
     "ApprovalStatisticsResponse",
     "UserActivityResponse",
     "ActiveUserItem",
+    "AuditAction",
+    "AuditEntityType",
+    "AuditLogResponse",
+    "PaginatedAuditLogsResponse",
+    "DecisionVersionResponse",
+    "DecisionHistoryItem",
+    "DecisionHistoryResponse",
+    "SecurityEventType",
+    "SecurityLogResponse",
+    "PaginatedSecurityLogsResponse",
+    "AccessLogResponse",
+    "PaginatedAccessLogsResponse",
 ]
