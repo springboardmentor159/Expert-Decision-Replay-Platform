@@ -25,6 +25,7 @@ class Decision(Base):
 
     category = Column(String, nullable=False)
 
+    # Decision rationale
     rationale = Column(
         Text,
         nullable=True
@@ -52,6 +53,10 @@ class Decision(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
+
+    # ==========================================
+    # RELATIONSHIPS
+    # ==========================================
 
     creator = relationship(
         "User",
@@ -81,9 +86,21 @@ class Decision(Base):
         cascade="all, delete-orphan"
     )
 
-    # Many-to-many relationship with tags
+    # ==========================================
+    # MANY-TO-MANY RELATIONSHIP WITH TAGS
+    # ==========================================
     tags = relationship(
         "Tag",
         secondary="decision_tags",
         back_populates="decisions"
+    )
+
+    # ==========================================
+    # DECISION TIMELINE EVENTS
+    # ==========================================
+    timeline_events = relationship(
+        "DecisionTimeline",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        order_by="DecisionTimeline.created_at"
     )

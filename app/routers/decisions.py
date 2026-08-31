@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.decision import Decision
 from app.models.decision_status import DecisionStatus
+from app.models.decision_timeline import DecisionTimeline
 from app.models.tag import Tag
 from app.models.user import User
+
 from app.schemas.decision import (
     DecisionCreate,
     DecisionResponse,
@@ -16,6 +18,8 @@ from app.schemas.decision import (
     DecisionStatusUpdate,
     DecisionListResponse,
 )
+from app.schemas.decision_timeline import DecisionTimelineResponse
+
 from app.core.security import get_current_user
 
 
@@ -48,7 +52,18 @@ def create_decision(
     )
 
     db.add(new_decision)
+    db.flush()
+
+    # Create timeline event
+    timeline_event = DecisionTimeline(
+        decision_id=new_decision.id,
+        event_type="created",
+        description="Decision was created"
+    )
+
+    db.add(timeline_event)
     db.commit()
+
     db.refresh(new_decision)
 
     return new_decision
@@ -91,25 +106,19 @@ def get_decisions(
 ):
     query = db.query(Decision)
 
-    # ==========================================
-    # FILTER BY STATUS
-    # ==========================================
+    # Filter by status
     if status_filter is not None:
         query = query.filter(
             Decision.status == status_filter
         )
 
-    # ==========================================
-    # FILTER BY CATEGORY
-    # ==========================================
+    # Filter by category
     if category is not None:
         query = query.filter(
             Decision.category == category
         )
 
-    # ==========================================
-    # FILTER BY TAG NAME
-    # ==========================================
+    # Filter by tag
     if tag is not None:
         query = (
             query
@@ -117,9 +126,7 @@ def get_decisions(
             .filter(Tag.name == tag)
         )
 
-    # ==========================================
-    # SEARCH
-    # ==========================================
+    # Search
     if search is not None:
         search_term = f"%{search}%"
 
@@ -131,9 +138,7 @@ def get_decisions(
             )
         )
 
-    # ==========================================
-    # SORTING
-    # ==========================================
+    # Sorting
     if sort_by == "newest":
         query = query.order_by(
             Decision.created_at.desc()
@@ -154,17 +159,10 @@ def get_decisions(
             Decision.title.asc()
         )
 
-    # Remove duplicate decisions
     query = query.distinct()
 
-    # ==========================================
-    # TOTAL RESULTS
-    # ==========================================
     total = query.count()
 
-    # ==========================================
-    # PAGINATION
-    # ==========================================
     items = (
         query
         .offset((page - 1) * page_size)
@@ -181,6 +179,104 @@ def get_decisions(
 
 
 # ==========================================
+# DEDICATED DECISION SEARCH
+# MUST BE BEFORE /{decision_id}
+# ==========================================
+@router.get(
+    "/search",
+    response_model=DecisionListResponse
+)
+def search_decisions(
+    q: str = Query(
+        ...,
+        min_length=1,
+        description="Search decisions by title, problem statement, or rationale"
+    ),
+
+    page: int = Query(
+        default=1,
+        ge=1
+    ),
+    page_size: int = Query(
+        default=10,
+        ge=1,
+        le=100
+    ),
+
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    search_term = f"%{q}%"
+
+    query = (
+        db.query(Decision)
+        .filter(
+            or_(
+                Decision.title.ilike(search_term),
+                Decision.problem_statement.ilike(search_term),
+                Decision.rationale.ilike(search_term),
+            )
+        )
+        .order_by(Decision.created_at.desc())
+    )
+
+    total = query.count()
+
+    items = (
+        query
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    return {
+        "items": items,
+        "page": page,
+        "page_size": page_size,
+        "total": total
+    }
+
+
+# ==========================================
+# GET DECISION TIMELINE
+# MUST BE BEFORE /{decision_id}
+# ==========================================
+@router.get(
+    "/{decision_id}/timeline",
+    response_model=list[DecisionTimelineResponse]
+)
+def get_decision_timeline(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    timeline = (
+        db.query(DecisionTimeline)
+        .filter(
+            DecisionTimeline.decision_id == decision_id
+        )
+        .order_by(
+            DecisionTimeline.created_at.asc()
+        )
+        .all()
+    )
+
+    return timeline
+
+
+# ==========================================
 # GET DECISION BY ID
 # ==========================================
 @router.get(
@@ -192,9 +288,11 @@ def get_decision(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
@@ -218,9 +316,11 @@ def update_decision(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
@@ -228,25 +328,40 @@ def update_decision(
             detail="Decision not found"
         )
 
-    # Only the creator can update the decision
     if decision.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to update this decision"
         )
 
-    # Update only provided fields
+    updated_fields = []
+
     if decision_data.title is not None:
         decision.title = decision_data.title
+        updated_fields.append("title")
 
     if decision_data.problem_statement is not None:
         decision.problem_statement = decision_data.problem_statement
+        updated_fields.append("problem statement")
 
     if decision_data.category is not None:
         decision.category = decision_data.category
+        updated_fields.append("category")
 
     if decision_data.rationale is not None:
         decision.rationale = decision_data.rationale
+        updated_fields.append("rationale")
+
+    if updated_fields:
+        timeline_event = DecisionTimeline(
+            decision_id=decision.id,
+            event_type="updated",
+            description=(
+                "Updated: " + ", ".join(updated_fields)
+            )
+        )
+
+        db.add(timeline_event)
 
     db.commit()
     db.refresh(decision)
@@ -267,9 +382,11 @@ def update_decision_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
@@ -277,14 +394,27 @@ def update_decision_status(
             detail="Decision not found"
         )
 
-    # Only the creator can change the decision status
     if decision.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to update this decision status"
         )
 
+    old_status = decision.status
+
     decision.status = status_data.status
+
+    timeline_event = DecisionTimeline(
+        decision_id=decision.id,
+        event_type="status_changed",
+        description=(
+            f"Status changed from "
+            f"{old_status.value} to "
+            f"{status_data.status.value}"
+        )
+    )
+
+    db.add(timeline_event)
 
     db.commit()
     db.refresh(decision)

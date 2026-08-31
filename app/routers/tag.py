@@ -3,12 +3,15 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user
 from app.db.database import get_db
+
 from app.models.decision import Decision
+from app.models.decision_timeline import DecisionTimeline
 from app.models.tag import Tag
 from app.models.user import User
+
 from app.schemas.tag import TagCreate, TagResponse
-from app.core.security import get_current_user
 
 
 router = APIRouter(
@@ -29,9 +32,11 @@ def create_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    existing_tag = db.query(Tag).filter(
-        Tag.name == tag.name
-    ).first()
+    existing_tag = (
+        db.query(Tag)
+        .filter(Tag.name == tag.name)
+        .first()
+    )
 
     if existing_tag:
         raise HTTPException(
@@ -76,9 +81,11 @@ def get_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tag = db.query(Tag).filter(
-        Tag.id == tag_id
-    ).first()
+    tag = (
+        db.query(Tag)
+        .filter(Tag.id == tag_id)
+        .first()
+    )
 
     if not tag:
         raise HTTPException(
@@ -101,9 +108,11 @@ def get_decision_tags(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
@@ -126,9 +135,11 @@ def delete_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    tag = db.query(Tag).filter(
-        Tag.id == tag_id
-    ).first()
+    tag = (
+        db.query(Tag)
+        .filter(Tag.id == tag_id)
+        .first()
+    )
 
     if not tag:
         raise HTTPException(
@@ -157,9 +168,11 @@ def assign_tag_to_decision(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
@@ -167,9 +180,11 @@ def assign_tag_to_decision(
             detail="Decision not found",
         )
 
-    tag = db.query(Tag).filter(
-        Tag.id == tag_id
-    ).first()
+    tag = (
+        db.query(Tag)
+        .filter(Tag.id == tag_id)
+        .first()
+    )
 
     if not tag:
         raise HTTPException(
@@ -183,8 +198,17 @@ def assign_tag_to_decision(
             detail="Tag is already assigned to this decision",
         )
 
+    # Assign tag to decision
     decision.tags.append(tag)
 
+    # Create timeline event
+    timeline_event = DecisionTimeline(
+        decision_id=decision.id,
+        event_type="tag_assigned",
+        description=f"Tag '{tag.name}' was assigned to the decision"
+    )
+
+    db.add(timeline_event)
     db.commit()
     db.refresh(tag)
 
@@ -204,9 +228,11 @@ def remove_tag_from_decision(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
@@ -214,9 +240,11 @@ def remove_tag_from_decision(
             detail="Decision not found",
         )
 
-    tag = db.query(Tag).filter(
-        Tag.id == tag_id
-    ).first()
+    tag = (
+        db.query(Tag)
+        .filter(Tag.id == tag_id)
+        .first()
+    )
 
     if not tag:
         raise HTTPException(
@@ -230,8 +258,17 @@ def remove_tag_from_decision(
             detail="Tag is not assigned to this decision",
         )
 
+    # Remove tag from decision
     decision.tags.remove(tag)
 
+    # Create timeline event
+    timeline_event = DecisionTimeline(
+        decision_id=decision.id,
+        event_type="tag_removed",
+        description=f"Tag '{tag.name}' was removed from the decision"
+    )
+
+    db.add(timeline_event)
     db.commit()
 
     return {
