@@ -54,7 +54,10 @@ def get_current_user(
             detail="Invalid or expired token"
         )
 
+    # -----------------------------------------------------
     # Find user in PostgreSQL
+    # -----------------------------------------------------
+
     user = (
         db.query(User)
         .filter(User.id == user_id)
@@ -71,22 +74,53 @@ def get_current_user(
 
 
 # =========================================================
+# GET USER ROLE
+# =========================================================
+
+def get_user_role(user: User) -> str:
+    """
+    Return the user's role as a normal string.
+    Supports both String and Enum-style role values.
+    """
+
+    return (
+        user.role.value
+        if hasattr(user.role, "value")
+        else user.role
+    )
+
+
+# =========================================================
 # ADMIN AUTHORIZATION
 # =========================================================
 
 def require_admin(
     current_user: User = Depends(get_current_user)
 ):
-    role = (
-        current_user.role.value
-        if hasattr(current_user.role, "value")
-        else current_user.role
-    )
+    role = get_user_role(current_user)
 
     if role != "Admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permission"
+        )
+
+    return current_user
+
+
+# =========================================================
+# MANAGER AUTHORIZATION
+# =========================================================
+
+def require_manager(
+    current_user: User = Depends(get_current_user)
+):
+    role = get_user_role(current_user)
+
+    if role != "Manager":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager permission required"
         )
 
     return current_user

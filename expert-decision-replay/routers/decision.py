@@ -2,9 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, asc, desc
 
+from app.core.activity_logger import create_activity_log
+from app.core.dependencies import get_current_user
+
 from app.db.database import get_db
+
 from app.models.decision import Decision
 from app.models.tag import Tag
+from app.models.user import User
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -24,6 +29,8 @@ from app.core.dependencies import (
     get_current_user,
     require_admin,
 )
+
+from app.core.activity_logger import create_activity_log
 
 
 router = APIRouter(
@@ -57,6 +64,18 @@ def create_decision(
     db.add(decision)
     db.commit()
     db.refresh(decision)
+
+    # Activity log for decision creation
+    create_activity_log(
+        db=db,
+        user=current_user,
+        action="CREATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Created decision: {decision.title}"
+    )
+
+    db.commit()
 
     return decision
 
@@ -443,6 +462,8 @@ def remove_tag_from_decision(
     return {
         "message": "Tag removed from decision successfully"
     }
+
+
 # =========================================================
 # TASK 20/23 - DECISION TIMELINE
 # =========================================================
@@ -477,7 +498,6 @@ def get_decision_timeline(
         }
     ]
 
-    # Add update event if the decision was updated
     if decision.updated_at and decision.updated_at != decision.created_at:
         timeline.append(
             {
@@ -489,7 +509,6 @@ def get_decision_timeline(
             }
         )
 
-    # Chronological order
     timeline.sort(
         key=lambda item: item["timestamp"]
     )
@@ -498,6 +517,7 @@ def get_decision_timeline(
         "decision_id": decision.id,
         "timeline": timeline
     }
+
 
 # =========================================================
 # GET DECISION BY ID
@@ -560,42 +580,78 @@ def update_decision(
     db.commit()
     db.refresh(decision)
 
-    return decision
+    # Activity log for decision update
+    create_activity_log(
+        db=db,
+        user=current_user,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Updated decision: {decision.title}"
+    )
 
+    db.commit()
+
+    return decision
 
 # =========================================================
 # UPDATE DECISION STATUS
 # =========================================================
 
-@router.patch(
+@router.put(
     "/{decision_id}/status",
-    response_model=DecisionResponse
+    response_model=DecisionResponse,
+    status_code=status.HTTP_200_OK
 )
 def update_decision_status(
     decision_id: int,
     status_data: DecisionStatusUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
+    # -----------------------------------------------------
+    # Find decision
+    # -----------------------------------------------------
+
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
         .first()
     )
 
-    if decision is None:
+    if not decision:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
 
+    # -----------------------------------------------------
+    # Update status
+    # -----------------------------------------------------
+
     decision.status = status_data.status.value
+
+    # -----------------------------------------------------
+    # Create activity log
+    # -----------------------------------------------------
+
+    create_activity_log(
+        db=db,
+        user=current_user,
+        action="STATUS_CHANGE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Changed decision status to {decision.status}"
+    )
+
+    # -----------------------------------------------------
+    # Save changes
+    # -----------------------------------------------------
 
     db.commit()
     db.refresh(decision)
 
     return decision
-
 
 # =========================================================
 # UPDATE DECISION RATIONALE

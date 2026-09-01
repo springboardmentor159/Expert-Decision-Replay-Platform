@@ -13,22 +13,16 @@ from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 
-
-# =========================================================
-# ROUTERS
-# =========================================================
-
 from routers import decision
 from routers import comment
 from routers import alternative
 from routers import discussion_thread
 from routers import meeting_note
 from routers import tags
+from routers import dashboard
+from routers import approval
+from routers import activities
 
-
-# =========================================================
-# FASTAPI APPLICATION
-# =========================================================
 
 app = FastAPI(
     title=settings.app_name,
@@ -41,17 +35,14 @@ app = FastAPI(
 # =========================================================
 
 app.include_router(decision.router)
-
 app.include_router(comment.router)
-
 app.include_router(alternative.router)
-
 app.include_router(discussion_thread.router)
-
 app.include_router(meeting_note.router)
-
 app.include_router(tags.router)
-
+app.include_router(dashboard.router)
+app.include_router(approval.router)
+app.include_router(activities.router)
 
 # =========================================================
 # BEARER TOKEN SECURITY
@@ -85,7 +76,6 @@ def create_user(
     user: UserCreate,
     db: Session = Depends(get_db),
 ):
-
     existing_user = (
         db.query(User)
         .filter(User.email == str(user.email))
@@ -138,7 +128,6 @@ def login(
     password: str,
     db: Session = Depends(get_db),
 ):
-
     user = (
         db.query(User)
         .filter(User.email == email)
@@ -184,11 +173,9 @@ def get_my_profile(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-
     token = credentials.credentials
 
     try:
-
         payload = jwt.decode(
             token,
             settings.secret_key,
@@ -206,7 +193,6 @@ def get_my_profile(
         user_id = int(user_id)
 
     except (JWTError, ValueError):
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -219,7 +205,6 @@ def get_my_profile(
     )
 
     if not user:
-
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",

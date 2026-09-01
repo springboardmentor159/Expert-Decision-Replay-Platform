@@ -109,6 +109,16 @@ class Decision(Base):
     )
 
     # =====================================================
+    # One Decision -> Many Approvals
+    # =====================================================
+
+    approvals = relationship(
+        "Approval",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    # =====================================================
     # Many Decisions <-> Many Tags
     # =====================================================
 

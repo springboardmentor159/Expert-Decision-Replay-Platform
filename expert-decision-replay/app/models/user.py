@@ -94,3 +94,22 @@ class User(Base):
         back_populates="creator",
         cascade="all, delete-orphan"
     )
+
+    # =====================================================
+    # One User -> Many Approvals
+    # =====================================================
+
+    approvals = relationship(
+        "Approval",
+        back_populates="reviewer"
+    )
+
+    # =====================================================
+    # One User -> Many Activity Logs
+    # =====================================================
+
+    activity_logs = relationship(
+        "ActivityLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
