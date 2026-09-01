@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 
 from app.db.base import Base
+from app.models.decision_tag import decision_tags
 
 
 class Decision(Base):
@@ -36,12 +37,17 @@ class Decision(Base):
         cascade="all, delete-orphan"
     )
     comments = relationship(
-    "Comment",
-    back_populates="decision",
-    cascade="all, delete-orphan"
-)
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
     discussion_threads = relationship(
-    "DiscussionThread",
-    back_populates="decision",
-    cascade="all, delete-orphan"
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+    tags = relationship(
+    "Tag",
+    secondary=decision_tags,
+    back_populates="decisions"
 )

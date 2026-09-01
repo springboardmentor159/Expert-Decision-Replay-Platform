@@ -1,3 +1,4 @@
+
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,6 +8,7 @@ from app.db.database import get_db
 
 from app.models.decision import Decision
 from app.models.alternative import Alternative
+from app.models.tag import Tag
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -18,6 +20,11 @@ from app.schemas.decision import (
 from app.schemas.alternative import (
     AlternativeCreate,
     AlternativeResponse,
+)
+
+from app.schemas.tag import (
+    DecisionTagAssign,
+    TagResponse,
 )
 
 from app.core.dependencies import get_current_user
@@ -75,10 +82,14 @@ def get_decisions(
     query = db.query(Decision)
 
     if status:
-        query = query.filter(Decision.status == status)
+        query = query.filter(
+            Decision.status == status
+        )
 
     if category:
-        query = query.filter(Decision.category == category)
+        query = query.filter(
+            Decision.category == category
+        )
 
     return query.all()
 
@@ -224,7 +235,9 @@ def get_alternatives(
 
     alternatives = (
         db.query(Alternative)
-        .filter(Alternative.decision_id == decision_id)
+        .filter(
+            Alternative.decision_id == decision_id
+        )
         .all()
     )
 
@@ -257,7 +270,9 @@ def compare_alternatives(
 
     alternatives = (
         db.query(Alternative)
-        .filter(Alternative.decision_id == decision_id)
+        .filter(
+            Alternative.decision_id == decision_id
+        )
         .all()
     )
 
@@ -272,6 +287,143 @@ def compare_alternatives(
             }
             for alternative in alternatives
         ]
+    }
+
+
+# =========================================================
+# ASSIGN TAGS TO DECISION
+# =========================================================
+
+@router.post(
+    "/{decision_id}/tags",
+    response_model=List[TagResponse]
+)
+def assign_tags_to_decision(
+    decision_id: int,
+    tag_data: DecisionTagAssign,
+    db: Session = Depends(get_db)
+):
+    # Check whether Decision exists
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    # Check whether all tags exist
+    tags = (
+        db.query(Tag)
+        .filter(Tag.id.in_(tag_data.tag_ids))
+        .all()
+    )
+
+    if len(tags) != len(set(tag_data.tag_ids)):
+        raise HTTPException(
+            status_code=404,
+            detail="One or more tags not found"
+        )
+
+    # Prevent duplicate relationships
+    existing_tag_ids = {
+        tag.id for tag in decision.tags
+    }
+
+    for tag in tags:
+        if tag.id not in existing_tag_ids:
+            decision.tags.append(tag)
+
+    db.commit()
+    db.refresh(decision)
+
+    return decision.tags
+
+
+# =========================================================
+# GET TAGS FOR A DECISION
+# =========================================================
+
+@router.get(
+    "/{decision_id}/tags",
+    response_model=List[TagResponse]
+)
+def get_decision_tags(
+    decision_id: int,
+    db: Session = Depends(get_db)
+):
+    # Check whether Decision exists
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    return decision.tags
+
+
+# =========================================================
+# REMOVE TAG FROM DECISION
+# =========================================================
+
+@router.delete(
+    "/{decision_id}/tags/{tag_id}"
+)
+def remove_tag_from_decision(
+    decision_id: int,
+    tag_id: int,
+    db: Session = Depends(get_db)
+):
+    # Check whether Decision exists
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    # Check whether Tag exists
+    tag = (
+        db.query(Tag)
+        .filter(Tag.id == tag_id)
+        .first()
+    )
+
+    if not tag:
+        raise HTTPException(
+            status_code=404,
+            detail="Tag not found"
+        )
+
+    # Check whether tag is assigned to this decision
+    if tag not in decision.tags:
+        raise HTTPException(
+            status_code=404,
+            detail="Tag is not assigned to this decision"
+        )
+
+    # Remove only the relationship
+    decision.tags.remove(tag)
+
+    db.commit()
+
+    return {
+        "message": "Tag removed from decision successfully"
     }
 
 
@@ -331,3 +483,4 @@ def delete_decision(
     return {
         "message": "Decision deleted successfully"
     }
+
