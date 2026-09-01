@@ -52,3 +52,20 @@ class User(Base):
         "Approval",
         back_populates="reviewer"
     )
+    audit_logs = relationship(
+        "AuditLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    security_logs = relationship(
+    "SecurityLog",
+    back_populates="user",
+    cascade="all, delete-orphan"
+    )
+
+    access_logs = relationship(
+    "AccessLog",
+    back_populates="user",
+    cascade="all, delete-orphan"
+    )
+
