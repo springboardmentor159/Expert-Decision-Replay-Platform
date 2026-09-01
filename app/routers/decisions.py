@@ -10,9 +10,9 @@ from app.schemas.decision import (
     DecisionUpdate,
     DecisionResponse,
     DecisionStatus,
-    DecisionStatusUpdate
+    DecisionStatusUpdate,
+    DecisionRationaleUpdate
 )
-
 router = APIRouter(
     prefix="/decisions",
     tags=["Decisions"]
@@ -155,4 +155,59 @@ def delete_decision(
 
     return {
         "message": "Decision deleted successfully"
+    }
+@router.put("/{decision_id}/rationale")
+def update_decision_rationale(
+    decision_id: int,
+    rationale_data: DecisionRationaleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(
+        Decision.id == decision_id
+    ).first()
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not allowed to update this decision rationale"
+        )
+
+    decision.rationale = rationale_data.rationale
+
+    db.commit()
+    db.refresh(decision)
+
+    return {
+        "message": "Decision rationale updated successfully",
+        "decision_id": decision.id,
+        "rationale": decision.rationale
+    }
+
+
+@router.get("/{decision_id}/rationale")
+def get_decision_rationale(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(
+        Decision.id == decision_id
+    ).first()
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    return {
+        "decision_id": decision.id,
+        "rationale": decision.rationale
     }

@@ -9,9 +9,10 @@ from pydantic import BaseModel
 from app.db.database import get_db
 from app.models.user import User
 from app.utilis.security import verify_password
+from app.core.config import settings
 
 
-SECRET_KEY = "expert-decision-replay-secret-key"
+SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

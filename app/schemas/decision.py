@@ -1,6 +1,7 @@
-from pydantic import BaseModel
 from datetime import datetime
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 
 class DecisionStatus(str, Enum):
@@ -27,6 +28,10 @@ class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
 
+class DecisionRationaleUpdate(BaseModel):
+    rationale: str
+
+
 class DecisionResponse(BaseModel):
     id: int
     title: str
@@ -34,6 +39,7 @@ class DecisionResponse(BaseModel):
     category: str
     status: DecisionStatus
     created_by: int
+    rationale: str | None = None
     created_at: datetime
     updated_at: datetime
 
