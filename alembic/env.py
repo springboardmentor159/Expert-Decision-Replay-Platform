@@ -18,6 +18,7 @@ import app.models.discussion_thread
 import app.models.meeting_note
 import app.models.tag
 import app.models.decision_timeline
+import app.models.activity_log
 
 
 # ==========================================

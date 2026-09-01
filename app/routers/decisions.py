@@ -4,13 +4,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user
 from app.db.database import get_db
+
+from app.models.activity_log import ActivityLog
 from app.models.decision import Decision
 from app.models.decision_status import DecisionStatus
 from app.models.decision_timeline import DecisionTimeline
 from app.models.tag import Tag
 from app.models.user import User
 
+from app.schemas.activity_log import ActivityLogResponse
 from app.schemas.decision import (
     DecisionCreate,
     DecisionResponse,
@@ -20,7 +24,7 @@ from app.schemas.decision import (
 )
 from app.schemas.decision_timeline import DecisionTimelineResponse
 
-from app.core.security import get_current_user
+from app.services.activity_log import create_activity_log
 
 
 router = APIRouter(
@@ -62,8 +66,18 @@ def create_decision(
     )
 
     db.add(timeline_event)
-    db.commit()
 
+    # Create activity log
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="created",
+        entity_type="decision",
+        entity_id=new_decision.id,
+        description=f"Created decision: {new_decision.title}"
+    )
+
+    db.commit()
     db.refresh(new_decision)
 
     return new_decision
@@ -95,6 +109,7 @@ def get_decisions(
         default=1,
         ge=1
     ),
+
     page_size: int = Query(
         default=10,
         ge=1,
@@ -197,6 +212,7 @@ def search_decisions(
         default=1,
         ge=1
     ),
+
     page_size: int = Query(
         default=10,
         ge=1,
@@ -239,7 +255,6 @@ def search_decisions(
 
 # ==========================================
 # GET DECISION TIMELINE
-# MUST BE BEFORE /{decision_id}
 # ==========================================
 @router.get(
     "/{decision_id}/timeline",
@@ -274,6 +289,43 @@ def get_decision_timeline(
     )
 
     return timeline
+
+
+# ==========================================
+# GET ACTIVITY LOGS FOR A SPECIFIC DECISION
+# ==========================================
+@router.get(
+    "/{decision_id}/activity-logs",
+    response_model=list[ActivityLogResponse]
+)
+def get_decision_activity_logs(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    activities = (
+        db.query(ActivityLog)
+        .filter(
+            ActivityLog.entity_type == "decision",
+            ActivityLog.entity_id == decision_id
+        )
+        .order_by(ActivityLog.created_at.asc())
+        .all()
+    )
+
+    return activities
 
 
 # ==========================================
@@ -352,16 +404,28 @@ def update_decision(
         decision.rationale = decision_data.rationale
         updated_fields.append("rationale")
 
+    # Only create logs if something was actually updated
     if updated_fields:
+
         timeline_event = DecisionTimeline(
             decision_id=decision.id,
             event_type="updated",
-            description=(
-                "Updated: " + ", ".join(updated_fields)
-            )
+            description="Updated: " + ", ".join(updated_fields)
         )
 
         db.add(timeline_event)
+
+        create_activity_log(
+            db=db,
+            user_id=current_user.id,
+            action="updated",
+            entity_type="decision",
+            entity_id=decision.id,
+            description=(
+                f"Updated decision: {decision.title} "
+                f"({', '.join(updated_fields)})"
+            )
+        )
 
     db.commit()
     db.refresh(decision)
@@ -401,20 +465,44 @@ def update_decision_status(
         )
 
     old_status = decision.status
+    new_status = status_data.status
 
-    decision.status = status_data.status
+    # Prevent duplicate status update
+    if old_status == new_status:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Decision is already in {new_status.value} status"
+        )
 
+    decision.status = new_status
+
+    # Create timeline event
     timeline_event = DecisionTimeline(
         decision_id=decision.id,
         event_type="status_changed",
         description=(
             f"Status changed from "
             f"{old_status.value} to "
-            f"{status_data.status.value}"
+            f"{new_status.value}"
         )
     )
 
     db.add(timeline_event)
+
+    # Create activity log
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="status_changed",
+        entity_type="decision",
+        entity_id=decision.id,
+        description=(
+            f"Changed decision status from "
+            f"{old_status.value} to "
+            f"{new_status.value}: "
+            f"{decision.title}"
+        )
+    )
 
     db.commit()
     db.refresh(decision)
