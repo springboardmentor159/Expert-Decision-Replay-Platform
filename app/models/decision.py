@@ -20,7 +20,11 @@ class Decision(Base):
 
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
 
     updated_at = Column(
         DateTime,
@@ -29,4 +33,13 @@ class Decision(Base):
         nullable=False
     )
 
-    user = relationship("User", back_populates="decisions")
+    user = relationship(
+        "User",
+        back_populates="decisions"
+    )
+
+    alternatives = relationship(
+        "Alternative",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
