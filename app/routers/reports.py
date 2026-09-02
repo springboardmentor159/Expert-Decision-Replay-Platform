@@ -3878,3 +3878,802 @@ def export_audit_report_excel(
                 "attachment; filename=audit_report.xlsx"
         }
     )
+# ============================================================
+# AUDIT REPORT PDF EXPORT
+# GET /reports/audit/pdf
+# ============================================================
+
+@router.get("/audit/pdf")
+def export_audit_report_pdf(
+    user_id: Optional[int] = Query(
+        None,
+        description="Filter audit logs by user ID"
+    ),
+    action: Optional[str] = Query(
+        None,
+        description="Filter audit logs by action"
+    ),
+    entity_type: Optional[str] = Query(
+        None,
+        description="Filter audit logs by entity type"
+    ),
+    entity_id: Optional[int] = Query(
+        None,
+        description="Filter audit logs by entity ID"
+    ),
+    start_date: Optional[date] = Query(
+        None,
+        description="Filter audit logs from this date"
+    ),
+    end_date: Optional[date] = Query(
+        None,
+        description="Filter audit logs up to this date"
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # --------------------------------------------------------
+    # Admin authorization
+    # --------------------------------------------------------
+    if current_user.role.lower() != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+
+    # --------------------------------------------------------
+    # Validate dates
+    # --------------------------------------------------------
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_date cannot be after end_date"
+        )
+
+    # --------------------------------------------------------
+    # Build query
+    # --------------------------------------------------------
+    query = (
+        db.query(AuditLog)
+        .outerjoin(
+            User,
+            AuditLog.user_id == User.id
+        )
+    )
+
+    # --------------------------------------------------------
+    # Apply filters
+    # --------------------------------------------------------
+    if user_id is not None:
+        query = query.filter(
+            AuditLog.user_id == user_id
+        )
+
+    if action:
+        query = query.filter(
+            AuditLog.action == action
+        )
+
+    if entity_type:
+        query = query.filter(
+            AuditLog.entity_type == entity_type
+        )
+
+    if entity_id is not None:
+        query = query.filter(
+            AuditLog.entity_id == entity_id
+        )
+
+    if start_date:
+        start_datetime = datetime.combine(
+            start_date,
+            time.min
+        )
+
+        query = query.filter(
+            AuditLog.created_at >= start_datetime
+        )
+
+    if end_date:
+        end_datetime = datetime.combine(
+            end_date + timedelta(days=1),
+            time.min
+        )
+
+        query = query.filter(
+            AuditLog.created_at < end_datetime
+        )
+
+    # --------------------------------------------------------
+    # Get audit logs
+    # --------------------------------------------------------
+    audit_logs = (
+        query
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # Create PDF
+    # --------------------------------------------------------
+    pdf_buffer = BytesIO()
+
+    document = SimpleDocTemplate(
+        pdf_buffer,
+        pagesize=landscape(A4),
+        rightMargin=20,
+        leftMargin=20,
+        topMargin=25,
+        bottomMargin=25
+    )
+
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(
+        Paragraph(
+            "Audit Report",
+            styles["Title"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"Generated at: {datetime.utcnow()}",
+            styles["Normal"]
+        )
+    )
+
+    elements.append(Spacer(1, 12))
+
+    # --------------------------------------------------------
+    # Summary
+    # --------------------------------------------------------
+    summary_data = [
+        ["Total Audit Logs"],
+        [str(len(audit_logs))]
+    ]
+
+    summary_table = Table(
+        summary_data,
+        repeatRows=1
+    )
+
+    summary_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.lightgrey
+            ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+            (
+                "ALIGN",
+                (0, 0),
+                (-1, -1),
+                "CENTER"
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold"
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, 0),
+                8
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, 0),
+                8
+            )
+        ])
+    )
+
+    elements.append(summary_table)
+    elements.append(Spacer(1, 15))
+
+    # --------------------------------------------------------
+    # Detailed table
+    # --------------------------------------------------------
+    table_data = [[
+        "Audit ID",
+        "User",
+        "Email",
+        "Action",
+        "Entity Type",
+        "Entity ID",
+        "Description",
+        "IP Address",
+        "Method",
+        "Endpoint",
+        "Created Date"
+    ]]
+
+    for audit_log in audit_logs:
+
+        audit_user = (
+            db.query(User)
+            .filter(User.id == audit_log.user_id)
+            .first()
+            if audit_log.user_id is not None
+            else None
+        )
+
+        user_name = "Unknown"
+        user_email = ""
+
+        if audit_user:
+            user_name = (
+                audit_user.full_name
+                or audit_user.email
+                or "Unknown"
+            )
+
+            user_email = audit_user.email or ""
+
+        table_data.append([
+            str(audit_log.id),
+            user_name,
+            user_email,
+            audit_log.action,
+            audit_log.entity_type,
+            str(audit_log.entity_id)
+            if audit_log.entity_id is not None
+            else "",
+            audit_log.description,
+            audit_log.ip_address or "",
+            audit_log.request_method or "",
+            audit_log.endpoint or "",
+            str(audit_log.created_at)
+        ])
+
+    # --------------------------------------------------------
+    # PDF table
+    # --------------------------------------------------------
+    audit_table = Table(
+        table_data,
+        repeatRows=1,
+        colWidths=[
+            45,
+            70,
+            90,
+            55,
+            65,
+            50,
+            150,
+            70,
+            45,
+            100,
+            90
+        ]
+    )
+
+    audit_table.setStyle(
+        TableStyle([
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.lightgrey
+            ),
+            (
+                "TEXTCOLOR",
+                (0, 0),
+                (-1, 0),
+                colors.black
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold"
+            ),
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "TOP"
+            ),
+            (
+                "FONTSIZE",
+                (0, 0),
+                (-1, -1),
+                6
+            ),
+            (
+                "ALIGN",
+                (0, 0),
+                (0, -1),
+                "CENTER"
+            )
+        ])
+    )
+
+    elements.append(audit_table)
+
+    # --------------------------------------------------------
+    # Build PDF
+    # --------------------------------------------------------
+    document.build(elements)
+
+    pdf_buffer.seek(0)
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition":
+                "attachment; filename=audit_report.pdf"
+        }
+    )
+# ============================================================
+# APPROVAL REPORT EXCEL EXPORT
+# GET /reports/approvals/excel
+# ============================================================
+
+@router.get("/approvals/excel")
+def export_approval_report_excel(
+    approval_status: Optional[str] = Query(
+        None,
+        alias="status",
+        description="Filter approvals by status"
+    ),
+    reviewer: Optional[int] = Query(
+        None,
+        description="Filter approvals by reviewer user ID"
+    ),
+    decision: Optional[int] = Query(
+        None,
+        description="Filter approvals by decision ID"
+    ),
+    approval_level: Optional[int] = Query(
+        None,
+        description="Filter approvals by approval level"
+    ),
+    start_date: Optional[date] = Query(
+        None,
+        description="Filter approvals assigned from this date"
+    ),
+    end_date: Optional[date] = Query(
+        None,
+        description="Filter approvals assigned up to this date"
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # --------------------------------------------------------
+    # Validate dates
+    # --------------------------------------------------------
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_date cannot be after end_date"
+        )
+
+    # --------------------------------------------------------
+    # Validate approval status
+    # --------------------------------------------------------
+    allowed_statuses = {
+        "Pending",
+        "Approved",
+        "Rejected"
+    }
+
+    if approval_status:
+        matched_status = None
+
+        for allowed_status in allowed_statuses:
+            if allowed_status.lower() == approval_status.lower():
+                matched_status = allowed_status
+                break
+
+        if matched_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Invalid approval status. Allowed values are: "
+                    "Pending, Approved, Rejected"
+                )
+            )
+
+        approval_status = matched_status
+
+    # --------------------------------------------------------
+    # Validate approval level
+    # --------------------------------------------------------
+    if approval_level is not None and approval_level < 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="approval_level must be greater than or equal to 1"
+        )
+
+    # --------------------------------------------------------
+    # Build approval query
+    # --------------------------------------------------------
+    query = (
+        db.query(Approval)
+        .join(
+            Decision,
+            Approval.decision_id == Decision.id
+        )
+        .options(
+            joinedload(Approval.decision),
+            joinedload(Approval.reviewer)
+        )
+    )
+
+    # --------------------------------------------------------
+    # Apply filters
+    # --------------------------------------------------------
+    if approval_status:
+        query = query.filter(
+            Approval.status == approval_status
+        )
+
+    if reviewer is not None:
+        query = query.filter(
+            Approval.reviewer_id == reviewer
+        )
+
+    if decision is not None:
+        query = query.filter(
+            Approval.decision_id == decision
+        )
+
+    if approval_level is not None:
+        query = query.filter(
+            Approval.approval_level == approval_level
+        )
+
+    if start_date:
+        start_datetime = datetime.combine(
+            start_date,
+            time.min
+        )
+
+        query = query.filter(
+            Approval.created_at >= start_datetime
+        )
+
+    if end_date:
+        end_datetime = datetime.combine(
+            end_date + timedelta(days=1),
+            time.min
+        )
+
+        query = query.filter(
+            Approval.created_at < end_datetime
+        )
+
+    # --------------------------------------------------------
+    # Get approvals
+    # --------------------------------------------------------
+    approvals = (
+        query
+        .order_by(Approval.created_at.desc())
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # Calculate summary
+    # --------------------------------------------------------
+    total_approvals = len(approvals)
+
+    pending_count = sum(
+        1
+        for approval_item in approvals
+        if approval_item.status == "Pending"
+    )
+
+    approved_count = sum(
+        1
+        for approval_item in approvals
+        if approval_item.status == "Approved"
+    )
+
+    rejected_count = sum(
+        1
+        for approval_item in approvals
+        if approval_item.status == "Rejected"
+    )
+
+    completed_count = (
+        approved_count +
+        rejected_count
+    )
+
+    completion_rate = (
+        (completed_count / total_approvals) * 100
+        if total_approvals > 0
+        else 0
+    )
+
+    turnaround_values = []
+
+    for approval_item in approvals:
+        if (
+            approval_item.created_at
+            and approval_item.completed_at
+        ):
+            duration = (
+                approval_item.completed_at
+                - approval_item.created_at
+            )
+
+            turnaround_values.append(
+                duration.total_seconds() / 3600
+            )
+
+    average_turnaround = (
+        sum(turnaround_values)
+        / len(turnaround_values)
+        if turnaround_values
+        else 0
+    )
+
+    # --------------------------------------------------------
+    # Import Excel libraries
+    # --------------------------------------------------------
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment
+    from openpyxl.utils import get_column_letter
+
+    # --------------------------------------------------------
+    # Create workbook
+    # --------------------------------------------------------
+    workbook = Workbook()
+
+    worksheet = workbook.active
+    worksheet.title = "Approval Report"
+
+    # --------------------------------------------------------
+    # Title
+    # --------------------------------------------------------
+    worksheet["A1"] = "Approval Report"
+    worksheet["A1"].font = Font(
+        bold=True,
+        size=16
+    )
+
+    worksheet["A2"] = "Generated At"
+    worksheet["B2"] = datetime.utcnow()
+
+    # --------------------------------------------------------
+    # Summary
+    # --------------------------------------------------------
+    worksheet["A4"] = "Summary"
+    worksheet["A4"].font = Font(bold=True)
+
+    summary_headers = [
+        "Total",
+        "Pending",
+        "Approved",
+        "Rejected",
+        "Completion Rate",
+        "Average Turnaround (Hours)"
+    ]
+
+    summary_values = [
+        total_approvals,
+        pending_count,
+        approved_count,
+        rejected_count,
+        completion_rate / 100,
+        average_turnaround
+    ]
+
+    for column_index, header in enumerate(
+        summary_headers,
+        start=1
+    ):
+        cell = worksheet.cell(
+            row=5,
+            column=column_index
+        )
+
+        cell.value = header
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(
+            horizontal="center"
+        )
+
+    for column_index, value in enumerate(
+        summary_values,
+        start=1
+    ):
+        cell = worksheet.cell(
+            row=6,
+            column=column_index
+        )
+
+        cell.value = value
+
+        if column_index == 5:
+            cell.number_format = "0.00%"
+
+        if column_index == 6:
+            cell.number_format = "0.00"
+
+    # --------------------------------------------------------
+    # Detailed report headers
+    # --------------------------------------------------------
+    headers = [
+        "Approval ID",
+        "Decision ID",
+        "Decision Title",
+        "Reviewer",
+        "Reviewer Email",
+        "Approval Level",
+        "Status",
+        "Assigned Date",
+        "Completed Date",
+        "Turnaround (Hours)"
+    ]
+
+    header_row = 8
+
+    for column_index, header in enumerate(
+        headers,
+        start=1
+    ):
+        cell = worksheet.cell(
+            row=header_row,
+            column=column_index
+        )
+
+        cell.value = header
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+            wrap_text=True
+        )
+
+    # --------------------------------------------------------
+    # Add approval rows
+    # --------------------------------------------------------
+    for row_index, approval_item in enumerate(
+        approvals,
+        start=header_row + 1
+    ):
+        reviewer_name = "Unknown"
+        reviewer_email = ""
+
+        if approval_item.reviewer:
+            reviewer_name = (
+                approval_item.reviewer.full_name
+                or approval_item.reviewer.email
+                or "Unknown"
+            )
+
+            reviewer_email = (
+                approval_item.reviewer.email
+                or ""
+            )
+
+        turnaround_hours = None
+
+        if (
+            approval_item.created_at
+            and approval_item.completed_at
+        ):
+            duration = (
+                approval_item.completed_at
+                - approval_item.created_at
+            )
+
+            turnaround_hours = (
+                duration.total_seconds() / 3600
+            )
+
+        values = [
+            approval_item.id,
+            approval_item.decision_id,
+            (
+                approval_item.decision.title
+                if approval_item.decision
+                else "Unknown"
+            ),
+            reviewer_name,
+            reviewer_email,
+            approval_item.approval_level,
+            approval_item.status,
+            approval_item.created_at,
+            approval_item.completed_at,
+            turnaround_hours
+        ]
+
+        for column_index, value in enumerate(
+            values,
+            start=1
+        ):
+            cell = worksheet.cell(
+                row=row_index,
+                column=column_index
+            )
+
+            cell.value = value
+
+            cell.alignment = Alignment(
+                vertical="top",
+                wrap_text=True
+            )
+
+            if column_index == 10 and value is not None:
+                cell.number_format = "0.00"
+
+    # --------------------------------------------------------
+    # Freeze header
+    # --------------------------------------------------------
+    worksheet.freeze_panes = "A9"
+
+    # --------------------------------------------------------
+    # Auto-adjust column widths
+    # --------------------------------------------------------
+    for column_cells in worksheet.columns:
+
+        max_length = 0
+
+        column_letter = get_column_letter(
+            column_cells[0].column
+        )
+
+        for cell in column_cells:
+            try:
+                cell_length = len(str(cell.value))
+
+                if cell_length > max_length:
+                    max_length = cell_length
+
+            except Exception:
+                pass
+
+        worksheet.column_dimensions[
+            column_letter
+        ].width = min(
+            max_length + 2,
+            40
+        )
+
+    # --------------------------------------------------------
+    # Save workbook to memory
+    # --------------------------------------------------------
+    excel_buffer = BytesIO()
+
+    workbook.save(excel_buffer)
+
+    excel_buffer.seek(0)
+
+    # --------------------------------------------------------
+    # Return Excel file
+    # --------------------------------------------------------
+    return StreamingResponse(
+        excel_buffer,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition":
+                "attachment; filename=approval_report.xlsx"
+        }
+    )
