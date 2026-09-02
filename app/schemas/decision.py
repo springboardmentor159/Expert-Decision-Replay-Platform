@@ -41,3 +41,20 @@ class DecisionResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class DecisionVersionResponse(BaseModel):
+    id: int
+    decision_id: int
+    version_number: int
+    title: str
+    problem_statement: str
+    description: str | None
+    category: str
+    status: str
+    created_by: int
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }

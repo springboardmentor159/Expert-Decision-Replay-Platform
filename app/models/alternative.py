@@ -22,9 +22,7 @@ class Alternative(Base):
     cons = Column(Text, nullable=False)
 
     estimated_cost = Column(Float, nullable=False)
-
     feasibility_score = Column(Integer, nullable=False)
-
     risk_level = Column(String, nullable=False)
 
     created_at = Column(

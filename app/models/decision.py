@@ -1,10 +1,34 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    Table,
+)
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
 from app.db.base import Base
+decision_tags = Table(
+    "decision_tags",
+    Base.metadata,
+    Column(
+        "decision_id",
+        Integer,
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "tag_id",
+        Integer,
+        ForeignKey("tags.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
-
+from sqlalchemy.orm import relationship
 class Decision(Base):
     __tablename__ = "decisions"
 
@@ -45,4 +69,14 @@ class Decision(Base):
     discussion_threads = relationship(
     "DiscussionThread",
     back_populates="decision",
+)
+    tags = relationship(
+    "Tag",
+    secondary=decision_tags,
+    back_populates="decisions",
+)
+    alternatives = relationship(
+    "Alternative",
+    back_populates="decision",
+    cascade="all, delete-orphan",
 )

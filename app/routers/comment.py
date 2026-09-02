@@ -7,12 +7,12 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 
 from app.models.decision import Decision
-from app.models.discussion_thread import DiscussionThread
+from app.models.comment import Comment
 
-from app.schemas.discussion_thread import (
-    DiscussionThreadCreate,
-    DiscussionThreadUpdate,
-    DiscussionThreadResponse,
+from app.schemas.comment import (
+    CommentCreate,
+    CommentUpdate,
+    CommentResponse,
 )
 
 from app.services.activity import create_activity_log
@@ -20,21 +20,21 @@ from app.services.audit import create_audit_log
 
 
 router = APIRouter(
-    tags=["Discussion Threads"],
+    tags=["Comments"],
 )
 
 
 # ---------------------------------------------------------
-# CREATE THREAD
+# CREATE COMMENT
 # ---------------------------------------------------------
 @router.post(
-    "/decisions/{decision_id}/threads",
-    response_model=DiscussionThreadResponse,
+    "/decisions/{decision_id}/comments",
+    response_model=CommentResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_thread(
+def create_comment(
     decision_id: int,
-    thread_data: DiscussionThreadCreate,
+    comment_data: CommentCreate,
     request: Request,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -51,27 +51,24 @@ def create_thread(
             detail="Decision not found",
         )
 
-    thread = DiscussionThread(
+    comment = Comment(
         decision_id=decision_id,
-        created_by=current_user.id,
-        title=thread_data.title,
-        description=thread_data.description,
-        status="Open",
+        user_id=current_user.id,
+        content=comment_data.content,
     )
 
-    db.add(thread)
+    db.add(comment)
     db.flush()
 
     create_activity_log(
         db=db,
         user_id=current_user.id,
         action="created",
-        entity_type="DiscussionThread",
-        entity_id=thread.id,
+        entity_type="Comment",
+        entity_id=comment.id,
         description=(
-            f"User {current_user.id} created "
-            f"Discussion Thread {thread.id} "
-            f"for Decision {decision_id}"
+            f"User {current_user.id} added "
+            f"Comment {comment.id} to Decision {decision_id}"
         ),
     )
 
@@ -79,40 +76,38 @@ def create_thread(
         db=db,
         user_id=current_user.id,
         action="CREATE",
-        entity_type="DiscussionThread",
-        entity_id=thread.id,
+        entity_type="Comment",
+        entity_id=comment.id,
         decision_id=decision_id,
         description=(
-            f"Discussion Thread {thread.id} created "
+            f"Comment {comment.id} created "
             f"for Decision {decision_id}"
         ),
         ip_address=request.client.host if request.client else None,
         new_value={
-            "id": thread.id,
-            "decision_id": thread.decision_id,
-            "created_by": thread.created_by,
-            "title": thread.title,
-            "description": thread.description,
-            "status": thread.status,
+            "id": comment.id,
+            "decision_id": comment.decision_id,
+            "user_id": comment.user_id,
+            "content": comment.content,
         },
         request_method=request.method,
         endpoint=request.url.path,
     )
 
     db.commit()
-    db.refresh(thread)
+    db.refresh(comment)
 
-    return thread
+    return comment
 
 
 # ---------------------------------------------------------
-# GET THREADS
+# GET COMMENTS
 # ---------------------------------------------------------
 @router.get(
-    "/decisions/{decision_id}/threads",
-    response_model=List[DiscussionThreadResponse],
+    "/decisions/{decision_id}/comments",
+    response_model=List[CommentResponse],
 )
-def get_threads(
+def get_decision_comments(
     decision_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -130,104 +125,98 @@ def get_threads(
         )
 
     return (
-        db.query(DiscussionThread)
-        .filter(DiscussionThread.decision_id == decision_id)
+        db.query(Comment)
+        .filter(Comment.decision_id == decision_id)
         .all()
     )
 
 
 # ---------------------------------------------------------
-# GET THREAD
+# GET COMMENT
 # ---------------------------------------------------------
 @router.get(
-    "/threads/{thread_id}",
-    response_model=DiscussionThreadResponse,
+    "/comments/{comment_id}",
+    response_model=CommentResponse,
 )
-def get_thread(
-    thread_id: int,
+def get_comment(
+    comment_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    thread = (
-        db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
         .first()
     )
 
-    if not thread:
+    if not comment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Discussion thread not found",
+            detail="Comment not found",
         )
 
-    return thread
+    return comment
 
 
 # ---------------------------------------------------------
-# UPDATE THREAD
+# UPDATE COMMENT
 # ---------------------------------------------------------
 @router.put(
-    "/threads/{thread_id}",
-    response_model=DiscussionThreadResponse,
+    "/comments/{comment_id}",
+    response_model=CommentResponse,
 )
-def update_thread(
-    thread_id: int,
-    thread_data: DiscussionThreadUpdate,
+def update_comment(
+    comment_id: int,
+    comment_data: CommentUpdate,
     request: Request,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    thread = (
-        db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
         .first()
     )
 
-    if not thread:
+    if not comment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Discussion thread not found",
+            detail="Comment not found",
         )
 
-    if thread.created_by != current_user.id:
+    if comment.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only update your own discussion thread",
+            detail="You can only update your own comment",
         )
 
     old_value = {
-        "id": thread.id,
-        "decision_id": thread.decision_id,
-        "created_by": thread.created_by,
-        "title": thread.title,
-        "description": thread.description,
-        "status": thread.status,
+        "id": comment.id,
+        "decision_id": comment.decision_id,
+        "user_id": comment.user_id,
+        "content": comment.content,
     }
 
-    thread.title = thread_data.title
-    thread.description = thread_data.description
-    thread.status = thread_data.status
+    comment.content = comment_data.content
 
     db.flush()
 
     new_value = {
-        "id": thread.id,
-        "decision_id": thread.decision_id,
-        "created_by": thread.created_by,
-        "title": thread.title,
-        "description": thread.description,
-        "status": thread.status,
+        "id": comment.id,
+        "decision_id": comment.decision_id,
+        "user_id": comment.user_id,
+        "content": comment.content,
     }
 
     create_activity_log(
         db=db,
         user_id=current_user.id,
         action="updated",
-        entity_type="DiscussionThread",
-        entity_id=thread.id,
+        entity_type="Comment",
+        entity_id=comment.id,
         description=(
             f"User {current_user.id} updated "
-            f"Discussion Thread {thread.id}"
+            f"Comment {comment.id}"
         ),
     )
 
@@ -235,10 +224,10 @@ def update_thread(
         db=db,
         user_id=current_user.id,
         action="UPDATE",
-        entity_type="DiscussionThread",
-        entity_id=thread.id,
-        decision_id=thread.decision_id,
-        description=f"Discussion Thread {thread.id} updated",
+        entity_type="Comment",
+        entity_id=comment.id,
+        decision_id=comment.decision_id,
+        description=f"Comment {comment.id} updated",
         ip_address=request.client.host if request.client else None,
         old_value=old_value,
         new_value=new_value,
@@ -247,60 +236,58 @@ def update_thread(
     )
 
     db.commit()
-    db.refresh(thread)
+    db.refresh(comment)
 
-    return thread
+    return comment
 
 
 # ---------------------------------------------------------
-# DELETE THREAD
+# DELETE COMMENT
 # ---------------------------------------------------------
 @router.delete(
-    "/threads/{thread_id}",
+    "/comments/{comment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def delete_thread(
-    thread_id: int,
+def delete_comment(
+    comment_id: int,
     request: Request,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    thread = (
-        db.query(DiscussionThread)
-        .filter(DiscussionThread.id == thread_id)
+    comment = (
+        db.query(Comment)
+        .filter(Comment.id == comment_id)
         .first()
     )
 
-    if not thread:
+    if not comment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Discussion thread not found",
+            detail="Comment not found",
         )
 
-    if thread.created_by != current_user.id:
+    if comment.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own discussion thread",
+            detail="You can only delete your own comment",
         )
 
     old_value = {
-        "id": thread.id,
-        "decision_id": thread.decision_id,
-        "created_by": thread.created_by,
-        "title": thread.title,
-        "description": thread.description,
-        "status": thread.status,
+        "id": comment.id,
+        "decision_id": comment.decision_id,
+        "user_id": comment.user_id,
+        "content": comment.content,
     }
 
     create_activity_log(
         db=db,
         user_id=current_user.id,
         action="deleted",
-        entity_type="DiscussionThread",
-        entity_id=thread.id,
+        entity_type="Comment",
+        entity_id=comment.id,
         description=(
             f"User {current_user.id} deleted "
-            f"Discussion Thread {thread.id}"
+            f"Comment {comment.id}"
         ),
     )
 
@@ -308,17 +295,17 @@ def delete_thread(
         db=db,
         user_id=current_user.id,
         action="DELETE",
-        entity_type="DiscussionThread",
-        entity_id=thread.id,
-        decision_id=thread.decision_id,
-        description=f"Discussion Thread {thread.id} deleted",
+        entity_type="Comment",
+        entity_id=comment.id,
+        decision_id=comment.decision_id,
+        description=f"Comment {comment.id} deleted",
         ip_address=request.client.host if request.client else None,
         old_value=old_value,
         request_method=request.method,
         endpoint=request.url.path,
     )
 
-    db.delete(thread)
+    db.delete(comment)
     db.commit()
 
     return None
