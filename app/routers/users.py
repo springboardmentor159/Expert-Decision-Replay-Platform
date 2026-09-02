@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from app.utils.security import (
     create_access_token,
     get_current_user
 )
+from app.utils.audit import log_security_event
 
 
 router = APIRouter(
@@ -73,14 +74,24 @@ def create_user(
 # LOGIN
 @router.post("/login")
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
+    # NOTE: never write form_data.password (or the hashed password) into
+    # a security log entry - only that an attempt happened.
     user = db.query(User).filter(
         User.email == form_data.username
     ).first()
 
     if not user:
+        log_security_event(
+            db=db,
+            event_type="LOGIN_FAILED",
+            request=request,
+            identifier=form_data.username,
+            description="Login attempt for unknown email",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -91,6 +102,14 @@ def login(
         form_data.password,
         user.password
     ):
+        log_security_event(
+            db=db,
+            event_type="LOGIN_FAILED",
+            request=request,
+            user_id=user.id,
+            identifier=form_data.username,
+            description="Incorrect password",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -101,6 +120,15 @@ def login(
         data={
             "sub": str(user.id)
         }
+    )
+
+    log_security_event(
+        db=db,
+        event_type="LOGIN_SUCCESS",
+        request=request,
+        user_id=user.id,
+        identifier=user.email,
+        description="User logged in successfully",
     )
 
     return {

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -10,6 +10,8 @@ from app.models.discussion_thread import DiscussionThread
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
 from app.utils.security import get_current_user
+from app.utils.activity_logger import log_activity
+from app.utils.audit import log_audit
 
 
 router = APIRouter(tags=["Comments"])
@@ -72,6 +74,7 @@ def ensure_owner(comment: Comment, current_user: User) -> None:
 def create_comment(
     decision_id: int,
     comment: CommentCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -94,6 +97,16 @@ def create_comment(
         entity_type="Comment",
         entity_id=new_comment.id,
         description="A comment was added to a decision",
+    )
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_comment.id,
+        description=f"Comment added to decision {decision_id}",
+        new_value={"decision_id": decision_id},
+        request=request,
     )
 
     return new_comment
@@ -140,12 +153,15 @@ def get_comment(
 def update_comment(
     comment_id: int,
     data: CommentUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     comment = get_comment_or_404(comment_id, db)
 
     ensure_owner(comment, current_user)
+
+    old_value = {"content": comment.content}
 
     # Only the content can ever be updated.
     # id, decision_id, thread_id, user_id, created_at are never touched.
@@ -155,6 +171,18 @@ def update_comment(
     db.commit()
     db.refresh(comment)
 
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Comment {comment.id} was updated",
+        old_value=old_value,
+        new_value={"content": comment.content},
+        request=request,
+    )
+
     return comment
 
 
@@ -162,6 +190,7 @@ def update_comment(
 @router.delete("/comments/{comment_id}")
 def delete_comment(
     comment_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -169,8 +198,21 @@ def delete_comment(
 
     ensure_owner(comment, current_user)
 
+    comment_id_snapshot = comment.id
+    decision_id_snapshot = comment.decision_id
+
     db.delete(comment)
     db.commit()
+
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Comment",
+        entity_id=comment_id_snapshot,
+        description=f"Comment {comment_id_snapshot} was deleted from decision {decision_id_snapshot}",
+        request=request,
+    )
 
     return {"message": "Comment deleted successfully"}
 

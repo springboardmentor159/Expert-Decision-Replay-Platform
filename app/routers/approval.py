@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -11,6 +11,7 @@ from app.schemas.approval import ApprovalCreate, ApprovalActionRequest, Approval
 from app.schemas.decision import DecisionStatus
 from app.utils.security import get_current_user, require_role
 from app.utils.activity_logger import log_activity
+from app.utils.audit import log_audit, create_decision_version
 
 
 router = APIRouter(tags=["Approvals"])
@@ -45,6 +46,7 @@ def get_approval_or_404(approval_id: int, db: Session) -> Approval:
 def assign_approval(
     decision_id: int,
     payload: ApprovalCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("Manager", "Administrator"))
 ):
@@ -82,6 +84,24 @@ def assign_approval(
             f"{reviewer.full_name} for approval"
         ),
     )
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="ASSIGN",
+        entity_type="Approval",
+        entity_id=new_approval.id,
+        description=(
+            f"Decision '{decision.title}' assigned to reviewer "
+            f"{reviewer.full_name} (level {new_approval.level})"
+        ),
+        new_value={
+            "decision_id": decision_id,
+            "reviewer_id": payload.reviewer_id,
+            "level": new_approval.level,
+            "status": new_approval.status,
+        },
+        request=request,
+    )
 
     return new_approval
 
@@ -94,6 +114,7 @@ def assign_approval(
 def act_on_approval(
     approval_id: int,
     payload: ApprovalActionRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -120,11 +141,21 @@ def act_on_approval(
             detail="decision must be 'Approved' or 'Rejected'"
         )
 
+    old_status = approval.status
+
+    decision = get_decision_or_404(approval.decision_id, db)
+    decision_old_snapshot = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category,
+        "status": decision.status,
+        "rationale": decision.rationale,
+    }
+
     approval.status = payload.decision.value
     approval.comments = payload.comments
     approval.completed_at = datetime.utcnow()
 
-    decision = get_decision_or_404(approval.decision_id, db)
     decision.status = payload.decision.value
     decision.updated_at = datetime.utcnow()
 
@@ -142,6 +173,38 @@ def act_on_approval(
         entity_id=approval.id,
         description=f"Decision '{decision.title}' was {payload.decision.value.lower()}",
     )
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="APPROVE" if payload.decision.value == "Approved" else "REJECT",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=f"Decision '{decision.title}' was {payload.decision.value.lower()} by reviewer",
+        old_value={"status": old_status},
+        new_value={"status": approval.status, "comments": approval.comments},
+        request=request,
+    )
+
+    # The decision itself also transitioned state - keep its own audit
+    # trail and version history in sync with the approval workflow.
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="APPROVE" if payload.decision.value == "Approved" else "REJECT",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Decision '{decision.title}' was {payload.decision.value.lower()} via the approval workflow",
+        old_value=decision_old_snapshot,
+        new_value={
+            "title": decision.title,
+            "problem_statement": decision.problem_statement,
+            "category": decision.category,
+            "status": decision.status,
+            "rationale": decision.rationale,
+        },
+        request=request,
+    )
+    create_decision_version(db, decision, created_by=current_user.id)
 
     return approval
 

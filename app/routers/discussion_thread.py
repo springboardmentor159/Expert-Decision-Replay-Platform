@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -13,6 +13,8 @@ from app.schemas.discussion_thread import (
     DiscussionThreadResponse,
 )
 from app.utils.security import get_current_user
+from app.utils.activity_logger import log_activity
+from app.utils.audit import log_audit
 
 
 router = APIRouter(tags=["Discussion Threads"])
@@ -63,6 +65,7 @@ def ensure_owner(thread: DiscussionThread, current_user: User) -> None:
 def create_thread(
     decision_id: int,
     thread: DiscussionThreadCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -86,6 +89,16 @@ def create_thread(
         entity_type="DiscussionThread",
         entity_id=new_thread.id,
         description=f"Discussion thread '{new_thread.title}' was started",
+    )
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=f"Discussion thread '{new_thread.title}' was started on decision {decision_id}",
+        new_value={"decision_id": decision_id, "title": new_thread.title},
+        request=request,
     )
 
     return new_thread
@@ -131,12 +144,15 @@ def get_thread(
 def update_thread(
     thread_id: int,
     data: DiscussionThreadUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     thread = get_thread_or_404(thread_id, db)
 
     ensure_owner(thread, current_user)
+
+    old_value = {"title": thread.title, "status": thread.status}
 
     # Only these fields can ever be updated.
     # id, decision_id, created_by, created_at are never touched.
@@ -154,6 +170,18 @@ def update_thread(
     db.commit()
     db.refresh(thread)
 
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"Discussion thread '{thread.title}' was updated",
+        old_value=old_value,
+        new_value={"title": thread.title, "status": thread.status},
+        request=request,
+    )
+
     return thread
 
 
@@ -161,6 +189,7 @@ def update_thread(
 @router.delete("/threads/{thread_id}")
 def delete_thread(
     thread_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -168,7 +197,21 @@ def delete_thread(
 
     ensure_owner(thread, current_user)
 
+    thread_id_snapshot = thread.id
+    decision_id_snapshot = thread.decision_id
+    title_snapshot = thread.title
+
     db.delete(thread)
     db.commit()
+
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=thread_id_snapshot,
+        description=f"Discussion thread '{title_snapshot}' was deleted from decision {decision_id_snapshot}",
+        request=request,
+    )
 
     return {"message": "Discussion thread deleted successfully"}

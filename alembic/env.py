@@ -39,6 +39,10 @@ from app.models.meeting_note import MeetingNote  # noqa: F401
 from app.models.tag import Tag  # noqa: F401
 from app.models.approval import Approval  # noqa: F401
 from app.models.activity_log import ActivityLog  # noqa: F401
+from app.models.audit_log import AuditLog  # noqa: F401
+from app.models.decision_version import DecisionVersion  # noqa: F401
+from app.models.security_log import SecurityLog  # noqa: F401
+from app.models.access_log import AccessLog  # noqa: F401
 
 target_metadata = Base.metadata
 

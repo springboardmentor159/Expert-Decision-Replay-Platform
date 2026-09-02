@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -14,6 +14,8 @@ from app.schemas.alternative import (
     AlternativeCompareResponse,
 )
 from app.utils.security import get_current_user
+from app.utils.activity_logger import log_activity
+from app.utils.audit import log_audit
 
 
 router = APIRouter(tags=["Alternatives"])
@@ -40,6 +42,7 @@ def get_decision_or_404(decision_id: int, db: Session) -> Decision:
 def create_alternative(
     decision_id: int,
     alternative: AlternativeCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -66,6 +69,20 @@ def create_alternative(
         entity_type="Alternative",
         entity_id=new_alternative.id,
         description=f"Alternative '{new_alternative.name}' was added to a decision",
+    )
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Alternative",
+        entity_id=new_alternative.id,
+        description=f"Alternative '{new_alternative.name}' was added to decision {decision_id}",
+        new_value={
+            "decision_id": decision_id,
+            "name": new_alternative.name,
+            "risk_level": new_alternative.risk_level,
+        },
+        request=request,
     )
 
     return new_alternative
@@ -123,6 +140,7 @@ def get_alternative(
 def update_alternative(
     alternative_id: int,
     data: AlternativeUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -137,6 +155,13 @@ def update_alternative(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alternative not found"
         )
+
+    old_value = {
+        "name": alternative.name,
+        "estimated_cost": alternative.estimated_cost,
+        "feasibility_score": alternative.feasibility_score,
+        "risk_level": alternative.risk_level,
+    }
 
     # Only allowed fields can be updated.
     # id, decision_id, created_at are never touched here.
@@ -165,6 +190,23 @@ def update_alternative(
 
     db.commit()
     db.refresh(alternative)
+
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Alternative",
+        entity_id=alternative.id,
+        description=f"Alternative '{alternative.name}' was updated",
+        old_value=old_value,
+        new_value={
+            "name": alternative.name,
+            "estimated_cost": alternative.estimated_cost,
+            "feasibility_score": alternative.feasibility_score,
+            "risk_level": alternative.risk_level,
+        },
+        request=request,
+    )
 
     return alternative
 
