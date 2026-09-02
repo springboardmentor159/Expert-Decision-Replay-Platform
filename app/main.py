@@ -15,6 +15,7 @@ from app.routers.approvals import router as approvals_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.activities import router as activities_router
 from app.routers.organizations import router as organization_router
+from app.routers.reports import router as reports_router
 
 
 app = FastAPI(
@@ -56,6 +57,9 @@ app.include_router(dashboard_router)
 app.include_router(activities_router)
 
 app.include_router(organization_router)
+
+# Reports and Export Module APIs
+app.include_router(reports_router)
 
 @app.get("/")
 def root():
