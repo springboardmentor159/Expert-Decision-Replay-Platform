@@ -17,3 +17,6 @@ class User(Base):
     phone_number = Column(String, nullable=False)
     password = Column(String, nullable=False)
     decisions = relationship("Decision", back_populates="user")
+    comments = relationship("Comment", back_populates="user")
+    created_threads = relationship("DiscussionThread", back_populates="creator")
+    created_meeting_notes = relationship("MeetingNote", back_populates="creator")

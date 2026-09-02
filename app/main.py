@@ -22,6 +22,9 @@ from app.schemas.user import (
 )
 from routers.decision import router as decisions_router
 from routers.alternative import router as alternatives_router, decision_router as decision_alternatives_router
+from routers.comments import router as comments_router
+from routers.discussion_thread import router as discussion_thread_router
+from routers.meeting_note import router as meeting_note_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -32,6 +35,9 @@ app = FastAPI(
 app.include_router(decisions_router)
 app.include_router(alternatives_router)
 app.include_router(decision_alternatives_router)
+app.include_router(comments_router)
+app.include_router(discussion_thread_router)
+app.include_router(meeting_note_router)
 
 
 @app.get("/health")

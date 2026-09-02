@@ -9,6 +9,7 @@ from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.decision import (
     DecisionCreate,
+    DecisionRationaleUpdate,
     DecisionResponse,
     DecisionStatus,
     DecisionStatusUpdate,
@@ -201,3 +202,33 @@ def delete_decision(
     decision.status = DecisionStatus.Archived.value
     db.commit()
     return None
+
+
+@router.put(
+    "/{decision_id}/rationale",
+    response_model=DecisionResponse,
+    summary="Update decision rationale",
+    description="Record or update the rationale for why a decision was made.",
+)
+def update_decision_rationale(
+    decision_id: int,
+    rationale_update: DecisionRationaleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update the rationale for a decision.
+    - **rationale**: The explanation of why this decision was made
+    - Returns 404 if decision not found
+    """
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found",
+        )
+
+    decision.rationale = rationale_update.rationale
+    db.commit()
+    db.refresh(decision)
+    return decision

@@ -37,10 +37,16 @@ class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
 
 
+class DecisionRationaleUpdate(BaseModel):
+    """Schema for updating decision rationale"""
+    rationale: str
+
+
 class DecisionResponse(DecisionBase):
     """Schema for decision response"""
     id: int
     status: str
+    rationale: str | None = None
     created_by: int
     created_at: datetime
     updated_at: datetime

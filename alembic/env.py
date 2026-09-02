@@ -8,6 +8,9 @@ from app.db.base import Base
 from app.models.decision import Decision  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.alternative import Alternative  # noqa: F401
+from app.models.comment import Comment  # noqa: F401
+from app.models.discussion_thread import DiscussionThread  # noqa: F401
+from app.models.meeting_note import MeetingNote  # noqa: F401
 
 config = context.config
 
