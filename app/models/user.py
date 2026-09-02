@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -25,6 +25,26 @@ class User(Base):
 
     phone_number = Column(String, nullable=False)
 
+    # ========================================================
+    # TEAM RELATIONSHIP
+    # ========================================================
+
+    team_id = Column(
+        Integer,
+        ForeignKey("teams.id"),
+        nullable=True,
+        index=True
+    )
+
+    team = relationship(
+        "Team",
+        back_populates="members"
+    )
+
+    # ========================================================
+    # EXISTING RELATIONSHIPS
+    # ========================================================
+
     decisions = relationship(
         "Decision",
         back_populates="user"
@@ -36,21 +56,23 @@ class User(Base):
         cascade="all, delete-orphan"
     )
 
-
     discussion_threads = relationship(
         "DiscussionThread",
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
     meeting_notes = relationship(
-    "MeetingNote",
-    back_populates="user",
-    cascade="all, delete-orphan"
+        "MeetingNote",
+        back_populates="user",
+        cascade="all, delete-orphan"
     )
+
     approvals = relationship(
         "Approval",
         back_populates="reviewer"
     )
+
     activities = relationship(
         "Activity",
         back_populates="user",

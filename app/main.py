@@ -11,6 +11,7 @@ from app.routers import tags
 from app.routers import decision_tags
 from app.routers import activities
 from app.routers.dashboard import router as dashboard_router
+from app.routers.reports import router as reports_router
 from app.routers.approvals import router as approval_router
 from app.routers.activities import router as activities_router
 from app.routers.comments import (
@@ -46,3 +47,4 @@ app.include_router(approval_router)
 app.include_router(dashboard_router)
 app.include_router(activities.router)
 app.include_router(audit_log_router)
+app.include_router(reports_router)
