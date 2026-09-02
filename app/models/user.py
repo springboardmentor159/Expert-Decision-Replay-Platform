@@ -35,3 +35,8 @@ class User(Base):
         back_populates="creator",
         cascade="all, delete-orphan"
     )
+    activity_logs = relationship(
+        "ActivityLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

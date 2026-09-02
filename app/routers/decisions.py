@@ -10,6 +10,7 @@ from app.models.decision import Decision
 from app.models.alternative import Alternative
 from app.models.tag import Tag
 
+from app.schemas import decision
 from app.schemas.decision import (
     DecisionCreate,
     DecisionResponse,
@@ -28,6 +29,7 @@ from app.schemas.tag import (
 )
 
 from app.core.dependencies import get_current_user
+from app.services.activity_log_service import create_activity_log
 
 
 router = APIRouter(
@@ -62,6 +64,14 @@ def create_decision(
     db.add(new_decision)
     db.commit()
     db.refresh(new_decision)
+    create_activity_log(
+    db=db,
+    user_id=int(current_user["sub"]),
+    action="CREATE",
+    entity_type="Decision",
+    entity_id=new_decision.id,
+    description=f"Created decision: {new_decision.title}"
+)
 
     return new_decision
 
@@ -105,7 +115,8 @@ def get_decisions(
 def update_decision(
     decision_id: int,
     decision_data: DecisionUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     decision = (
         db.query(Decision)
@@ -126,8 +137,16 @@ def update_decision(
     db.commit()
     db.refresh(decision)
 
-    return decision
+    create_activity_log(
+        db=db,
+        user_id=int(current_user["sub"]),
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Updated decision: {decision.title}"
+    )
 
+    return decision
 
 # =========================================================
 # UPDATE DECISION STATUS
@@ -140,7 +159,8 @@ def update_decision(
 def update_decision_status(
     decision_id: int,
     status_data: DecisionStatusUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     decision = (
         db.query(Decision)
@@ -154,13 +174,23 @@ def update_decision_status(
             detail="Decision not found"
         )
 
+    old_status = decision.status
+
     decision.status = status_data.status.value
 
     db.commit()
     db.refresh(decision)
 
-    return decision
+    create_activity_log(
+        db=db,
+        user_id=int(current_user["sub"]),
+        action="STATUS_CHANGE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Changed decision status from {old_status} to {decision.status}"
+    )
 
+    return decision
 
 # =========================================================
 # CREATE ALTERNATIVE
@@ -174,7 +204,8 @@ def update_decision_status(
 def create_alternative(
     decision_id: int,
     alternative_data: AlternativeCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     # Check whether Decision exists
     decision = (
@@ -204,6 +235,15 @@ def create_alternative(
     db.add(new_alternative)
     db.commit()
     db.refresh(new_alternative)
+
+    create_activity_log(
+        db=db,
+        user_id=int(current_user["sub"]),
+        action="CREATE",
+        entity_type="Alternative",
+        entity_id=new_alternative.id,
+        description=f"Created alternative for decision {decision_id}: {new_alternative.name}"
+    )
 
     return new_alternative
 
@@ -463,7 +503,8 @@ def get_decision(
 )
 def delete_decision(
     decision_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     decision = (
         db.query(Decision)
@@ -477,10 +518,20 @@ def delete_decision(
             detail="Decision not found"
         )
 
+    decision_title = decision.title
+
     db.delete(decision)
     db.commit()
+
+    create_activity_log(
+        db=db,
+        user_id=int(current_user["sub"]),
+        action="DELETE",
+        entity_type="Decision",
+        entity_id=decision_id,
+        description=f"Deleted decision: {decision_title}"
+    )
 
     return {
         "message": "Decision deleted successfully"
     }
-

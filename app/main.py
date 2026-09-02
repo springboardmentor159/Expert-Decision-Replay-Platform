@@ -7,7 +7,9 @@ from app.routers.alternatives import router as alternatives_router
 from app.routers import comment
 from app.routers import discussion_thread
 from app.routers.tags import router as tags_router
-
+from app.routers.activity_logs import router as activity_logs_router 
+from app.routers.approvals import router as approvals_router
+from app.routers.dashboard import router as dashboard_router
 app = FastAPI(
     title="Expert Decision Replay Platform"
 )
@@ -20,3 +22,6 @@ app.include_router(alternatives_router)
 app.include_router(comment.router)
 app.include_router(discussion_thread.router)
 app.include_router(tags_router)
+app.include_router(activity_logs_router)
+app.include_router(approvals_router)
+app.include_router(dashboard_router)

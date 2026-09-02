@@ -13,6 +13,8 @@ from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
 from app.models.tag import Tag
 from app.models.decision_tag import decision_tags
+from app.models.activity_log import ActivityLog
+from app.models.approval import Approval
 
 # Alembic Config object
 config = context.config
