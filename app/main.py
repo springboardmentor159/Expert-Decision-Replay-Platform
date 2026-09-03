@@ -8,7 +8,8 @@ from app.routers import (
     comments,
     tags,
     analytics,
-    audit_logs
+    audit_logs,
+    reports
 )
 
 from app.routers.dashboard import router as dashboard_router
@@ -34,6 +35,7 @@ app.include_router(dashboard_router)
 
 # Analytics routes
 app.include_router(analytics.router)
+app.include_router(reports.router)
 
 
 @app.get("/")
