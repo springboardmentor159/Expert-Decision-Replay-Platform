@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -13,16 +13,20 @@ class Decision(Base):
 
     title = Column(String, nullable=False)
 
-    problem_statement = Column(Text, nullable=False)
-
-    
-    rationale = Column(Text, nullable=True)
+    problem_statement = Column(String, nullable=False)
 
     category = Column(String, nullable=False)
 
-    status = Column(String, nullable=False, default="Draft")
+    status = Column(
+        String,
+        nullable=False,
+        default="Draft"
+    )
 
-  
+    tags = Column(
+        String,
+        nullable=True
+    )
 
     created_by = Column(
         Integer,
@@ -31,19 +35,19 @@ class Decision(Base):
     )
 
     created_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        nullable=False
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
     )
 
     updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-        nullable=False
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
-    user = relationship(
+    creator = relationship(
         "User",
         back_populates="decisions"
     )
@@ -53,25 +57,40 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+
     comments = relationship(
-    "Comment",
-    back_populates="decision",
-    cascade="all, delete-orphan"
+        "Comment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
     )
+
     discussion_threads = relationship(
-    "DiscussionThread",
-    back_populates="decision",
-    cascade="all, delete-orphan"
+        "DiscussionThread",
+        back_populates="decision",
+        cascade="all, delete-orphan"
     )
+
     meeting_notes = relationship(
-    "MeetingNote",
-    back_populates="decision",
-    cascade="all, delete-orphan"
+        "MeetingNote",
+        back_populates="decision",
+        cascade="all, delete-orphan"
     )
-    tags = relationship(
-        "Tag",
-        secondary="decision_tags",
-        back_populates="decisions",
+
+    rationale = relationship(
+        "DecisionRationale",
+        back_populates="decision",
+        uselist=False,
+        cascade="all, delete-orphan"
     )
-    approvals = relationship("Approval", back_populates="decision", cascade="all, delete-orphan")
-    versions = relationship("DecisionVersion", back_populates="decision", cascade="all, delete-orphan")
+
+    versions = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
+    approvals = relationship(
+        "Approval",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )

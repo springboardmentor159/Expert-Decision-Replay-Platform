@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -17,33 +17,33 @@ class DiscussionThread(Base):
         nullable=False
     )
 
-    created_by = Column(
+    user_id = Column(
         Integer,
         ForeignKey("users.id"),
         nullable=False
     )
 
-    title = Column(String, nullable=False)
-
-    description = Column(Text, nullable=False)
-
-    status = Column(
+    title = Column(
         String,
-        nullable=False,
-        default="Open"
+        nullable=False
+    )
+
+    content = Column(
+        String,
+        nullable=False
     )
 
     created_at = Column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
     )
 
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
+        nullable=False,
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
     decision = relationship(
@@ -55,8 +55,8 @@ class DiscussionThread(Base):
         "User",
         back_populates="discussion_threads"
     )
-    comments = relationship(
-    "Comment",
-    back_populates="thread",
-    cascade="all, delete-orphan"
+    replies = relationship(
+        "ThreadReply",
+        back_populates="thread",
+        cascade="all, delete-orphan"
     )

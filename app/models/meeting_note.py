@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -17,29 +17,28 @@ class MeetingNote(Base):
         nullable=False
     )
 
-    created_by = Column(
+    user_id = Column(
         Integer,
         ForeignKey("users.id"),
         nullable=False
     )
 
-    title = Column(String, nullable=False)
-
-    content = Column(Text, nullable=False)
-
-    meeting_date = Column(DateTime, nullable=False)
-
-    created_at = Column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
+    content = Column(
+        String,
         nullable=False
     )
 
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
+        nullable=False,
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
     decision = relationship(

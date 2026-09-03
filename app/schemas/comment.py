@@ -7,10 +7,6 @@ class CommentCreate(BaseModel):
     content: str
 
 
-class CommentUpdate(BaseModel):
-    content: str
-
-
 class CommentResponse(BaseModel):
     id: int
     decision_id: int
@@ -21,4 +17,3 @@ class CommentResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        

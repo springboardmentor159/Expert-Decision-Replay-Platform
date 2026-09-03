@@ -1,28 +1,55 @@
-# Backend User Management
+# Expert Decision Replay Platform
 
 ## Description
-This project is a backend application for user management. It provides APIs to create, read, update, and delete user information.
+The Expert Decision Replay Platform is a FastAPI backend for recording, reviewing, and replaying organizational decisions. It provides authenticated APIs for decision management, collaboration, auditability, approvals, dashboards, and report exports.
 
 ## Features
-- User Registration
-- User Login
-- Get User Details
-- Update User Information
-- Delete User
+- User registration, login, and JWT authentication
+- Decision and alternative management
+- Decision rationale, version history, and status workflows
+- Discussion threads, replies, comments, and meeting notes
+- Approval workflows and activity logging
+- Audit and compliance logs
+- Dashboard and reporting endpoints
+- Excel report exports
 
 ## Technologies Used
-- Java
-- Spring Boot
-- Maven
-- MySQL
-- REST API
+- Python
+- FastAPI and Uvicorn
+- SQLAlchemy
+- PostgreSQL with `psycopg2-binary`
+- Alembic database migrations
+- Pydantic and `pydantic-settings`
+- JWT authentication and Passlib/bcrypt password hashing
+- `openpyxl` for Excel exports
 
 ## How to Run
-1. Clone the repository.
-2. Open the project in your IDE.
-3. Configure the database in `application.properties`.
-4. Run the Spring Boot application.
-5. Test the APIs using Postman.
+1. Install the dependencies:
+
+	```bash
+	pip install -r requirements.txt
+	```
+
+2. Create a `.env` file in the project root:
+
+	```env
+	DATABASE_URL=postgresql://user:password@localhost:5432/decision_replay
+	JWT_SECRET_KEY=replace-with-a-secure-secret
+	```
+
+3. Apply the database migrations:
+
+	```bash
+	alembic upgrade head
+	```
+
+4. Start the API:
+
+	```bash
+	uvicorn app.main:app --reload
+	```
+
+5. Open the interactive API documentation at `http://127.0.0.1:8000/docs`.
 
 ## Author
 Ramya

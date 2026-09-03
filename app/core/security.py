@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
+
+from app.core.config import settings
 
 
 pwd_context = CryptContext(
@@ -9,46 +11,43 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
-SECRET_KEY = "your-secret-key-change-this-later"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+def verify_password(
+    plain_password: str,
+    hashed_password: str
+) -> bool:
+    return pwd_context.verify(
+        plain_password,
+        hashed_password
+    )
 
 
-def create_access_token(data: dict):
+def create_access_token(
+    data: dict,
+    expires_minutes: int = 30
+) -> str:
     to_encode = data.copy()
 
     expire = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        minutes=expires_minutes
     )
 
     to_encode.update({"exp": expire})
 
-    encoded_jwt = jwt.encode(
+    return jwt.encode(
         to_encode,
-        SECRET_KEY,
-        algorithm=ALGORITHM
+        settings.jwt_secret_key,
+        algorithm="HS256"
     )
 
-    return encoded_jwt
 
-
-def verify_token(token: str):
-    try:
-        payload = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM]
-        )
-
-        return payload
-
-    except JWTError:
-        return None
+def decode_access_token(token: str) -> dict:
+    return jwt.decode(
+        token,
+        settings.jwt_secret_key,
+        algorithms=["HS256"]
+    )

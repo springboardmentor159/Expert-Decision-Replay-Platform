@@ -1,28 +1,18 @@
 from logging.config import fileConfig
-from app.models.user import User
-from app.models.decision import Decision
-from app.models.alternative import Alternative
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-from app.models.comment import Comment
+from app.core.config import settings
 from alembic import context
 from app.db.base import Base
-from app.core.config import settings
-from app.models.discussion_thread import DiscussionThread
-from app.models.meeting_note import MeetingNote
-from app.models.tag import Tag
-from app.models.approval import Approval
-from app.models.activity_log import ActivityLog
-from app.models.audit_log import AuditLog, SecurityLog, AccessLog
-from app.models.decision_version import DecisionVersion
-from app.models.approval import Approval
-from app.models.activity_log import ActivityLog
+from app.models.user import User
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    settings.DATABASE_URL
+    settings.database_url
 )
 
 # Interpret the config file for Python logging.
@@ -67,7 +57,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-   
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+
+    """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

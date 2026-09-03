@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.core.security import verify_password, create_access_token
 from app.db.database import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse
-from app.utils.password import verify_password
-from app.utils.security import create_access_token
-from app.utils.audit_logger import log_security
+from app.schemas.audit_log import AuditAction, AuditEntityType
+from app.services.audit_service import log_audit
 
 
 router = APIRouter(
@@ -15,47 +15,51 @@ router = APIRouter(
 )
 
 
-@router.post(
-    "/login",
-    response_model=TokenResponse
-)
+@router.post("/login")
 def login(
-    login_data: LoginRequest,
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(
-        User.email == login_data.email
+        User.email == form_data.username
     ).first()
 
-    if not user:
-        log_security(db, None, "LOGIN_FAILED", "Login failed for unknown account")
-        db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
+    client_ip = (
+        request.client.host
+        if request.client
+        else None
+    )
 
-    if not verify_password(
-        login_data.password,
+    if not user or not verify_password(
+        form_data.password,
         user.password
     ):
-        log_security(db, user.id, "LOGIN_FAILED", "Login failed")
-        db.commit()
+        # Do not create a user-linked audit record here because
+        # authentication failed and the user may not exist.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    log_security(db, user.id, "LOGIN_SUCCESS", "User logged in")
-    db.commit()
-
     access_token = create_access_token(
-        data={
-            "sub": str(user.id),
-            "email": user.email,
-            "role": user.role
-        }
+        data={"sub": str(user.id)}
     )
+
+    log_audit(
+        db=db,
+        user_id=user.id,
+        action=AuditAction.LOGIN,
+        entity_type=AuditEntityType.USER,
+        entity_id=user.id,
+        description=f"User {user.id} logged in successfully",
+        ip_address=client_ip,
+        request_method="POST",
+        endpoint="/auth/login"
+    )
+
+    db.commit()
 
     return {
         "access_token": access_token,

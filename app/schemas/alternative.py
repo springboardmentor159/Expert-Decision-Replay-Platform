@@ -16,7 +16,7 @@ class AlternativeCreate(BaseModel):
     description: str
     pros: str
     cons: str
-    estimated_cost: float
+    estimated_cost: int
     feasibility_score: int = Field(ge=1, le=5)
     risk_level: RiskLevel
 
@@ -26,7 +26,7 @@ class AlternativeUpdate(BaseModel):
     description: str
     pros: str
     cons: str
-    estimated_cost: float
+    estimated_cost: int
     feasibility_score: int = Field(ge=1, le=5)
     risk_level: RiskLevel
 
@@ -38,9 +38,9 @@ class AlternativeResponse(BaseModel):
     description: str
     pros: str
     cons: str
-    estimated_cost: float
+    estimated_cost: int
     feasibility_score: int
-    risk_level: str
+    risk_level: RiskLevel
     created_at: datetime
     updated_at: datetime
 
