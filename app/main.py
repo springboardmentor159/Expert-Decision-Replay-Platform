@@ -32,6 +32,7 @@ from routers.activity import router as activity_router
 from routers.dashboard import router as dashboard_router
 from routers.approval import router as approval_router
 from routers.audit import router as audit_router
+from routers.reports import router as reports_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -40,6 +41,7 @@ app = FastAPI(
 
 # Include routers
 app.include_router(audit_router)
+app.include_router(reports_router)
 app.include_router(decisions_router)
 app.include_router(alternatives_router)
 app.include_router(decision_alternatives_router)
