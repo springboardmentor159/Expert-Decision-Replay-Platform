@@ -60,6 +60,21 @@ from app.schemas.access_log import (
     AccessLogResponse,
     PaginatedAccessLogsResponse,
 )
+from app.schemas.report import (
+    DecisionReportItem,
+    DecisionReportSummary,
+    DecisionReportResponse,
+    ApprovalReportItem,
+    ApprovalReportSummary,
+    ApprovalReportResponse,
+    TeamApprovalStats,
+    TeamReportItem,
+    TeamReportSummary,
+    TeamReportResponse,
+    AuditReportItem,
+    AuditReportSummary,
+    AuditReportResponse,
+)
 
 __all__ = [
     "UserCreate",
@@ -126,4 +141,18 @@ __all__ = [
     "PaginatedSecurityLogsResponse",
     "AccessLogResponse",
     "PaginatedAccessLogsResponse",
+    "DecisionReportItem",
+    "DecisionReportSummary",
+    "DecisionReportResponse",
+    "ApprovalReportItem",
+    "ApprovalReportSummary",
+    "ApprovalReportResponse",
+    "TeamApprovalStats",
+    "TeamReportItem",
+    "TeamReportSummary",
+    "TeamReportResponse",
+    "AuditReportItem",
+    "AuditReportSummary",
+    "AuditReportResponse",
 ]
+
