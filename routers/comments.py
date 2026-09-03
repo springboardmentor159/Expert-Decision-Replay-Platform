@@ -18,6 +18,7 @@ from app.models.comment import Comment
 from app.models.decision import Decision
 from app.models.user import User
 from app.services.activity import record_activity
+from app.services.audit import record_audit
 from app.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
 
 router = APIRouter(tags=["Comments"])
@@ -77,6 +78,7 @@ def create_comment(
     db.add(comment)
     db.flush()
     record_activity(db, current_user.id, "comment_created", "Comment", "Comment added", comment.id)
+    record_audit(db, current_user.id, "CREATE", "Comment", "Comment added", comment.id)
     db.commit()
     db.refresh(comment)
     return comment

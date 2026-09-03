@@ -7,6 +7,7 @@ from app.core.auth import get_current_user
 from app.db.database import get_db
 from app.models.alternative import Alternative
 from app.services.activity import record_activity
+from app.services.audit import record_audit
 from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.alternative import (
@@ -66,6 +67,7 @@ def create_alternative(
     db.add(db_alternative)
     db.flush()
     record_activity(db, current_user.id, "alternative_created", "Alternative", "Alternative created", db_alternative.id)
+    record_audit(db, current_user.id, "CREATE", "Alternative", "Alternative created", db_alternative.id)
     db.commit()
     db.refresh(db_alternative)
     return db_alternative
@@ -191,6 +193,7 @@ def create_decision_alternative(
     db.add(db_alternative)
     db.flush()
     record_activity(db, current_user.id, "alternative_created", "Alternative", "Alternative created", db_alternative.id)
+    record_audit(db, current_user.id, "CREATE", "Alternative", "Alternative created", db_alternative.id)
     db.commit()
     db.refresh(db_alternative)
     return db_alternative

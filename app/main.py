@@ -14,6 +14,8 @@ from app.core.security import (
 )
 from app.db.database import get_db
 from app.models.user import User
+from app.models.audit import AccessLog, SecurityLog
+from app.services.audit import record_audit
 from app.schemas.user import (
     Token,
     UserCreate,
@@ -29,6 +31,7 @@ from routers.tag import router as tag_router
 from routers.activity import router as activity_router
 from routers.dashboard import router as dashboard_router
 from routers.approval import router as approval_router
+from routers.audit import router as audit_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -36,6 +39,7 @@ app = FastAPI(
 )
 
 # Include routers
+app.include_router(audit_router)
 app.include_router(decisions_router)
 app.include_router(alternatives_router)
 app.include_router(decision_alternatives_router)
@@ -73,6 +77,8 @@ def login_for_access_token(
 ):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        db.add(SecurityLog(event_type="LOGIN_FAILED", description="Login failed"))
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -82,6 +88,9 @@ def login_for_access_token(
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
     )
+    db.add(SecurityLog(user_id=user.id, event_type="LOGIN_SUCCESS", description="Login successful"))
+    record_audit(db, user.id, "LOGIN", "User", "User login successful", user.id)
+    db.commit()
     return {"access_token": access_token, "token_type": "bearer"}
 
 

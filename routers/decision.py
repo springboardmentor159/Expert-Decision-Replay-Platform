@@ -13,6 +13,7 @@ from app.models.activity import ActivityLog
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
+from app.models.audit import AccessLog
 from app.models.tag import Tag
 from app.schemas.decision import (
     DecisionCreate,
@@ -27,6 +28,7 @@ from app.schemas.decision import (
 )
 from app.schemas.tag import DecisionTagAssignment, TagResponse
 from app.services.activity import record_activity
+from app.services.audit import record_audit, record_decision_version
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -65,6 +67,8 @@ def create_decision(
     db.add(db_decision)
     db.flush()
     record_activity(db, current_user.id, "decision_created", "Decision", "Decision created", db_decision.id)
+    record_audit(db, current_user.id, "CREATE", "Decision", "Decision created", db_decision.id)
+    record_decision_version(db, db_decision, current_user.id)
     db.commit()
     db.refresh(db_decision)
     return db_decision
@@ -225,6 +229,9 @@ def get_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    db.add(AccessLog(user_id=current_user.id, resource_type="Decision", resource_id=decision.id, action="VIEW"))
+    record_audit(db, current_user.id, "ACCESS", "Decision", "Decision viewed", decision.id)
+    db.commit()
     return decision
 
 
@@ -255,6 +262,7 @@ def update_decision(
             detail="Decision not found",
         )
     _ensure_not_archived(decision)
+    old_value = {"title": decision.title, "problem_statement": decision.problem_statement, "category": decision.category}
 
     # Update only the allowed fields
     if decision_update.title is not None:
@@ -265,6 +273,9 @@ def update_decision(
         decision.category = decision_update.category
 
     record_activity(db, current_user.id, "decision_updated", "Decision", "Decision updated", decision.id)
+    new_value = {"title": decision.title, "problem_statement": decision.problem_statement, "category": decision.category}
+    record_audit(db, current_user.id, "UPDATE", "Decision", "Decision updated", decision.id, old_value, new_value)
+    record_decision_version(db, decision, current_user.id)
     db.commit()
     db.refresh(decision)
     return decision
@@ -303,6 +314,9 @@ def update_decision_status(
         db, current_user.id, "decision_status_changed", "Decision",
         f"Decision status changed from {previous_status} to {decision.status}", decision.id,
     )
+    action = "APPROVE" if decision.status == DecisionStatus.Approved.value else "REJECT" if decision.status == DecisionStatus.Rejected.value else "SUBMIT" if decision.status == DecisionStatus.UnderReview.value else "UPDATE"
+    record_audit(db, current_user.id, action, "Decision", f"Decision status changed to {decision.status}", decision.id, {"status": previous_status}, {"status": decision.status})
+    record_decision_version(db, decision, current_user.id)
 
     db.commit()
     db.refresh(decision)
@@ -333,6 +347,8 @@ def delete_decision(
 
     decision.status = DecisionStatus.Archived.value
     record_activity(db, current_user.id, "decision_archived", "Decision", "Decision archived", decision.id)
+    record_audit(db, current_user.id, "DELETE", "Decision", "Decision archived", decision.id, {"status": "previous"}, {"status": decision.status})
+    record_decision_version(db, decision, current_user.id)
     db.commit()
     return None
 
@@ -364,6 +380,8 @@ def update_decision_rationale(
 
     decision.rationale = rationale_update.rationale
     record_activity(db, current_user.id, "decision_updated", "Decision", "Decision rationale updated", decision.id)
+    record_audit(db, current_user.id, "UPDATE", "Decision", "Decision rationale updated", decision.id, {"rationale": None}, {"rationale": decision.rationale})
+    record_decision_version(db, decision, current_user.id)
     db.commit()
     db.refresh(decision)
     return decision

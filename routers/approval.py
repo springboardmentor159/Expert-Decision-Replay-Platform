@@ -11,6 +11,7 @@ from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.approval import ApprovalAction, ApprovalCreate, ApprovalResponse
 from app.services.activity import record_activity
+from app.services.audit import record_audit
 
 router = APIRouter(tags=["Approvals"])
 
@@ -37,6 +38,7 @@ def assign_approval(decision_id: int, payload: ApprovalCreate, current_user: Use
     db.add(approval)
     db.flush()
     record_activity(db, current_user.id, "approval_assigned", "Approval", "Approval assigned", approval.id)
+    record_audit(db, current_user.id, "CREATE", "Approval", "Approval assigned", approval.id)
     db.commit()
     db.refresh(approval)
     return approval
@@ -72,6 +74,7 @@ def act_on_approval(approval_id: int, payload: ApprovalAction, current_user: Use
     approval.completed_at = datetime.now(timezone.utc)
     approval.decision.status = payload.status.value
     record_activity(db, current_user.id, "approval_completed", "Approval", f"Approval {payload.status.value.lower()}", approval.id)
+    record_audit(db, current_user.id, "APPROVE" if payload.status.value == "Approved" else "REJECT", "Approval", f"Approval {payload.status.value.lower()}", approval.id)
     db.commit()
     db.refresh(approval)
     return approval

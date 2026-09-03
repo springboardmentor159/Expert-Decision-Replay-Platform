@@ -14,6 +14,7 @@ from app.models.meeting_note import MeetingNote  # noqa: F401
 from app.models.tag import Tag  # noqa: F401
 from app.models.activity import ActivityLog  # noqa: F401
 from app.models.approval import Approval  # noqa: F401
+from app.models.audit import AuditLog, DecisionVersion, SecurityLog, AccessLog  # noqa: F401
 
 config = context.config
 
