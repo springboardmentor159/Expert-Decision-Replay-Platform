@@ -16,3 +16,7 @@ class TagResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DecisionTagRequest(BaseModel):
+    tag_ids: list[int]
