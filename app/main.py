@@ -29,7 +29,7 @@ from app.routers.audit import router as audit_router
 
 from app.routers import tags
 from app.routers.approvals import router as approval_router
-
+from app.routers.reports import router as reports_router
 # =========================================================
 # DATABASE
 # =========================================================
@@ -77,3 +77,5 @@ app.include_router(audit_router)
 app.include_router(approval_router)
 
 app.include_router(security_router)
+
+app.include_router(reports_router)
