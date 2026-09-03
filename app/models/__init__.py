@@ -6,3 +6,4 @@ from app.models.discussion_thread import DiscussionThread
 from app.models.meeting_note import MeetingNote
 from app.models.attachment import Attachment
 from app.models.tag import Tag
+from app.models.audit_log import AuditLog

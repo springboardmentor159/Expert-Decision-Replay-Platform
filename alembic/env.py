@@ -30,7 +30,8 @@ if config.config_file_name is not None:
 # target_metadata = None
 
 from app.db.base import Base
-from app.models import User, Decision, Alternative
+from app.models import User, Decision, Alternative, AuditLog
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
