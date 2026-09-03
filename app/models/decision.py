@@ -1,8 +1,36 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
 from datetime import datetime
 
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+)
+from sqlalchemy.orm import relationship
+
 from app.db.base import Base
+
+
+# Many-to-many association table between decisions and tags
+decision_tags = Table(
+    "decision_tags",
+    Base.metadata,
+    Column(
+        "decision_id",
+        Integer,
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "tag_id",
+        Integer,
+        ForeignKey("tags.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
 
 class Decision(Base):
@@ -87,8 +115,22 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
-    rationale = Column(Text, nullable=True)
+
+    # Decision rationale
+    rationale = Column(
+        Text,
+        nullable=True
+    )
+
+    # Attachments belonging to this decision
     attachments = relationship(
-    "Attachment",
-    back_populates="decision"
+        "Attachment",
+        back_populates="decision"
+    )
+
+    # Tags assigned to this decision
+    tags = relationship(
+        "Tag",
+        secondary=decision_tags,
+        back_populates="decisions"
     )
