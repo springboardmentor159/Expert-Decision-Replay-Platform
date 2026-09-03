@@ -1,22 +1,39 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy import asc, desc, func, or_
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.auth import get_current_user
 from app.db.database import get_db
 from app.models.decision import Decision
 from app.models.user import User
+from app.models.alternative import Alternative
+from app.models.activity import ActivityLog
+from app.models.comment import Comment
+from app.models.discussion_thread import DiscussionThread
+from app.models.meeting_note import MeetingNote
+from app.models.tag import Tag
 from app.schemas.decision import (
     DecisionCreate,
     DecisionRationaleUpdate,
     DecisionResponse,
     DecisionStatus,
+    DecisionCategory,
     DecisionStatusUpdate,
     DecisionUpdate,
+    DecisionDiscoveryResponse,
+    DecisionSearchResponse,
 )
+from app.schemas.tag import DecisionTagAssignment, TagResponse
+from app.services.activity import record_activity
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
+
+
+def _ensure_not_archived(decision: Decision) -> None:
+    if decision.status == DecisionStatus.Archived.value:
+        raise HTTPException(status_code=409, detail="Archived decisions cannot be modified")
 
 
 @router.post(
@@ -46,6 +63,8 @@ def create_decision(
         created_by=current_user.id,
     )
     db.add(db_decision)
+    db.flush()
+    record_activity(db, current_user.id, "decision_created", "Decision", "Decision created", db_decision.id)
     db.commit()
     db.refresh(db_decision)
     return db_decision
@@ -53,13 +72,18 @@ def create_decision(
 
 @router.get(
     "",
-    response_model=List[DecisionResponse],
+    response_model=List[DecisionResponse] | DecisionDiscoveryResponse,
     summary="Get all decisions with optional filtering",
     description="Retrieve decisions. Can filter by status and/or category.",
 )
 def get_decisions(
-    status: Optional[str] = Query(None, description="Filter by decision status"),
-    category: Optional[str] = Query(None, description="Filter by decision category"),
+    status: Optional[DecisionStatus] = Query(None, description="Filter by decision status"),
+    category: Optional[DecisionCategory] = Query(None, description="Filter by decision category"),
+    tag: Optional[str] = Query(None, description="Filter by tag name"),
+    page: Optional[int] = Query(None, ge=1),
+    page_size: Optional[int] = Query(None, ge=1, le=100),
+    sort: str = Query("created_at", pattern="^(created_at|updated_at|title)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -69,15 +93,115 @@ def get_decisions(
     - **category**: Filter by category
     - User must be authenticated
     """
-    query = db.query(Decision)
+    query = db.query(Decision).options(selectinload(Decision.tags))
 
     if status:
-        query = query.filter(Decision.status == status)
+        query = query.filter(Decision.status == status.value)
 
     if category:
-        query = query.filter(Decision.category == category)
+        query = query.filter(Decision.category == category.value)
 
-    return query.all()
+    if tag:
+        query = query.join(Decision.tags).filter(func.lower(Tag.name) == tag.lower())
+
+    sort_column = {"created_at": Decision.created_at, "updated_at": Decision.updated_at, "title": Decision.title}[sort]
+    query = query.order_by((asc if order == "asc" else desc)(sort_column))
+    if page is None and page_size is None:
+        return query.all()
+    page = page or 1
+    page_size = page_size or 20
+    total = query.order_by(None).count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    return {"items": items, "page": page, "page_size": page_size, "total": total}
+
+
+@router.get("/search", response_model=DecisionSearchResponse)
+def search_decisions(
+    q: str = Query(min_length=1),
+    status: Optional[DecisionStatus] = Query(None),
+    category: Optional[DecisionCategory] = Query(None),
+    tag: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    sort: str = Query("created_at", pattern="^(created_at|updated_at|title)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    term = f"%{q.lower()}%"
+    query = db.query(Decision).options(selectinload(Decision.tags)).filter(
+        or_(func.lower(Decision.title).like(term),
+            func.lower(Decision.problem_statement).like(term),
+            func.lower(func.coalesce(Decision.rationale, "")).like(term))
+    )
+    if status:
+        query = query.filter(Decision.status == status.value)
+    if category:
+        query = query.filter(Decision.category == category.value)
+    if tag:
+        query = query.join(Decision.tags).filter(func.lower(Tag.name) == tag.lower())
+    sort_column = {"created_at": Decision.created_at, "updated_at": Decision.updated_at, "title": Decision.title}[sort]
+    query = query.order_by((asc if order == "asc" else desc)(sort_column))
+    total = query.order_by(None).count()
+    results = query.offset((page - 1) * page_size).limit(page_size).all()
+    return {"results": results, "items": results, "page": page, "page_size": page_size, "total": total}
+
+
+@router.post("/{decision_id}/tags", response_model=list[TagResponse])
+def assign_decision_tags(decision_id: int, payload: DecisionTagAssignment, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    _ensure_not_archived(decision)
+    tags = db.query(Tag).filter(Tag.id.in_(set(payload.tag_ids))).all() if payload.tag_ids else []
+    if len(tags) != len(set(payload.tag_ids)):
+        raise HTTPException(status_code=404, detail="One or more tags not found")
+    decision.tags = list({*decision.tags, *tags})
+    db.commit()
+    db.refresh(decision)
+    return decision.tags
+
+
+@router.get("/{decision_id}/tags", response_model=list[TagResponse])
+def get_decision_tags(decision_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    return decision.tags
+
+
+@router.delete("/{decision_id}/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_decision_tag(decision_id: int, tag_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    _ensure_not_archived(decision)
+    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    if not tag or tag not in decision.tags:
+        raise HTTPException(status_code=404, detail="Tag association not found")
+    decision.tags.remove(tag)
+    db.commit()
+
+
+@router.get("/{decision_id}/timeline")
+def get_decision_timeline(decision_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    events = [{"event_type": "Decision created", "timestamp": decision.created_at}]
+    activities = db.query(ActivityLog).filter(
+        ActivityLog.entity_type == "Decision", ActivityLog.entity_id == decision_id
+    ).all()
+    events += [
+        {"event_type": item.action, "timestamp": item.created_at, "description": item.description}
+        for item in activities if item.action != "decision_created"
+    ]
+    events += [{"event_type": "Alternative created", "timestamp": item.created_at} for item in db.query(Alternative).filter(Alternative.decision_id == decision_id)]
+    events += [{"event_type": "Discussion thread created", "timestamp": item.created_at} for item in db.query(DiscussionThread).filter(DiscussionThread.decision_id == decision_id)]
+    events += [{"event_type": "Comment added", "timestamp": item.created_at} for item in db.query(Comment).filter(Comment.decision_id == decision_id)]
+    events += [{"event_type": "Meeting note created", "timestamp": item.created_at} for item in db.query(MeetingNote).filter(MeetingNote.decision_id == decision_id)]
+    events.sort(key=lambda item: item["timestamp"])
+    return events
 
 
 @router.get(
@@ -130,6 +254,7 @@ def update_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    _ensure_not_archived(decision)
 
     # Update only the allowed fields
     if decision_update.title is not None:
@@ -139,6 +264,7 @@ def update_decision(
     if decision_update.category is not None:
         decision.category = decision_update.category
 
+    record_activity(db, current_user.id, "decision_updated", "Decision", "Decision updated", decision.id)
     db.commit()
     db.refresh(decision)
     return decision
@@ -168,9 +294,15 @@ def update_decision_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    _ensure_not_archived(decision)
 
     # Update status with validated enum value
+    previous_status = decision.status
     decision.status = status_update.status.value
+    record_activity(
+        db, current_user.id, "decision_status_changed", "Decision",
+        f"Decision status changed from {previous_status} to {decision.status}", decision.id,
+    )
 
     db.commit()
     db.refresh(decision)
@@ -200,6 +332,7 @@ def delete_decision(
         )
 
     decision.status = DecisionStatus.Archived.value
+    record_activity(db, current_user.id, "decision_archived", "Decision", "Decision archived", decision.id)
     db.commit()
     return None
 
@@ -227,8 +360,10 @@ def update_decision_rationale(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    _ensure_not_archived(decision)
 
     decision.rationale = rationale_update.rationale
+    record_activity(db, current_user.id, "decision_updated", "Decision", "Decision rationale updated", decision.id)
     db.commit()
     db.refresh(decision)
     return decision

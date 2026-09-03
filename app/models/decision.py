@@ -34,3 +34,4 @@ class Decision(Base):
     comments: Mapped[list["Comment"]] = relationship(back_populates="decision", cascade="all, delete-orphan")
     discussion_threads: Mapped[list["DiscussionThread"]] = relationship(back_populates="decision", cascade="all, delete-orphan")
     meeting_notes: Mapped[list["MeetingNote"]] = relationship(back_populates="decision", cascade="all, delete-orphan")
+    tags: Mapped[list["Tag"]] = relationship(secondary="decision_tags", back_populates="decisions")

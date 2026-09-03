@@ -20,6 +20,7 @@ from app.models.comment import Comment
 from app.models.decision import Decision
 from app.models.discussion_thread import DiscussionThread
 from app.models.user import User
+from app.services.activity import record_activity
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.discussion_thread import (
     DiscussionThreadCreate,
@@ -84,6 +85,8 @@ def create_thread(
         status="Open",
     )
     db.add(thread)
+    db.flush()
+    record_activity(db, current_user.id, "discussion_thread_created", "DiscussionThread", "Discussion thread created", thread.id)
     db.commit()
     db.refresh(thread)
     return thread

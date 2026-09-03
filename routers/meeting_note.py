@@ -17,6 +17,7 @@ from app.db.database import get_db
 from app.models.decision import Decision
 from app.models.meeting_note import MeetingNote
 from app.models.user import User
+from app.services.activity import record_activity
 from app.schemas.meeting_note import (
     MeetingNoteCreate,
     MeetingNoteUpdate,
@@ -80,6 +81,8 @@ def create_meeting_note(
         meeting_date=payload.meeting_date,
     )
     db.add(note)
+    db.flush()
+    record_activity(db, current_user.id, "meeting_note_created", "MeetingNote", "Meeting note created", note.id)
     db.commit()
     db.refresh(note)
     return note

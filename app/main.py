@@ -25,6 +25,10 @@ from routers.alternative import router as alternatives_router, decision_router a
 from routers.comments import router as comments_router
 from routers.discussion_thread import router as discussion_thread_router
 from routers.meeting_note import router as meeting_note_router
+from routers.tag import router as tag_router
+from routers.activity import router as activity_router
+from routers.dashboard import router as dashboard_router
+from routers.approval import router as approval_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -38,6 +42,10 @@ app.include_router(decision_alternatives_router)
 app.include_router(comments_router)
 app.include_router(discussion_thread_router)
 app.include_router(meeting_note_router)
+app.include_router(tag_router)
+app.include_router(activity_router)
+app.include_router(dashboard_router)
+app.include_router(approval_router)
 
 
 @app.get("/health")
@@ -58,6 +66,7 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
 
 
 @app.post("/token", response_model=Token)
+@app.post("/auth/login", response_model=Token)
 def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),

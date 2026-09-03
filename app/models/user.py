@@ -20,3 +20,4 @@ class User(Base):
     comments = relationship("Comment", back_populates="user")
     created_threads = relationship("DiscussionThread", back_populates="creator")
     created_meeting_notes = relationship("MeetingNote", back_populates="creator")
+    activities = relationship("ActivityLog", back_populates="user")
