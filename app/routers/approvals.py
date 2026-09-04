@@ -10,7 +10,7 @@ from app.models.approval import Approval
 from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.approval import ApprovalAction, ApprovalCreate, ApprovalResponse, ApprovalStatus
-from app.services.audit_service import get_client_ip, log_audit
+from app.services.audit_service import create_decision_version, get_client_ip, log_audit
 
 router = APIRouter(
     prefix="/approvals",
@@ -62,6 +62,11 @@ def create_approval(
 
     if decision.status == "Draft":
         decision.status = "Under Review"
+        create_decision_version(
+            db=db,
+            decision=decision,
+            created_by=current_user.id
+        )
 
     db.commit()
     db.refresh(new_approval)
@@ -144,6 +149,13 @@ def approve_decision(
             detail="Approval not found"
         )
 
+    # Enforce authorization: Only assigned reviewer, Manager, or Administrator can approve
+    if current_user.id != approval.reviewer_id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to approve this decision"
+        )
+
     if approval.status != "Pending":
         raise HTTPException(
             status_code=http_status.HTTP_400_BAD_REQUEST,
@@ -158,7 +170,25 @@ def approve_decision(
 
     decision = db.query(Decision).filter(Decision.id == approval.decision_id).first()
     if decision:
-        decision.status = "Approved"
+        # Check if other approvals for this decision are still pending (Multi-level approvals)
+        other_pending = (
+            db.query(Approval)
+            .filter(
+                Approval.decision_id == decision.id,
+                Approval.id != approval.id,
+                Approval.status == "Pending"
+            )
+            .count()
+        )
+        if other_pending == 0:
+            decision.status = "Approved"
+            create_decision_version(
+                db=db,
+                decision=decision,
+                created_by=current_user.id
+            )
+        else:
+            decision.status = "Under Review"
 
     db.commit()
     db.refresh(approval)
@@ -206,6 +236,13 @@ def reject_decision(
             detail=f"Approval has already been processed with status '{approval.status}'"
         )
 
+    # Enforce authorization: Only assigned reviewer, Manager, or Administrator can reject
+    if current_user.id != approval.reviewer_id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to reject this decision"
+        )
+
     old_status = approval.status
     approval.status = "Rejected"
     approval.completed_at = datetime.utcnow()
@@ -215,6 +252,11 @@ def reject_decision(
     decision = db.query(Decision).filter(Decision.id == approval.decision_id).first()
     if decision:
         decision.status = "Rejected"
+        create_decision_version(
+            db=db,
+            decision=decision,
+            created_by=current_user.id
+        )
 
     db.commit()
     db.refresh(approval)

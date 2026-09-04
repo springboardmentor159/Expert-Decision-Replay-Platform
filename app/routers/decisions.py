@@ -367,10 +367,25 @@ def update_decision_status(
     old_status = decision.status
     new_status = status_update.status.value
 
-    if old_status == "Archived" and new_status == "Archived":
+    # Strict Decision State Machine
+    VALID_TRANSITIONS = {
+        "Draft": {"Under Review", "Archived"},
+        "Under Review": {"Draft", "Approved", "Rejected", "Archived"},
+        "Approved": {"Archived"},
+        "Rejected": {"Draft", "Archived"},
+        "Archived": set(),  # Terminal state
+    }
+
+    if old_status == "Archived":
         raise HTTPException(
             status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Cannot modify an archived decision"
+        )
+
+    if new_status != old_status and new_status not in VALID_TRANSITIONS.get(old_status, set()):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid state transition from '{old_status}' to '{new_status}'. Allowed target states: {sorted(list(VALID_TRANSITIONS.get(old_status, set())))}"
         )
 
     decision.status = new_status
