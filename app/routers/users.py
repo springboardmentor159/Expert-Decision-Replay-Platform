@@ -22,11 +22,8 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # CREATE USER
 # Administrator only
-# ============================================================
-
 @router.post(
     "",
     response_model=UserResponse,
@@ -39,10 +36,7 @@ def create_user(
         require_roles(UserRole.ADMINISTRATOR)
     )
 ):
-    # --------------------------------------------------------
     # Verify organization exists
-    # --------------------------------------------------------
-
     organization = (
         db.query(Organization)
         .filter(
@@ -57,10 +51,7 @@ def create_user(
             detail="Organization not found"
         )
 
-    # --------------------------------------------------------
     # Check duplicate email
-    # --------------------------------------------------------
-
     existing_user = (
         db.query(User)
         .filter(User.email == user.email)
@@ -73,10 +64,7 @@ def create_user(
             detail="Email already registered"
         )
 
-    # --------------------------------------------------------
     # Check duplicate employee ID
-    # --------------------------------------------------------
-
     if user.employee_id:
         existing_employee = (
             db.query(User)
@@ -92,10 +80,7 @@ def create_user(
                 detail="Employee ID already registered"
             )
 
-    # --------------------------------------------------------
     # Create user
-    # --------------------------------------------------------
-
     new_user = User(
         full_name=user.full_name,
         email=user.email,
@@ -115,7 +100,6 @@ def create_user(
     return new_user
 
 
-# ============================================================
 # GET ALL USERS
 #
 # Administrator:
@@ -124,8 +108,6 @@ def create_user(
 # Manager:
 #   Can see users from their own organization only.
 #
-# ============================================================
-
 @router.get(
     "",
     response_model=List[UserResponse]
@@ -157,7 +139,6 @@ def get_users(
     )
 
 
-# ============================================================
 # GET USER BY ID
 #
 # Users can view themselves.
@@ -168,8 +149,6 @@ def get_users(
 # Administrators:
 #   Can view anyone.
 #
-# ============================================================
-
 @router.get(
     "/{user_id}",
     response_model=UserResponse
@@ -191,25 +170,16 @@ def get_user(
             detail="User not found"
         )
 
-    # --------------------------------------------------------
     # User can view their own profile
-    # --------------------------------------------------------
-
     if current_user.id == user_id:
         return user
 
-    # --------------------------------------------------------
     # Administrator can view anyone
-    # --------------------------------------------------------
-
     if current_user.role == UserRole.ADMINISTRATOR:
         return user
 
-    # --------------------------------------------------------
     # Managers can only view users
     # in their own organization
-    # --------------------------------------------------------
-
     if current_user.role == UserRole.MANAGER:
         if (
             user.organization_id
@@ -225,20 +195,14 @@ def get_user(
 
         return user
 
-    # --------------------------------------------------------
     # Other roles cannot view another user
-    # --------------------------------------------------------
-
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="You do not have permission to view this user"
     )
 
 
-# ============================================================
 # UPDATE USER
-# ============================================================
-
 @router.put(
     "/{user_id}",
     response_model=UserResponse
@@ -261,16 +225,10 @@ def update_user(
             detail="User not found"
         )
 
-    # --------------------------------------------------------
     # Determine whether this is the user's own profile
-    # --------------------------------------------------------
-
     is_own_profile = current_user.id == user_id
 
-    # --------------------------------------------------------
     # Organization access check
-    # --------------------------------------------------------
-
     if not is_own_profile:
 
         # Administrator can edit anyone
@@ -301,10 +259,7 @@ def update_user(
                 )
             )
 
-    # --------------------------------------------------------
     # Organization change protection
-    # --------------------------------------------------------
-
     if user_data.organization_id is not None:
 
         # Only Administrator can change organization
@@ -335,10 +290,7 @@ def update_user(
 
         user.organization_id = user_data.organization_id
 
-    # --------------------------------------------------------
     # Role change protection
-    # --------------------------------------------------------
-
     if user_data.role is not None:
 
         # User cannot change their own role
@@ -362,17 +314,11 @@ def update_user(
 
         user.role = user_data.role
 
-    # --------------------------------------------------------
     # Update full name
-    # --------------------------------------------------------
-
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
 
-    # --------------------------------------------------------
     # Update email
-    # --------------------------------------------------------
-
     if user_data.email is not None:
 
         existing_user = (
@@ -392,10 +338,7 @@ def update_user(
 
         user.email = user_data.email
 
-    # --------------------------------------------------------
     # Update employee ID
-    # --------------------------------------------------------
-
     if user_data.employee_id is not None:
 
         existing_employee = (
@@ -416,31 +359,19 @@ def update_user(
 
         user.employee_id = user_data.employee_id
 
-    # --------------------------------------------------------
     # Update department
-    # --------------------------------------------------------
-
     if user_data.department is not None:
         user.department = user_data.department
 
-    # --------------------------------------------------------
     # Update designation
-    # --------------------------------------------------------
-
     if user_data.designation is not None:
         user.designation = user_data.designation
 
-    # --------------------------------------------------------
     # Update phone number
-    # --------------------------------------------------------
-
     if user_data.phone_number is not None:
         user.phone_number = user_data.phone_number
 
-    # --------------------------------------------------------
     # Update password
-    # --------------------------------------------------------
-
     if user_data.password is not None:
         user.password = hash_password(
             user_data.password
@@ -452,11 +383,8 @@ def update_user(
     return user
 
 
-# ============================================================
 # DELETE USER
 # Administrator only
-# ============================================================
-
 @router.delete(
     "/{user_id}"
 )
@@ -481,10 +409,7 @@ def delete_user(
             detail="User not found"
         )
 
-    # --------------------------------------------------------
     # Prevent Administrator from deleting own account
-    # --------------------------------------------------------
-
     if current_user.id == user_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

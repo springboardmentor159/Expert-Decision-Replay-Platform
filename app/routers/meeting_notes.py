@@ -20,10 +20,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # DECISION ACCESS HELPERS
-# ============================================================
-
 def get_decision_or_404(
     decision_id: int,
     db: Session,
@@ -64,6 +61,7 @@ def can_access_decision(
     A user can access a decision when:
     - The decision belongs to their organization, AND
     - They created it, OR
+    - They are a Reviewer, OR
     - They are a Manager, OR
     - They are an Administrator.
     """
@@ -74,16 +72,15 @@ def can_access_decision(
     return (
         decision.created_by == current_user.id
         or current_user.role in (
+            UserRole.REVIEWER,
             UserRole.MANAGER,
             UserRole.ADMINISTRATOR,
         )
     )
 
 
-# ============================================================
-# CREATE MEETING NOTE
-# ============================================================
 
+# CREATE MEETING NOTE
 @router.post(
     "/decisions/{decision_id}/meeting-notes",
     response_model=MeetingNoteResponse,
@@ -143,10 +140,7 @@ def create_meeting_note(
     return note
 
 
-# ============================================================
 # GET ALL MEETING NOTES FOR A DECISION
-# ============================================================
-
 @router.get(
     "/decisions/{decision_id}/meeting-notes",
     response_model=list[MeetingNoteResponse],
@@ -188,10 +182,7 @@ def get_decision_meeting_notes(
     return notes
 
 
-# ============================================================
 # GET MEETING NOTE BY ID
-# ============================================================
-
 @router.get(
     "/meeting-notes/{note_id}",
     response_model=MeetingNoteResponse,
@@ -234,10 +225,7 @@ def get_meeting_note(
     return note
 
 
-# ============================================================
 # UPDATE MEETING NOTE
-# ============================================================
-
 @router.put(
     "/meeting-notes/{note_id}",
     response_model=MeetingNoteResponse,
@@ -310,10 +298,7 @@ def update_meeting_note(
     return note
 
 
-# ============================================================
 # DELETE MEETING NOTE
-# ============================================================
-
 @router.delete(
     "/meeting-notes/{note_id}",
     status_code=status.HTTP_204_NO_CONTENT,

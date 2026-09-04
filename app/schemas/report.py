@@ -2,10 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
-# ============================================================
 # DECISION REPORT SCHEMAS
-# ============================================================
-
 class DecisionReportItem(BaseModel):
     decision_id: int
     decision_title: str
@@ -40,10 +37,7 @@ class DecisionReportResponse(BaseModel):
     total_pages: int
 
 
-# ============================================================
 # APPROVAL REPORT SCHEMAS
-# ============================================================
-
 class ApprovalReportItem(BaseModel):
     approval_id: int
     decision_id: int
@@ -77,10 +71,7 @@ class ApprovalReportResponse(BaseModel):
     total_pages: int
 
 
-# ============================================================
 # TEAM REPORT SCHEMAS
-# ============================================================
-
 class TeamApprovalStatistics(BaseModel):
     total_approvals: int
     approved_approvals: int
@@ -116,10 +107,7 @@ class TeamReportResponse(BaseModel):
     total_pages: int
 
 
-# ============================================================
 # AUDIT REPORT SCHEMAS
-# ============================================================
-
 class AuditReportItem(BaseModel):
     audit_id: int
     user_id: int

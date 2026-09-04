@@ -36,10 +36,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # 1. DECISION REPORTS
-# ============================================================
-
 @router.get(
     "/decisions",
     response_model=DecisionReportResponse,
@@ -190,10 +187,7 @@ def export_decisions_excel(
     )
 
 
-# ============================================================
 # 2. APPROVAL REPORTS
-# ============================================================
-
 @router.get(
     "/approvals",
     response_model=ApprovalReportResponse,
@@ -344,10 +338,7 @@ def export_approvals_excel(
     )
 
 
-# ============================================================
 # 3. TEAM REPORTS
-# ============================================================
-
 @router.get(
     "/teams",
     response_model=TeamReportResponse,
@@ -490,10 +481,7 @@ def export_teams_excel(
     )
 
 
-# ============================================================
 # 4. AUDIT REPORTS
-# ============================================================
-
 @router.get(
     "/audit",
     response_model=AuditReportResponse,

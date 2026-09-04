@@ -29,10 +29,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # Decision authorization helper
-# ============================================================
-
 def can_access_decision(
     decision: Decision,
     current_user: User
@@ -52,11 +49,8 @@ def can_access_decision(
     return False
 
 
-# ============================================================
 # SYSTEM-WIDE AUDIT LOGS
 # Administrator only
-# ============================================================
-
 @router.get(
     "/audit-logs",
     response_model=AuditLogListResponse,
@@ -131,11 +125,8 @@ def get_audit_logs(
     )
 
 
-# ============================================================
 # SECURITY LOGS
 # Administrator only
-# ============================================================
-
 @router.get(
     "/security-logs",
     response_model=SecurityLogListResponse,
@@ -198,11 +189,8 @@ def get_security_logs(
     )
 
 
-# ============================================================
 # ACCESS LOGS
 # Administrator only
-# ============================================================
-
 @router.get(
     "/access-logs",
     response_model=AccessLogListResponse,
@@ -273,10 +261,7 @@ def get_access_logs(
     )
 
 
-# ============================================================
 # Get audit history for a specific decision
-# ============================================================
-
 @router.get(
     "/decisions/{decision_id}/audit-logs",
     response_model=list[AuditLogResponse],
@@ -369,4 +354,4 @@ def get_decision_audit_logs(
         .all()
     )
 
-    return audit_logs
+    return audit_logs

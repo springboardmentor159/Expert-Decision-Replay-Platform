@@ -20,10 +20,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # DECISION ACCESS HELPERS
-# ============================================================
-
 def get_decision_or_404(
     decision_id: int,
     db: Session,
@@ -63,7 +60,7 @@ def can_access_decision(
     """
     User can access a decision only when:
     - The decision belongs to their organization, and
-    - They are the creator, Manager, or Administrator.
+    - They are the creator, Reviewer, Manager, or Administrator.
     """
 
     if decision.organization_id != current_user.organization_id:
@@ -72,16 +69,15 @@ def can_access_decision(
     return (
         decision.created_by == current_user.id
         or current_user.role in (
+            UserRole.REVIEWER,
             UserRole.MANAGER,
             UserRole.ADMINISTRATOR,
         )
     )
 
 
-# ============================================================
-# CREATE COMMENT FOR A DECISION
-# ============================================================
 
+# CREATE COMMENT FOR A DECISION
 @router.post(
     "/decisions/{decision_id}/comments",
     response_model=CommentResponse,
@@ -139,10 +135,7 @@ def create_comment(
     return comment
 
 
-# ============================================================
 # GET ALL COMMENTS FOR A DECISION
-# ============================================================
-
 @router.get(
     "/decisions/{decision_id}/comments",
     response_model=list[CommentResponse],
@@ -182,10 +175,7 @@ def get_decision_comments(
     return comments
 
 
-# ============================================================
 # GET COMMENT BY ID
-# ============================================================
-
 @router.get(
     "/comments/{comment_id}",
     response_model=CommentResponse,
@@ -225,10 +215,7 @@ def get_comment(
     return comment
 
 
-# ============================================================
 # UPDATE COMMENT
-# ============================================================
-
 @router.put(
     "/comments/{comment_id}",
     response_model=CommentResponse,
@@ -291,10 +278,7 @@ def update_comment(
     return comment
 
 
-# ============================================================
 # DELETE COMMENT
-# ============================================================
-
 @router.delete(
     "/comments/{comment_id}",
     status_code=status.HTTP_204_NO_CONTENT,

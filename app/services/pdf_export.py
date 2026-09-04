@@ -172,10 +172,7 @@ def _get_custom_styles():
     return styles
 
 
-# ============================================================
 # 1. DECISION REPORT PDF GENERATOR
-# ============================================================
-
 def generate_decisions_pdf(
     items: list[DecisionReportItem],
     summary: DecisionReportSummary,
@@ -283,10 +280,7 @@ def generate_decisions_pdf(
     return buffer.getvalue()
 
 
-# ============================================================
 # 2. APPROVAL REPORT PDF GENERATOR
-# ============================================================
-
 def generate_approvals_pdf(
     items: list[ApprovalReportItem],
     summary: ApprovalReportSummary,
@@ -403,10 +397,7 @@ def generate_approvals_pdf(
     return buffer.getvalue()
 
 
-# ============================================================
 # 3. TEAM REPORT PDF GENERATOR
-# ============================================================
-
 def generate_teams_pdf(
     items: list[TeamReportItem],
     summary: TeamReportSummary,
@@ -512,10 +503,7 @@ def generate_teams_pdf(
     return buffer.getvalue()
 
 
-# ============================================================
 # 4. AUDIT REPORT PDF GENERATOR
-# ============================================================
-
 def generate_audit_pdf(
     items: list[AuditReportItem],
     summary: AuditReportSummary,

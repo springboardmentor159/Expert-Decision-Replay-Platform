@@ -25,10 +25,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # DECISION ACCESS HELPERS
-# ============================================================
-
 def get_decision_or_404(
     decision_id: int,
     db: Session,
@@ -68,7 +65,7 @@ def can_access_decision(
     """
     A user can access a decision when:
     - It belongs to their organization, AND
-    - They are the creator, Manager, or Administrator.
+    - They are the creator, Reviewer, Manager, or Administrator.
     """
 
     if decision.organization_id != current_user.organization_id:
@@ -77,16 +74,15 @@ def can_access_decision(
     return (
         decision.created_by == current_user.id
         or current_user.role in (
+            UserRole.REVIEWER,
             UserRole.MANAGER,
             UserRole.ADMINISTRATOR,
         )
     )
 
 
-# ============================================================
-# CREATE DISCUSSION THREAD
-# ============================================================
 
+# CREATE DISCUSSION THREAD
 @router.post(
     "/decisions/{decision_id}/threads",
     response_model=ThreadResponse,
@@ -144,10 +140,7 @@ def create_thread(
     return thread
 
 
-# ============================================================
 # GET ALL DISCUSSION THREADS FOR A DECISION
-# ============================================================
-
 @router.get(
     "/decisions/{decision_id}/threads",
     response_model=list[ThreadResponse],
@@ -187,10 +180,7 @@ def get_decision_threads(
     return threads
 
 
-# ============================================================
 # GET DISCUSSION THREAD BY ID
-# ============================================================
-
 @router.get(
     "/threads/{thread_id}",
     response_model=ThreadResponse,
@@ -233,10 +223,7 @@ def get_thread(
     return thread
 
 
-# ============================================================
 # UPDATE DISCUSSION THREAD
-# ============================================================
-
 @router.put(
     "/threads/{thread_id}",
     response_model=ThreadResponse,
@@ -308,10 +295,7 @@ def update_thread(
     return thread
 
 
-# ============================================================
 # DELETE DISCUSSION THREAD
-# ============================================================
-
 @router.delete(
     "/threads/{thread_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -383,10 +367,7 @@ def delete_thread(
     return None
 
 
-# ============================================================
 # ADD REPLY TO DISCUSSION THREAD
-# ============================================================
-
 @router.post(
     "/threads/{thread_id}/comments",
     response_model=CommentResponse,
@@ -457,10 +438,7 @@ def create_thread_reply(
     return comment
 
 
-# ============================================================
 # GET ALL REPLIES FOR A DISCUSSION THREAD
-# ============================================================
-
 @router.get(
     "/threads/{thread_id}/comments",
     response_model=list[CommentResponse],

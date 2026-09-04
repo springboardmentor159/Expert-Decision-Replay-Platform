@@ -49,10 +49,7 @@ def _validate_sort(sort_by: str, allowed_sort_fields: dict[str, Any], sort_order
         )
 
 
-# ============================================================
 # 1. DECISION REPORT SERVICE
-# ============================================================
-
 def get_decisions_report_data(
     db: Session,
     current_user: User,
@@ -209,10 +206,7 @@ def get_decisions_report_data(
     return items, summary, total_decisions, total_pages
 
 
-# ============================================================
 # 2. APPROVAL REPORT SERVICE
-# ============================================================
-
 def get_approvals_report_data(
     db: Session,
     current_user: User,
@@ -384,10 +378,7 @@ def get_approvals_report_data(
         return items, summary, total_matched, total_pages
 
 
-# ============================================================
 # 3. TEAM REPORT SERVICE
-# ============================================================
-
 def get_teams_report_data(
     db: Session,
     current_user: User,
@@ -638,10 +629,7 @@ def get_teams_report_data(
         return items, summary, total_matched, total_pages
 
 
-# ============================================================
 # 4. AUDIT REPORT SERVICE
-# ============================================================
-
 def get_audit_report_data(
     db: Session,
     current_user: User,

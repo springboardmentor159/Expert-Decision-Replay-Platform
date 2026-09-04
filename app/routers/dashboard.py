@@ -27,10 +27,7 @@ router = APIRouter(
     tags=["Dashboard"]
 )
 
-# ============================================================
 # Organization helpers
-# ============================================================
-
 def require_organization_id(current_user: User) -> int:
     """Return the current user's organization ID or reject unassigned users."""
     if current_user.organization_id is None:
@@ -64,10 +61,7 @@ def organization_approvals_query(db: Session, current_user: User):
     )
 
 
-# ============================================================
 # Employee Dashboard
-# ============================================================
-
 @router.get(
     "/employee",
     response_model=EmployeeDashboardResponse
@@ -135,10 +129,7 @@ def get_employee_dashboard(
     )
 
 
-# ============================================================
 # Employee Decisions
-# ============================================================
-
 @router.get(
     "/employee/decisions",
     response_model=list[DecisionResponse]
@@ -163,10 +154,7 @@ def get_employee_decisions(
     return decisions
 
 
-# ============================================================
 # Employee Pending Reviews
-# ============================================================
-
 @router.get(
     "/employee/pending-reviews",
     response_model=list[ApprovalResponse]
@@ -186,10 +174,7 @@ def get_employee_pending_reviews(
     )
 
 
-# ============================================================
 # Employee Recent Activities
-# ============================================================
-
 @router.get(
     "/employee/recent-activities",
     response_model=list[ActivityResponse]
@@ -207,10 +192,7 @@ def get_employee_recent_activities(
     )
 
 
-# ============================================================
 # Manager Dashboard
-# ============================================================
-
 @router.get(
     "/manager"
 )
@@ -267,10 +249,7 @@ def get_manager_dashboard(
     }
 
 
-# ============================================================
 # Manager Decisions
-# ============================================================
-
 @router.get(
     "/manager/decisions",
     response_model=list[DecisionResponse]
@@ -296,10 +275,7 @@ def get_manager_decisions(
     return decisions
 
 
-# ============================================================
 # Admin Dashboard
-# ============================================================
-
 @router.get(
     "/admin"
 )
@@ -408,10 +384,7 @@ def get_admin_decisions(
 
     return decisions
 
-# ============================================================
 # Decision Analytics
-# ============================================================
-
 @router.get(
     "/analytics",
     response_model=DecisionAnalyticsResponse
@@ -509,10 +482,7 @@ def get_decision_analytics(
         rejected_approvals=rejected_approvals
     )
     
-    # ============================================================
 # Manager Team Decisions
-# ============================================================
-
 @router.get(
     "/manager/team-decisions",
     response_model=list[DecisionResponse]
@@ -542,10 +512,7 @@ def get_manager_team_decisions(
 
     return decisions
 
-# ============================================================
 # Manager Pending Approvals
-# ============================================================
-
 @router.get(
     "/manager/pending-approvals",
     response_model=list[ApprovalResponse]
@@ -583,10 +550,7 @@ def get_manager_pending_approvals(
     )
 
     return approvals
-# ============================================================
 # Manager Decision Statistics
-# ============================================================
-
 @router.get(
     "/manager/statistics"
 )
@@ -659,10 +623,7 @@ def get_manager_statistics(
         "archived_decisions": archived_decisions
     }
     
-    # ============================================================
 # Admin Analytics
-# ============================================================
-
 @router.get(
     "/admin/analytics"
 )
@@ -826,10 +787,7 @@ def get_admin_analytics(
             "rejected_approvals": rejected_approvals
         }
     }
-    # ============================================================
 # Admin Decision Activity
-# ============================================================
-
 @router.get(
     "/admin/decision-activity"
 )
@@ -894,10 +852,7 @@ def get_admin_decision_activity(
         }
     }
     
-    # ============================================================
 # Admin Approval Statistics
-# ============================================================
-
 @router.get(
     "/admin/approval-statistics"
 )
@@ -987,10 +942,7 @@ def get_admin_approval_statistics(
         "pending_approvals": pending_approvals
     }
     
-    # ============================================================
 # Admin Approval Completion Rate
-# ============================================================
-
 @router.get(
     "/admin/approval-completion-rate"
 )
@@ -1061,10 +1013,7 @@ def get_admin_approval_completion_rate(
     }
 
 
-    # ============================================================
 # Admin User Activity
-# ============================================================
-
 @router.get(
     "/admin/user-activity"
 )
@@ -1117,10 +1066,7 @@ def get_admin_user_activity(
         "active_user_count": len(active_users)
     }
     
-    # ============================================================
 # Admin Decision Category Analytics
-# ============================================================
-
 @router.get(
     "/admin/analytics/categories"
 )
@@ -1182,10 +1128,7 @@ def get_admin_category_analytics(
         ]
     }
     
-    # ============================================================
 # Admin Decision Status Analytics
-# ============================================================
-
 @router.get(
     "/admin/analytics/status"
 )
@@ -1251,10 +1194,7 @@ def get_admin_status_analytics(
         ]
     }
     
-    # ============================================================
 # Admin User Role Analytics
-# ============================================================
-
 @router.get(
     "/admin/analytics/users"
 )

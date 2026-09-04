@@ -20,10 +20,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # DECISION ACCESS HELPERS
-# ============================================================
-
 def get_decision_or_404(
     decision_id: int,
     db: Session,
@@ -78,10 +75,7 @@ def can_modify_decision(
     )
 
 
-# ============================================================
 # CREATE AN ALTERNATIVE
-# ============================================================
-
 @router.post(
     "/decisions/{decision_id}/alternatives",
     response_model=AlternativeResponse,
@@ -150,10 +144,7 @@ def create_alternative(
     return alternative
 
 
-# ============================================================
 # GET ALL ALTERNATIVES FOR A DECISION
-# ============================================================
-
 @router.get(
     "/decisions/{decision_id}/alternatives",
     response_model=list[AlternativeResponse],
@@ -187,10 +178,7 @@ def get_decision_alternatives(
     )
 
 
-# ============================================================
 # GET ALTERNATIVE BY ID
-# ============================================================
-
 @router.get(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse,
@@ -228,10 +216,7 @@ def get_alternative(
     return alternative
 
 
-# ============================================================
 # UPDATE ALTERNATIVE
-# ============================================================
-
 @router.put(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse,
@@ -309,10 +294,7 @@ def update_alternative(
     return alternative
 
 
-# ============================================================
 # DELETE ALTERNATIVE
-# ============================================================
-
 @router.delete(
     "/alternatives/{alternative_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -382,10 +364,7 @@ def delete_alternative(
     return None
 
 
-# ============================================================
 # COMPARE ALL ALTERNATIVES
-# ============================================================
-
 @router.get(
     "/decisions/{decision_id}/alternatives/compare"
 )

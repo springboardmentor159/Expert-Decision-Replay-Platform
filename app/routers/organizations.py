@@ -19,11 +19,8 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # CREATE ORGANIZATION
 # Administrator only
-# ============================================================
-
 @router.post(
     "",
     response_model=OrganizationResponse,
@@ -62,11 +59,8 @@ def create_organization(
     return organization
 
 
-# ============================================================
 # GET ALL ORGANIZATIONS
 # Administrator only
-# ============================================================
-
 @router.get(
     "",
     response_model=list[OrganizationResponse]
@@ -84,13 +78,10 @@ def get_organizations(
     )
 
 
-# ============================================================
 # GET ORGANIZATION BY ID
 #
 # Administrator can view any organization.
 # Other users can only view their own organization.
-# ============================================================
-
 @router.get(
     "/{organization_id}",
     response_model=OrganizationResponse
@@ -128,11 +119,8 @@ def get_organization(
     return organization
 
 
-# ============================================================
 # UPDATE ORGANIZATION
 # Administrator only
-# ============================================================
-
 @router.put(
     "/{organization_id}",
     response_model=OrganizationResponse
@@ -187,14 +175,11 @@ def update_organization(
     return organization
 
 
-# ============================================================
 # DELETE ORGANIZATION
 # Administrator only
 #
 # Organization cannot be deleted if users or decisions
 # are still associated with it.
-# ============================================================
-
 @router.delete(
     "/{organization_id}",
     status_code=status.HTTP_204_NO_CONTENT

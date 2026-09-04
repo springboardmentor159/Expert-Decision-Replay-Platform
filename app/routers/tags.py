@@ -25,10 +25,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # CREATE TAG
-# ============================================================
-
 @router.post(
     "",
     response_model=TagResponse,
@@ -40,20 +37,14 @@ def create_tag(
     current_user: User = Depends(get_current_user)
 ):
 
-    # --------------------------------------------------------
     # User must belong to an organization
-    # --------------------------------------------------------
-
     if current_user.organization_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User is not assigned to an organization"
         )
 
-    # --------------------------------------------------------
     # Check tag name only inside current organization
-    # --------------------------------------------------------
-
     existing_tag = (
         db.query(Tag)
         .filter(
@@ -69,10 +60,7 @@ def create_tag(
             detail="Tag already exists in your organization"
         )
 
-    # --------------------------------------------------------
     # Create tag
-    # --------------------------------------------------------
-
     tag = Tag(
         name=tag_data.name,
         organization_id=current_user.organization_id
@@ -85,10 +73,7 @@ def create_tag(
     return tag
 
 
-# ============================================================
 # GET ALL TAGS
-# ============================================================
-
 @router.get(
     "",
     response_model=list[TagResponse]
@@ -114,10 +99,7 @@ def get_tags(
     )
 
 
-# ============================================================
 # GET TAG BY ID
-# ============================================================
-
 @router.get(
     "/{tag_id}",
     response_model=TagResponse
@@ -146,10 +128,7 @@ def get_tag(
     return tag
 
 
-# ============================================================
 # DELETE TAG
-# ============================================================
-
 @router.delete(
     "/{tag_id}",
     status_code=status.HTTP_204_NO_CONTENT
@@ -160,10 +139,7 @@ def delete_tag(
     current_user: User = Depends(get_current_user)
 ):
 
-    # --------------------------------------------------------
     # Find tag inside current organization only
-    # --------------------------------------------------------
-
     tag = (
         db.query(Tag)
         .filter(
@@ -179,10 +155,7 @@ def delete_tag(
             detail="Tag not found"
         )
 
-    # --------------------------------------------------------
     # Prevent deletion while assigned to decisions
-    # --------------------------------------------------------
-
     if tag.decisions:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -195,10 +168,7 @@ def delete_tag(
     return None
 
 
-# ============================================================
 # ASSIGN MULTIPLE TAGS TO A DECISION
-# ============================================================
-
 @router.post(
     "/{decision_id}/tags",
     response_model=list[TagResponse],
@@ -211,10 +181,7 @@ def assign_tags_to_decision(
     current_user: User = Depends(get_current_user)
 ):
 
-    # --------------------------------------------------------
     # Find decision inside current organization
-    # --------------------------------------------------------
-
     decision = (
         db.query(Decision)
         .filter(
@@ -236,18 +203,12 @@ def assign_tags_to_decision(
             detail="Cannot modify an archived decision"
         )
 
-    # --------------------------------------------------------
     # Remove duplicate IDs from request
-    # --------------------------------------------------------
-
     tag_ids = list(
         dict.fromkeys(tag_data.tag_ids)
     )
 
-    # --------------------------------------------------------
     # Find tags belonging to current organization
-    # --------------------------------------------------------
-
     tags = (
         db.query(Tag)
         .filter(
@@ -257,10 +218,7 @@ def assign_tags_to_decision(
         .all()
     )
 
-    # --------------------------------------------------------
     # Check missing tags
-    # --------------------------------------------------------
-
     found_tag_ids = {
         tag.id
         for tag in tags
@@ -278,10 +236,7 @@ def assign_tags_to_decision(
             detail=f"Tag(s) not found: {missing_tag_ids}"
         )
 
-    # --------------------------------------------------------
     # Check already assigned tags
-    # --------------------------------------------------------
-
     existing_tag_ids = {
         tag.id
         for tag in decision.tags
@@ -302,10 +257,7 @@ def assign_tags_to_decision(
             )
         )
 
-    # --------------------------------------------------------
     # Assign tags
-    # --------------------------------------------------------
-
     decision.tags.extend(tags)
 
     db.commit()
@@ -313,10 +265,7 @@ def assign_tags_to_decision(
     return tags
 
 
-# ============================================================
 # GET ALL TAGS ASSIGNED TO A DECISION
-# ============================================================
-
 @router.get(
     "/{decision_id}/tags",
     response_model=list[TagResponse]
@@ -327,10 +276,7 @@ def get_decision_tags(
     current_user: User = Depends(get_current_user)
 ):
 
-    # --------------------------------------------------------
     # Find decision inside current organization
-    # --------------------------------------------------------
-
     decision = (
         db.query(Decision)
         .filter(
@@ -349,10 +295,7 @@ def get_decision_tags(
     return decision.tags
 
 
-# ============================================================
 # REMOVE TAG FROM DECISION
-# ============================================================
-
 @router.delete(
     "/{decision_id}/tags/{tag_id}",
     status_code=status.HTTP_204_NO_CONTENT
@@ -364,10 +307,7 @@ def remove_tag_from_decision(
     current_user: User = Depends(get_current_user)
 ):
 
-    # --------------------------------------------------------
     # Find decision inside current organization
-    # --------------------------------------------------------
-
     decision = (
         db.query(Decision)
         .filter(
@@ -389,10 +329,7 @@ def remove_tag_from_decision(
             detail="Cannot modify an archived decision"
         )
 
-    # --------------------------------------------------------
     # Find tag inside current organization
-    # --------------------------------------------------------
-
     tag = (
         db.query(Tag)
         .filter(
@@ -408,20 +345,14 @@ def remove_tag_from_decision(
             detail="Tag not found"
         )
 
-    # --------------------------------------------------------
     # Check whether tag is assigned
-    # --------------------------------------------------------
-
     if tag not in decision.tags:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tag is not assigned to this decision"
         )
 
-    # --------------------------------------------------------
     # Remove tag
-    # --------------------------------------------------------
-
     decision.tags.remove(tag)
 
     db.commit()

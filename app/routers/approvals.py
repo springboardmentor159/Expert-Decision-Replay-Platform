@@ -7,14 +7,15 @@ from app.db.database import get_db
 from app.models.approval import Approval, ApprovalStatus
 from app.models.audit import AuditAction
 from app.models.decision import Decision, DecisionStatus
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.approval import (
     ApprovalCreate,
     ApprovalResponse,
     ApprovalStatusUpdate,
 )
-from app.services.audit import create_audit_log
+from app.services.audit import create_audit_log, create_decision_version
 from app.services.auth import get_current_user
+
 
 
 router = APIRouter(
@@ -23,10 +24,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # ORGANIZATION ACCESS HELPERS
-# ============================================================
-
 def get_decision_or_404(
     decision_id: int,
     db: Session,
@@ -87,10 +85,7 @@ def get_approval_or_404(
     return approval
 
 
-# ============================================================
 # CREATE AN APPROVAL REQUEST
-# ============================================================
-
 @router.post(
     "",
     response_model=ApprovalResponse,
@@ -106,6 +101,16 @@ def create_approval(
         db,
         current_user,
     )
+
+    # Only creator, Manager, or Administrator can assign reviewers
+    if not (
+        decision.created_by == current_user.id
+        or current_user.role in (UserRole.MANAGER, UserRole.ADMINISTRATOR)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to assign reviewers to this decision",
+        )
 
     # Reviewer must belong to the same organization.
     reviewer = (
@@ -123,12 +128,20 @@ def create_approval(
             detail="Reviewer not found in your organization",
         )
 
+    # Reviewer must have an eligible review role
+    if reviewer.role not in (UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assigned reviewer must have Reviewer, Manager, or Administrator role",
+        )
+
     # Decision creator cannot review their own decision.
     if reviewer.id == decision.created_by:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Decision creator cannot be assigned as reviewer",
         )
+
 
     # Prevent duplicate pending approvals.
     existing_approval = (
@@ -176,10 +189,7 @@ def create_approval(
     return approval
 
 
-# ============================================================
 # GET ALL APPROVALS FOR A DECISION
-# ============================================================
-
 @router.get(
     "/decision/{decision_id}",
     response_model=list[ApprovalResponse],
@@ -205,10 +215,7 @@ def get_decision_approvals(
     )
 
 
-# ============================================================
 # GET APPROVALS ASSIGNED TO CURRENT USER
-# ============================================================
-
 @router.get(
     "/my",
     response_model=list[ApprovalResponse],
@@ -232,10 +239,7 @@ def get_my_approvals(
     )
 
 
-# ============================================================
 # GET AN APPROVAL BY ID
-# ============================================================
-
 @router.get(
     "/{approval_id}",
     response_model=ApprovalResponse,
@@ -254,10 +258,7 @@ def get_approval(
     return approval
 
 
-# ============================================================
 # APPROVE OR REJECT AN APPROVAL
-# ============================================================
-
 @router.patch(
     "/{approval_id}/status",
     response_model=ApprovalResponse,
@@ -306,22 +307,33 @@ def update_approval_status(
     approval.status = status_data.status
     approval.completed_at = datetime.utcnow()
 
-    # Update decision status.
-    if status_data.status == ApprovalStatus.APPROVED:
-        decision.status = DecisionStatus.APPROVED
+    # Determine decision status based on all approvals for this decision
+    old_status = decision.status
 
-    elif status_data.status == ApprovalStatus.REJECTED:
+    if status_data.status == ApprovalStatus.REJECTED:
         decision.status = DecisionStatus.REJECTED
+    elif status_data.status == ApprovalStatus.APPROVED:
+        # Check if there are other pending approvals for this decision
+        remaining_pending = (
+            db.query(Approval)
+            .filter(
+                Approval.decision_id == decision.id,
+                Approval.id != approval.id,
+                Approval.status == ApprovalStatus.PENDING,
+            )
+            .count()
+        )
+        if remaining_pending == 0:
+            decision.status = DecisionStatus.APPROVED
+        else:
+            decision.status = DecisionStatus.UNDER_REVIEW
 
-    # --------------------------------------------------------
     # Log approval status change
-    # --------------------------------------------------------
-
     create_audit_log(
         db=db,
         decision_id=decision.id,
         user_id=current_user.id,
-        action=AuditAction.STATUS_CHANGE,
+        action=AuditAction.APPROVE if status_data.status == ApprovalStatus.APPROVED else AuditAction.REJECT,
         entity_type="Approval",
         entity_id=approval.id,
         description=(
@@ -330,24 +342,32 @@ def update_approval_status(
             f"'{current_user.full_name}' "
             f"for decision '{decision.title}'"
         ),
+        old_value={"status": ApprovalStatus.PENDING.value},
+        new_value={"status": status_data.status.value},
     )
 
-    # --------------------------------------------------------
-    # Log decision status change
-    # --------------------------------------------------------
+    # Log decision status change and create version if status changed
+    if decision.status != old_status:
+        create_audit_log(
+            db=db,
+            decision_id=decision.id,
+            user_id=current_user.id,
+            action=AuditAction.STATUS_CHANGE,
+            entity_type="Decision",
+            entity_id=decision.id,
+            description=(
+                f"Decision '{decision.title}' status changed from "
+                f"'{old_status.value}' to '{decision.status.value}'"
+            ),
+            old_value={"status": old_status.value if hasattr(old_status, "value") else str(old_status)},
+            new_value={"status": decision.status.value if hasattr(decision.status, "value") else str(decision.status)},
+        )
 
-    create_audit_log(
-        db=db,
-        decision_id=decision.id,
-        user_id=current_user.id,
-        action=AuditAction.STATUS_CHANGE,
-        entity_type="Decision",
-        entity_id=decision.id,
-        description=(
-            f"Decision '{decision.title}' was marked "
-            f"'{status_data.status.value}'"
-        ),
-    )
+        create_decision_version(
+            db=db,
+            decision=decision,
+            user_id=current_user.id,
+        )
 
     db.commit()
     db.refresh(approval)

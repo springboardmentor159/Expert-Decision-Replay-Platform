@@ -27,10 +27,7 @@ def get_activities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ========================================================
     # Validate date range
-    # ========================================================
-
     if (
         start_date is not None
         and end_date is not None
@@ -41,14 +38,11 @@ def get_activities(
             detail="start_date cannot be after end_date"
         )
 
-    # ========================================================
     # Base query
     #
     # Join User because AuditLog does not need to contain
     # organization_id directly. The organization is determined
     # from the user who generated the activity.
-    # ========================================================
-
     query = (
         db.query(AuditLog)
         .join(
@@ -57,20 +51,14 @@ def get_activities(
         )
     )
 
-    # ========================================================
     # Organization-level authorization
-    # ========================================================
-
     # Every activity returned must belong to the current
     # user's organization.
     query = query.filter(
         User.organization_id == current_user.organization_id
     )
 
-    # ========================================================
     # User-level authorization
-    # ========================================================
-
     if current_user.role == UserRole.ADMINISTRATOR:
         # Administrator can view activities of users
         # within their own organization.
@@ -114,28 +102,19 @@ def get_activities(
                 )
             )
 
-    # ========================================================
     # Filter by action
-    # ========================================================
-
     if action is not None:
         query = query.filter(
             AuditLog.action == action
         )
 
-    # ========================================================
     # Filter by entity type
-    # ========================================================
-
     if entity_type is not None:
         query = query.filter(
             AuditLog.entity_type == entity_type
         )
 
-    # ========================================================
     # Filter by start date
-    # ========================================================
-
     if start_date is not None:
         start_datetime = datetime.combine(
             start_date,
@@ -146,10 +125,7 @@ def get_activities(
             AuditLog.created_at >= start_datetime
         )
 
-    # ========================================================
     # Filter by end date
-    # ========================================================
-
     if end_date is not None:
         end_datetime = datetime.combine(
             end_date,
@@ -160,10 +136,7 @@ def get_activities(
             AuditLog.created_at <= end_datetime
         )
 
-    # ========================================================
     # Pagination
-    # ========================================================
-
     offset = (page - 1) * page_size
 
     activities = (

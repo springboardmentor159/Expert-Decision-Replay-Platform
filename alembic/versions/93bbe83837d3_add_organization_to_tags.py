@@ -19,20 +19,14 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-# ============================================================
 # Existing organization that will own the existing tags
-# ============================================================
-
 DEFAULT_ORGANIZATION_ID = 1
 
 
 def upgrade() -> None:
     """Upgrade schema."""
 
-    # --------------------------------------------------------
     # 1. Add organization_id as nullable temporarily
-    # --------------------------------------------------------
-
     op.add_column(
         "tags",
         sa.Column(
@@ -42,7 +36,6 @@ def upgrade() -> None:
         )
     )
 
-    # --------------------------------------------------------
     # 2. Remove the old globally-unique tag name constraint
     #
     # Previously:
@@ -50,18 +43,13 @@ def upgrade() -> None:
     #
     # This prevented two organizations from having the same
     # tag name.
-    # --------------------------------------------------------
-
     op.drop_constraint(
         op.f("tags_name_key"),
         "tags",
         type_="unique"
     )
 
-    # --------------------------------------------------------
     # 3. Create index for organization_id
-    # --------------------------------------------------------
-
     op.create_index(
         op.f("ix_tags_organization_id"),
         "tags",
@@ -69,14 +57,11 @@ def upgrade() -> None:
         unique=False
     )
 
-    # --------------------------------------------------------
     # 4. Assign all existing tags to the existing organization
     #
     # IMPORTANT:
     # Change DEFAULT_ORGANIZATION_ID if your organization
     # has another ID.
-    # --------------------------------------------------------
-
     op.execute(
         sa.text(
             """
@@ -89,10 +74,7 @@ def upgrade() -> None:
         )
     )
 
-    # --------------------------------------------------------
     # 5. Make sure no tags were left without an organization
-    # --------------------------------------------------------
-
     connection = op.get_bind()
 
     unassigned_tags = connection.execute(
@@ -110,10 +92,7 @@ def upgrade() -> None:
             "Some tags could not be assigned to an organization."
         )
 
-    # --------------------------------------------------------
     # 6. organization_id is now mandatory
-    # --------------------------------------------------------
-
     op.alter_column(
         "tags",
         "organization_id",
@@ -121,7 +100,6 @@ def upgrade() -> None:
         nullable=False
     )
 
-    # --------------------------------------------------------
     # 7. A tag name must be unique only within an organization
     #
     # Example:
@@ -130,18 +108,13 @@ def upgrade() -> None:
     # Organization 2 → Urgent
     #
     # Both are valid.
-    # --------------------------------------------------------
-
     op.create_unique_constraint(
         "uq_tag_organization_name",
         "tags",
         ["organization_id", "name"]
     )
 
-    # --------------------------------------------------------
     # 8. Add foreign key to organizations
-    # --------------------------------------------------------
-
     op.create_foreign_key(
         "fk_tags_organization_id",
         "tags",
@@ -154,39 +127,27 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
 
-    # --------------------------------------------------------
     # 1. Remove foreign key
-    # --------------------------------------------------------
-
     op.drop_constraint(
         "fk_tags_organization_id",
         "tags",
         type_="foreignkey"
     )
 
-    # --------------------------------------------------------
     # 2. Remove organization/name unique constraint
-    # --------------------------------------------------------
-
     op.drop_constraint(
         "uq_tag_organization_name",
         "tags",
         type_="unique"
     )
 
-    # --------------------------------------------------------
     # 3. Remove organization index
-    # --------------------------------------------------------
-
     op.drop_index(
         op.f("ix_tags_organization_id"),
         table_name="tags"
     )
 
-    # --------------------------------------------------------
     # 4. Restore globally unique tag names
-    # --------------------------------------------------------
-
     op.create_unique_constraint(
         op.f("tags_name_key"),
         "tags",
@@ -194,10 +155,7 @@ def downgrade() -> None:
         postgresql_nulls_not_distinct=False
     )
 
-    # --------------------------------------------------------
     # 5. Remove organization_id
-    # --------------------------------------------------------
-
     op.drop_column(
         "tags",
         "organization_id"

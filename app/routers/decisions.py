@@ -37,10 +37,7 @@ router = APIRouter(
 )
 
 
-# ============================================================
 # ORGANIZATION ACCESS HELPERS
-# ============================================================
-
 def can_access_decision(
     decision: Decision,
     current_user: User,
@@ -51,6 +48,7 @@ def can_access_decision(
     1. The decision belongs to the user's organization.
     2. The user is:
        - the creator, or
+       - a Reviewer, or
        - a Manager, or
        - an Administrator.
     """
@@ -61,6 +59,7 @@ def can_access_decision(
     return (
         decision.created_by == current_user.id
         or current_user.role in (
+            UserRole.REVIEWER,
             UserRole.MANAGER,
             UserRole.ADMINISTRATOR,
         )
@@ -73,12 +72,21 @@ def can_modify_decision(
 ) -> bool:
     """
     A user can modify a decision only if it belongs
-    to the same organization and the user is authorized.
+    to the same organization and the user is:
+    - the creator, or
+    - a Manager, or
+    - an Administrator.
     """
 
-    return can_access_decision(
-        decision,
-        current_user,
+    if decision.organization_id != current_user.organization_id:
+        return False
+
+    return (
+        decision.created_by == current_user.id
+        or current_user.role in (
+            UserRole.MANAGER,
+            UserRole.ADMINISTRATOR,
+        )
     )
 
 
@@ -112,10 +120,7 @@ def get_decision_or_404(
     return decision
 
 
-# ============================================================
 # CREATE DECISION
-# ============================================================
-
 @router.post(
     "",
     response_model=DecisionResponse,
@@ -177,11 +182,8 @@ def create_decision(
     return decision
 
 
-# ============================================================
 # SEARCH DECISIONS
 # Dedicated discovery search endpoint
-# ============================================================
-
 @router.get(
     "/search",
     response_model=DecisionSearchResponse,
@@ -331,12 +333,9 @@ def search_decisions(
     )
 
 
-# ============================================================
 # GET ALL DECISIONS
 # Search, filters, pagination and sorting
 # Organization isolated
-# ============================================================
-
 @router.get(
     "",
     response_model=DecisionListResponse,
@@ -399,10 +398,7 @@ def get_decisions(
         )
     )
 
-    # --------------------------------------------------------
     # Keyword / query search
-    # --------------------------------------------------------
-
     search_term = q or keyword
     if search_term:
         search_pattern = f"%{search_term}%"
@@ -419,28 +415,19 @@ def get_decisions(
             )
         )
 
-    # --------------------------------------------------------
     # Status filter
-    # --------------------------------------------------------
-
     if status_filter is not None:
         query = query.filter(
             Decision.status == status_filter
         )
 
-    # --------------------------------------------------------
     # Category filter
-    # --------------------------------------------------------
-
     if category is not None:
         query = query.filter(
             Decision.category == category
         )
 
-    # --------------------------------------------------------
     # Tag filter
-    # --------------------------------------------------------
-
     if tag is not None:
         query = (
             query
@@ -452,16 +439,10 @@ def get_decisions(
             )
         )
 
-    # --------------------------------------------------------
     # Total results
-    # --------------------------------------------------------
-
     total = query.count()
 
-    # --------------------------------------------------------
     # Sorting
-    # --------------------------------------------------------
-
     if sort_by == "title":
         sort_column = Decision.title
 
@@ -496,10 +477,7 @@ def get_decisions(
             detail="Invalid sort_order. Use asc or desc",
         )
 
-    # --------------------------------------------------------
     # Pagination
-    # --------------------------------------------------------
-
     offset = (page - 1) * page_size
 
     decisions = (
@@ -525,10 +503,7 @@ def get_decisions(
 
 
 
-# ============================================================
 # UPDATE DECISION RATIONALE
-# ============================================================
-
 @router.put(
     "/{decision_id}/rationale",
     response_model=DecisionResponse,
@@ -594,10 +569,7 @@ def update_decision_rationale(
     return decision
 
 
-# ============================================================
 # ASSIGN TAGS TO DECISION
-# ============================================================
-
 @router.post(
     "/{decision_id}/tags",
     response_model=list[TagResponse],
@@ -718,10 +690,7 @@ def assign_tags_to_decision(
     return tags
 
 
-# ============================================================
 # GET TAGS ASSIGNED TO DECISION
-# ============================================================
-
 @router.get(
     "/{decision_id}/tags",
     response_model=list[TagResponse],
@@ -740,10 +709,7 @@ def get_decision_tags(
     return decision.tags
 
 
-# ============================================================
 # REMOVE TAG FROM DECISION
-# ============================================================
-
 @router.delete(
     "/{decision_id}/tags/{tag_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -823,10 +789,7 @@ def remove_tag_from_decision(
     return None
 
 
-# ============================================================
 # GET COMPLETE DECISION DETAILS
-# ============================================================
-
 @router.get(
     "/{decision_id}/detail",
     response_model=DecisionDetailResponse,
@@ -857,10 +820,7 @@ def get_decision_detail(
     return decision
 
 
-# ============================================================
 # GET DECISION TIMELINE
-# ============================================================
-
 @router.get(
     "/{decision_id}/timeline",
     response_model=list[TimelineResponse],
@@ -902,10 +862,7 @@ def get_decision_timeline(
     return timeline
 
 
-# ============================================================
 # GET DECISION VERSIONS
-# ============================================================
-
 @router.get(
     "/{decision_id}/versions",
     response_model=list[DecisionVersionResponse],
@@ -947,10 +904,7 @@ def get_decision_versions(
     return versions
 
 
-# ============================================================
 # GET SPECIFIC DECISION VERSION
-# ============================================================
-
 @router.get(
     "/{decision_id}/versions/{version_number}",
     response_model=DecisionVersionResponse,
@@ -997,10 +951,7 @@ def get_decision_version(
     return version
 
 
-# ============================================================
 # GET DECISION CHANGE HISTORY
-# ============================================================
-
 @router.get(
     "/{decision_id}/history",
     response_model=list[DecisionHistoryItem],
@@ -1042,10 +993,7 @@ def get_decision_history(
     return history
 
 
-# ============================================================
 # GET DECISION BY ID
-# ============================================================
-
 @router.get(
     "/{decision_id}",
     response_model=DecisionResponse,
@@ -1085,10 +1033,7 @@ def get_decision(
     return decision
 
 
-# ============================================================
 # UPDATE DECISION
-# ============================================================
-
 @router.put(
     "/{decision_id}",
     response_model=DecisionResponse,
@@ -1165,10 +1110,84 @@ def update_decision(
     return decision
 
 
-# ============================================================
-# UPDATE DECISION STATUS
-# ============================================================
+# VALID STATUS TRANSITIONS
+VALID_DECISION_STATUS_TRANSITIONS = {
+    DecisionStatus.DRAFT: {DecisionStatus.UNDER_REVIEW, DecisionStatus.ARCHIVED},
+    DecisionStatus.UNDER_REVIEW: {
+        DecisionStatus.APPROVED,
+        DecisionStatus.REJECTED,
+        DecisionStatus.DRAFT,
+        DecisionStatus.ARCHIVED,
+    },
+    DecisionStatus.APPROVED: {DecisionStatus.ARCHIVED},
+    DecisionStatus.REJECTED: {DecisionStatus.DRAFT, DecisionStatus.ARCHIVED},
+    DecisionStatus.ARCHIVED: set(),  # Terminal state: cannot transition out
+}
 
+
+# SUBMIT DECISION FOR REVIEW
+@router.post(
+    "/{decision_id}/submit",
+    response_model=DecisionResponse,
+    summary="Submit decision for review",
+)
+def submit_decision(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    if not can_modify_decision(
+        decision,
+        current_user,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to submit this decision",
+        )
+
+    if decision.status not in (DecisionStatus.DRAFT, DecisionStatus.REJECTED):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Cannot submit decision with status '{decision.status.value}'. "
+                "Must be Draft or Rejected."
+            ),
+        )
+
+    old_status = decision.status
+    decision.status = DecisionStatus.UNDER_REVIEW
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.SUBMIT,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Decision '{decision.title}' was submitted for review",
+        old_value={"status": old_status.value if hasattr(old_status, "value") else str(old_status)},
+        new_value={"status": decision.status.value if hasattr(decision.status, "value") else str(decision.status)},
+    )
+
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
+    )
+
+    db.commit()
+    db.refresh(decision)
+
+    return decision
+
+
+# UPDATE DECISION STATUS
 @router.patch(
     "/{decision_id}/status",
     response_model=DecisionResponse,
@@ -1198,7 +1217,23 @@ def update_decision_status(
         )
 
     old_status = decision.status
-    decision.status = status_data.status
+    target_status = status_data.status
+
+    if old_status == DecisionStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify an archived decision",
+        )
+
+    if target_status != old_status:
+        allowed_transitions = VALID_DECISION_STATUS_TRANSITIONS.get(old_status, set())
+        if target_status not in allowed_transitions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid state transition from '{old_status.value}' to '{target_status.value}'",
+            )
+
+    decision.status = target_status
 
     old_value = {
         "status": old_status.value if hasattr(old_status, "value") else str(old_status)

@@ -90,10 +90,7 @@ def _auto_fit_columns(ws, max_len_cap: int = 50):
         ws.column_dimensions[column_letter].width = adjusted_width
 
 
-# ============================================================
 # 1. DECISION REPORT EXCEL GENERATOR
-# ============================================================
-
 def generate_decisions_excel(
     items: list[DecisionReportItem],
     summary: DecisionReportSummary,
@@ -202,10 +199,7 @@ def generate_decisions_excel(
     return buffer.getvalue()
 
 
-# ============================================================
 # 2. APPROVAL REPORT EXCEL GENERATOR
-# ============================================================
-
 def generate_approvals_excel(
     items: list[ApprovalReportItem],
     summary: ApprovalReportSummary,
@@ -320,10 +314,7 @@ def generate_approvals_excel(
     return buffer.getvalue()
 
 
-# ============================================================
 # 3. TEAM REPORT EXCEL GENERATOR
-# ============================================================
-
 def generate_teams_excel(
     items: list[TeamReportItem],
     summary: TeamReportSummary,
@@ -428,10 +419,7 @@ def generate_teams_excel(
     return buffer.getvalue()
 
 
-# ============================================================
 # 4. AUDIT REPORT EXCEL GENERATOR
-# ============================================================
-
 def generate_audit_excel(
     items: list[AuditReportItem],
     summary: AuditReportSummary,
