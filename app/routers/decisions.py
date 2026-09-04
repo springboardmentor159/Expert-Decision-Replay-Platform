@@ -30,6 +30,7 @@ from app.schemas.tag import (
 
 from app.core.dependencies import get_current_user
 from app.services.activity_log_service import create_activity_log
+from app.services.audit_log_service import create_audit_log
 
 
 router = APIRouter(
@@ -43,11 +44,8 @@ router = APIRouter(
 # CREATE DECISION
 # =========================================================
 
-@router.post(
-    "",
-    response_model=DecisionResponse,
-    status_code=201
-)
+
+@router.post("", response_model=DecisionResponse, status_code=201)
 def create_decision(
     decision_data: DecisionCreate,
     db: Session = Depends(get_db),
@@ -62,18 +60,39 @@ def create_decision(
     )
 
     db.add(new_decision)
+    db.flush()
+
+    create_activity_log(
+        db=db,
+        user_id=int(current_user["sub"]),
+        action="CREATE",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=f"Created decision: {new_decision.title}"
+    )
+
+    create_audit_log(
+        db=db,
+        user_id=int(current_user["sub"]),
+        action="CREATE",
+        entity_type="Decision",
+        entity_id=new_decision.id,
+        description=f"Created decision: {new_decision.title}",
+        new_value={
+            "title": new_decision.title,
+            "problem_statement": new_decision.problem_statement,
+            "category": new_decision.category,
+            "status": new_decision.status,
+        },
+        request_method="POST",
+        endpoint="/decisions",
+    )
+
     db.commit()
     db.refresh(new_decision)
-    create_activity_log(
-    db=db,
-    user_id=int(current_user["sub"]),
-    action="CREATE",
-    entity_type="Decision",
-    entity_id=new_decision.id,
-    description=f"Created decision: {new_decision.title}"
-)
 
     return new_decision
+
 
 
 # =========================================================

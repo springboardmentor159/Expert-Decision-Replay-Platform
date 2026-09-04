@@ -8,6 +8,7 @@ from app.schemas.alternative import (
     AlternativeUpdate,
 )
 from app.core.dependencies import get_current_user
+from app.services.activity_log_service import create_activity_log
 
 
 router = APIRouter(
@@ -42,6 +43,8 @@ def get_alternative(
         )
 
     return alternative
+
+
 # ---------------------------------------------------------
 # UPDATE ALTERNATIVE
 # ---------------------------------------------------------
@@ -53,7 +56,8 @@ def get_alternative(
 def update_alternative(
     alternative_id: int,
     alternative_data: AlternativeUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     alternative = (
         db.query(Alternative)
@@ -67,6 +71,7 @@ def update_alternative(
             detail="Alternative not found"
         )
 
+    # Update alternative fields
     alternative.name = alternative_data.name
     alternative.description = alternative_data.description
     alternative.pros = alternative_data.pros
@@ -77,5 +82,18 @@ def update_alternative(
 
     db.commit()
     db.refresh(alternative)
+
+    # Get authenticated user ID
+    user_id = int(current_user["sub"])
+
+    # Create activity log
+    create_activity_log(
+        db=db,
+        user_id=user_id,
+        action="UPDATE",
+        entity_type="Alternative",
+        entity_id=alternative.id,
+        description=f"Updated alternative: {alternative.name}",
+    )
 
     return alternative

@@ -10,6 +10,11 @@ from app.routers.tags import router as tags_router
 from app.routers.activity_logs import router as activity_logs_router 
 from app.routers.approvals import router as approvals_router
 from app.routers.dashboard import router as dashboard_router
+
+from app.models.audit_log import AuditLog
+from app.models.decision_version import DecisionVersion
+from app.models.security_log import SecurityLog
+from app.models.access_log import AccessLog
 app = FastAPI(
     title="Expert Decision Replay Platform"
 )

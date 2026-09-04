@@ -12,6 +12,7 @@ from app.schemas.comment import (
     CommentResponse,
 )
 from app.core.dependencies import get_current_user
+from app.services.activity_log_service import create_activity_log
 
 
 router = APIRouter(
@@ -47,8 +48,10 @@ def create_comment(
             detail="Decision not found"
         )
 
+    # Get authenticated user's ID
     user_id = int(current_user["sub"])
 
+    # Create comment
     new_comment = Comment(
         decision_id=decision_id,
         user_id=user_id,
@@ -58,6 +61,16 @@ def create_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
+
+    # Create activity log
+    create_activity_log(
+        db=db,
+        user_id=user_id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=new_comment.id,
+        description=f"Created comment on decision {decision_id}",
+    )
 
     return new_comment
 
@@ -159,13 +172,25 @@ def update_comment(
             detail="You are not allowed to update this comment"
         )
 
-    # Update only content
+    # Update comment
     comment.content = comment_data.content
 
     db.commit()
     db.refresh(comment)
 
+    # Create activity log
+    create_activity_log(
+        db=db,
+        user_id=user_id,
+        action="UPDATE",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Updated comment on decision {comment.decision_id}",
+    )
+
     return comment
+
+
 # =========================================================
 # DELETE COMMENT
 # =========================================================

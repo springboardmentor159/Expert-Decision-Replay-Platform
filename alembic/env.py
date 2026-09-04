@@ -8,6 +8,10 @@ from app.core.config import settings
 from app.db.base import Base
 from app.models.user import User
 from app.models.decision import Decision
+from app.models.audit_log import AuditLog
+from app.models.decision_version import DecisionVersion
+from app.models.security_log import SecurityLog
+from app.models.access_log import AccessLog
 from app.models.alternative import Alternative
 from app.models.comment import Comment
 from app.models.discussion_thread import DiscussionThread

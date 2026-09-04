@@ -12,6 +12,7 @@ from app.schemas.discussion_thread import (
     DiscussionThreadResponse,
     DiscussionThreadUpdate,
 )
+from app.services.activity_log_service import create_activity_log
 
 
 router = APIRouter(
@@ -48,9 +49,10 @@ def create_thread(
             detail="Decision not found"
         )
 
-    # Get authenticated user's ID from JWT
+    # Get authenticated user's ID
     user_id = int(current_user["sub"])
 
+    # Create discussion thread
     new_thread = DiscussionThread(
         decision_id=decision_id,
         created_by=user_id,
@@ -62,6 +64,16 @@ def create_thread(
     db.add(new_thread)
     db.commit()
     db.refresh(new_thread)
+
+    # Create activity log
+    create_activity_log(
+        db=db,
+        user_id=user_id,
+        action="CREATE",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=f"Created discussion thread: {new_thread.title}",
+    )
 
     return new_thread
 
