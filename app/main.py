@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from app.routers.users import router as user_router
 from app.routers.auth import router as auth_router
@@ -11,6 +12,7 @@ from app.routers import rationale
 from app.routers import tag
 from app.routers import dashboard, activity, approval
 from app.routers import audit
+from app.routers import reports
 
 app = FastAPI(
     title="Expert Decision Replay Platform"
@@ -29,3 +31,4 @@ app.include_router(dashboard.router)
 app.include_router(activity.router)
 app.include_router(approval.router)
 app.include_router(audit.router)
+app.include_router(reports.router)
