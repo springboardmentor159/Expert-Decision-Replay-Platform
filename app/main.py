@@ -11,6 +11,8 @@ from app.routers import activities
 from app.routers import approvals
 from app.routers import dashboard
 from app.routers.audit import router as audit_router
+from app.routers.reports import router as reports_router
+from app.routers import teams
 
 
 app = FastAPI(
@@ -39,3 +41,7 @@ app.include_router(approvals.router)
 app.include_router(dashboard.router)
 
 app.include_router(audit_router)
+
+app.include_router(reports_router)
+
+app.include_router(teams.router)
