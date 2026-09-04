@@ -161,8 +161,14 @@ def run_comprehensive_endpoint_checks():
     # -------------------------------------------------------------
     print("\n--- 4. Tags & Taxonomy ---")
     # POST /tags
-    r = client.post("/tags", json={"name": "Database", "category": "Technology"}, headers=adm_h)
-    tag_id = r.json().get("id") if r.status_code == 201 else 1
+    import time
+    unique_tag = f"SprintTag_{int(time.time())}"
+    r = client.post("/tags", json={"name": unique_tag, "category": "Technology"}, headers=adm_h)
+    if r.status_code == 201:
+        tag_id = r.json().get("id")
+    else:
+        tags_res = client.get("/tags", headers=emp_h).json()
+        tag_id = tags_res[0]["id"] if tags_res else 1
     record("/tags", "POST", "Create organization tag (201)", r.status_code, r.status_code in [201, 400])
 
     # GET /tags

@@ -163,6 +163,20 @@ def update_user(
             detail="User not found"
         )
 
+    if current_user.id != user_id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update another user's profile"
+        )
+
+    if user_data.role is not None and current_user.role != "Administrator":
+        new_role_val = user_data.role.value if hasattr(user_data.role, "value") else str(user_data.role)
+        if new_role_val != user.role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only Administrators can change user roles"
+            )
+
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
 
@@ -221,6 +235,12 @@ def delete_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
+        )
+
+    if current_user.role != "Administrator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Administrators can delete users"
         )
 
     db.delete(user)

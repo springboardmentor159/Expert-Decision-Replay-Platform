@@ -109,6 +109,12 @@ def delete_tag(
             detail="Tag not found"
         )
 
+    if current_user.role != "Administrator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Administrators can delete tags"
+        )
+
     tag_name = tag.name
     db.delete(tag)
     db.commit()

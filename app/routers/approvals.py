@@ -57,6 +57,18 @@ def submit_decision_for_approval(
             detail="Decision not found"
         )
 
+    if decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to submit this decision"
+        )
+
+    if decision.status == "Archived":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cannot submit an archived decision"
+        )
+
     reviewer = db.query(User).filter(User.id == approval_in.reviewer_id).first()
     if not reviewer:
         raise HTTPException(
@@ -166,6 +178,12 @@ def process_approval_action(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to act on this approval"
+        )
+
+    if approval.status != "Pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Approval request is already {approval.status.lower()}"
         )
 
     new_status = action_in.status.value if hasattr(action_in.status, "value") else str(action_in.status)

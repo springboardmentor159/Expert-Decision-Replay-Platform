@@ -41,6 +41,18 @@ def create_alternative(
             detail="Decision not found"
         )
 
+    if decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to add alternatives to this decision"
+        )
+
+    if decision.status == "Archived" and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot add alternatives to an archived decision"
+        )
+
     risk_value = alternative_in.risk_level.value if isinstance(alternative_in.risk_level, Enum) else alternative_in.risk_level
 
     new_alternative = Alternative(
@@ -177,6 +189,18 @@ def update_alternative(
             detail="Alternative not found"
         )
 
+    if alternative.decision and alternative.decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this alternative"
+        )
+
+    if alternative.decision and alternative.decision.status == "Archived" and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot modify alternatives of an archived decision"
+        )
+
     old_snapshot = {
         "name": alternative.name,
         "description": alternative.description,
@@ -259,6 +283,18 @@ def delete_alternative(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alternative not found"
+        )
+
+    if alternative.decision and alternative.decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this alternative"
+        )
+
+    if alternative.decision and alternative.decision.status == "Archived" and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot delete alternatives of an archived decision"
         )
 
     old_snapshot = {

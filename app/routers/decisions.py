@@ -373,6 +373,12 @@ def update_decision(
             detail="Decision not found"
         )
 
+    if decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this decision"
+        )
+
     if decision.status == "Archived" and current_user.role not in ["Administrator", "Manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -456,8 +462,29 @@ def update_decision_status(
             detail="Decision not found"
         )
 
+    if decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager", "Reviewer"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update the status of this decision"
+        )
+
     old_status = decision.status
     new_status = status_update.status.value
+
+    VALID_STATE_TRANSITIONS = {
+        "Draft": {"Draft", "Under Review", "Approved", "Archived"},
+        "Under Review": {"Under Review", "Approved", "Rejected", "Draft", "Archived"},
+        "Approved": {"Approved", "Archived"},
+        "Rejected": {"Rejected", "Draft", "Archived"},
+        "Archived": {"Archived"},
+    }
+
+    allowed_targets = VALID_STATE_TRANSITIONS.get(old_status, set())
+    if new_status not in allowed_targets:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid state transition from '{old_status}' to '{new_status}'"
+        )
 
     old_snapshot = {"status": old_status}
     decision.status = new_status
@@ -618,6 +645,12 @@ def assign_tags_to_decision(
             detail="Decision not found"
         )
 
+    if decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify tags for this decision"
+        )
+
     tags = db.query(Tag).filter(Tag.id.in_(tag_in.tag_ids)).all()
     if len(tags) != len(set(tag_in.tag_ids)):
         raise HTTPException(
@@ -701,6 +734,12 @@ def remove_tag_from_decision(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
+        )
+
+    if decision.created_by != current_user.id and current_user.role not in ["Administrator", "Manager"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify tags for this decision"
         )
 
     tag_to_remove = None
