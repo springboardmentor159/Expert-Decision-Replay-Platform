@@ -186,7 +186,24 @@ def update_decision(decision_id: int, decision_data: DecisionUpdate, db: Session
 def update_decision_status(decision_id: int, status_data: DecisionStatusUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     decision = _find_decision(decision_id, db)
     old_status = decision.status
-    decision.status = status_data.status.value
+    new_status = status_data.status.value
+    role = current_user.get("role")
+    allowed_transitions = {
+        "Draft": {"Under Review"},
+        "Under Review": {"Approved", "Rejected"},
+        "Approved": {"Archived"},
+        "Rejected": {"Archived"},
+        "Archived": set(),
+    }
+    if new_status not in allowed_transitions.get(old_status, set()):
+        raise HTTPException(status_code=409, detail=f"Invalid status transition from {old_status} to {new_status}")
+    if new_status == "Under Review" and role not in ("Employee", "Manager", "Administrator"):
+        raise HTTPException(status_code=403, detail="Only decision owners, managers, or administrators can submit decisions")
+    if new_status in ("Approved", "Rejected") and role not in ("Reviewer", "Manager", "Administrator"):
+        raise HTTPException(status_code=403, detail="Only reviewers, managers, or administrators can decide outcomes")
+    if new_status == "Archived" and role != "Administrator":
+        raise HTTPException(status_code=403, detail="Only administrators can archive decisions")
+    decision.status = new_status
     log_activity(db, int(current_user["sub"]), "decision_status_changed", "Decision", decision.id, f"Decision {decision.id} status changed to {decision.status}")
     snapshot_decision(db, decision, int(current_user["sub"]))
     action = "APPROVE" if decision.status == "Approved" else "REJECT" if decision.status == "Rejected" else "UPDATE"

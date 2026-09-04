@@ -119,7 +119,7 @@ def _date_filter(query, column, start_date, end_date):
 
 @router.get("/admin")
 def admin_dashboard(db: Session = Depends(get_db), user=Depends(require_roles("Administrator"))):
-    return {"system_analytics": admin_analytics(db, user), "recent_system_activities": _activities(db, limit=20)}
+    return {"system_analytics": admin_analytics(db=db, user=user), "recent_system_activities": _activities(db, limit=20)}
 
 
 @router.get("/admin/analytics")

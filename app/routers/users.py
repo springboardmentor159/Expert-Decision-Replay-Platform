@@ -7,6 +7,8 @@ from fastapi import (
     status
 )
 from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
+from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import Session
 
@@ -52,8 +54,13 @@ def get_current_user(
 )
 def create_user(
     user: UserCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
 ):
+    current_user = verify_token(credentials.credentials) if credentials else None
+    if user.role.value != "Employee" and (not current_user or current_user.get("role") != "Administrator"):
+        raise HTTPException(status_code=403, detail="Only administrators can create privileged users")
+
     new_user = User(
         full_name=user.full_name,
         email=user.email,
@@ -66,7 +73,11 @@ def create_user(
     )
 
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email or employee ID already exists")
     db.refresh(new_user)
 
     return new_user
@@ -101,6 +112,12 @@ def get_user(
             status_code=404,
             detail="User not found"
         )
+
+    is_admin = current_user.get("role") == "Administrator"
+    if int(current_user["sub"]) != user_id and not is_admin:
+        raise HTTPException(status_code=403, detail="Users can only update their own profile")
+    if user_data.role is not None and not is_admin:
+        raise HTTPException(status_code=403, detail="Only administrators can change roles")
 
     return user
 
@@ -148,7 +165,11 @@ def update_user(
     if user_data.phone_number is not None:
         user.phone_number = user_data.phone_number
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email or employee ID already exists")
     db.refresh(user)
 
     return user
@@ -170,6 +191,9 @@ def delete_user(
             status_code=404,
             detail="User not found"
         )
+
+    if current_user.get("role") != "Administrator":
+        raise HTTPException(status_code=403, detail="Only administrators can delete users")
 
     db.delete(user)
     db.commit()
