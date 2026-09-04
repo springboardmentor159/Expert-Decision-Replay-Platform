@@ -19,6 +19,7 @@ from app.models.audit_log import AuditLog
 
 from app.services.activity import create_activity
 from app.services.audit import create_audit_log
+from app.services.access import create_access_log
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -822,7 +823,16 @@ def get_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    # Record decision access
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Decision",
+        resource_id=decision.id,
+        action="VIEW",
+    )
 
+    db.commit()
     return {
         "id": decision.id,
         "title": decision.title,
@@ -835,6 +845,142 @@ def get_decision(
         "updated_at": decision.updated_at,
     }
 
+# ============================================================
+# UPDATE DECISION STATUS
+# ============================================================
+
+@router.patch(
+    "/{decision_id}/status",
+    response_model=DecisionResponse,
+)
+def update_decision_status(
+    decision_id: int,
+    status_data: DecisionStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Find decision
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found",
+        )
+
+    old_status = decision.status
+    new_status = status_data.status
+
+    # No change
+    if old_status == new_status:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Decision is already {new_status}",
+        )
+
+    # Capture complete old values
+    old_value = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category,
+        "status": old_status,
+        "rationale": decision.rationale,
+    }
+
+    # Update status
+    decision.status = new_status
+
+    db.flush()
+
+    # Get next version number
+    last_version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision.id
+        )
+        .order_by(
+            DecisionVersion.version_number.desc()
+        )
+        .first()
+    )
+
+    next_version = (
+        last_version.version_number + 1
+        if last_version
+        else 1
+    )
+
+    # Create decision version
+    version = DecisionVersion(
+        decision_id=decision.id,
+        version_number=next_version,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        category=decision.category,
+        status=decision.status,
+        rationale=decision.rationale,
+        created_by=current_user.id,
+    )
+
+    db.add(version)
+
+    # Determine audit action
+    audit_action = "UPDATE"
+
+    if new_status == "Approved":
+        audit_action = "APPROVE"
+    elif new_status == "Rejected":
+        audit_action = "REJECT"
+    elif new_status == "Under Review":
+        audit_action = "SUBMIT"
+    elif new_status == "Archived":
+        audit_action = "UPDATE"
+
+    # Create audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=audit_action,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"User {current_user.id} changed "
+            f"Decision {decision.id} status "
+            f"from {old_status} to {new_status}"
+        ),
+        old_value=old_value,
+        new_value={
+            "title": decision.title,
+            "problem_statement": decision.problem_statement,
+            "category": decision.category,
+            "status": new_status,
+            "rationale": decision.rationale,
+        },
+        request_method="PATCH",
+        endpoint=f"/decisions/{decision.id}/status",
+    )
+
+    # Activity log
+    create_activity(
+        db=db,
+        user_id=current_user.id,
+        action=f"Decision status changed to {new_status}",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"Decision {decision.id} status changed "
+            f"from {old_status} to {new_status}"
+        ),
+    )
+
+    db.commit()
+    db.refresh(decision)
+
+    return decision
 
 # ============================================================
 # UPDATE DECISION

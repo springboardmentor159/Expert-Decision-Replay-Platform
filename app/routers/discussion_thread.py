@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.decision import Decision
 from app.models.discussion_thread import DiscussionThread
 from app.services.activity import create_activity
+from app.services.audit import create_audit_log
 from app.schemas.discussion_thread import (
     DiscussionThreadCreate,
     DiscussionThreadUpdate,
@@ -21,9 +22,9 @@ router = APIRouter(
 )
 
 
-# =========================
+# ============================================================
 # CREATE THREAD
-# =========================
+# ============================================================
 
 @router.post(
     "/decisions/{decision_id}/threads",
@@ -59,23 +60,50 @@ def create_thread(
     db.add(new_thread)
     db.flush()
 
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Discussion Thread {new_thread.id}"
+        ),
+        new_value={
+            "decision_id": decision_id,
+            "created_by": current_user.id,
+            "title": new_thread.title,
+            "description": new_thread.description,
+            "status": new_thread.status,
+        },
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/threads",
+    )
+
+    # Activity log
     create_activity(
-    db=db,
-    user_id=current_user.id,
-    action="Discussion thread created",
-    entity_type="DiscussionThread",
-    entity_id=new_thread.id,
-    description=f"User {current_user.id} created Discussion Thread {new_thread.id}",
-)
+        db=db,
+        user_id=current_user.id,
+        action="Discussion thread created",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=(
+            f"User {current_user.id} created "
+            f"Discussion Thread {new_thread.id}"
+        ),
+    )
 
     db.commit()
     db.refresh(new_thread)
 
     return new_thread
 
-# =========================
+
+# ============================================================
 # GET ALL THREADS
-# =========================
+# ============================================================
 
 @router.get(
     "/decisions/{decision_id}/threads",
@@ -105,9 +133,9 @@ def get_threads(
     )
 
 
-# =========================
+# ============================================================
 # GET THREAD BY ID
-# =========================
+# ============================================================
 
 @router.get(
     "/threads/{thread_id}",
@@ -133,9 +161,9 @@ def get_thread(
     return thread
 
 
-# =========================
+# ============================================================
 # UPDATE THREAD
-# =========================
+# ============================================================
 
 @router.put(
     "/threads/{thread_id}",
@@ -163,12 +191,63 @@ def update_thread(
     if thread.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to update this thread",
+            detail=(
+                "You do not have permission "
+                "to update this thread"
+            ),
         )
 
+    # Capture old values
+    old_value = {
+        "decision_id": thread.decision_id,
+        "created_by": thread.created_by,
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status,
+    }
+
+    # Update thread
     thread.title = thread_data.title
     thread.description = thread_data.description
     thread.status = thread_data.status
+
+    db.flush()
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Discussion Thread {thread.id}"
+        ),
+        old_value=old_value,
+        new_value={
+            "decision_id": thread.decision_id,
+            "created_by": thread.created_by,
+            "title": thread.title,
+            "description": thread.description,
+            "status": thread.status,
+        },
+        request_method="PUT",
+        endpoint=f"/threads/{thread.id}",
+    )
+
+    # Activity log
+    create_activity(
+        db=db,
+        user_id=current_user.id,
+        action="Discussion thread updated",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=(
+            f"User {current_user.id} updated "
+            f"Discussion Thread {thread.id}"
+        ),
+    )
 
     db.commit()
     db.refresh(thread)
@@ -176,9 +255,9 @@ def update_thread(
     return thread
 
 
-# =========================
+# ============================================================
 # DELETE THREAD
-# =========================
+# ============================================================
 
 @router.delete(
     "/threads/{thread_id}",
@@ -205,8 +284,49 @@ def delete_thread(
     if thread.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to delete this thread",
+            detail=(
+                "You do not have permission "
+                "to delete this thread"
+            ),
         )
+
+    # Capture values before deletion
+    old_value = {
+        "decision_id": thread.decision_id,
+        "created_by": thread.created_by,
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status,
+    }
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=(
+            f"User {current_user.id} deleted "
+            f"Discussion Thread {thread.id}"
+        ),
+        old_value=old_value,
+        request_method="DELETE",
+        endpoint=f"/threads/{thread.id}",
+    )
+
+    # Activity log
+    create_activity(
+        db=db,
+        user_id=current_user.id,
+        action="Discussion thread deleted",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=(
+            f"User {current_user.id} deleted "
+            f"Discussion Thread {thread.id}"
+        ),
+    )
 
     db.delete(thread)
     db.commit()

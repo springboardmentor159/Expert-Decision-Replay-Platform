@@ -14,6 +14,8 @@ from app.routers.dashboard import router as dashboard_router
 from app.routers.approval import router as approval_router
 from app.routers.activity import router as activity_router
 from app.routers.audit import router as audit_router
+from app.routers.security import router as security_router
+from app.routers.access import router as access_router
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0"
@@ -31,6 +33,8 @@ app.include_router(dashboard_router)
 app.include_router(approval_router)
 app.include_router(activity_router)
 app.include_router(audit_router)
+app.include_router(security_router)
+app.include_router(access_router)
 
 @app.get("/health")
 def health_check():

@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.decision import Decision
 from app.models.approval import Approval
 from app.services.activity import create_activity
+from app.services.audit import create_audit_log
 
 
 router = APIRouter(
@@ -59,8 +60,27 @@ def create_approval(
     )
 
     db.add(approval)
-    db.commit()
-    db.refresh(approval)
+    db.flush()
+
+    # Audit: approval assigned
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=(
+            f"Approval {approval.id} assigned for "
+            f"Decision {decision_id} to User {reviewer_id}"
+        ),
+        new_value={
+            "decision_id": decision_id,
+            "reviewer_id": reviewer_id,
+            "status": "Pending",
+        },
+        request_method="POST",
+        endpoint=f"/approvals/{decision_id}",
+    )
 
     create_activity(
         db=db,
@@ -75,6 +95,7 @@ def create_approval(
     )
 
     db.commit()
+    db.refresh(approval)
 
     return approval
 
@@ -135,6 +156,18 @@ def approve(
             detail="Approval is already completed",
         )
 
+    # Capture old value before modification
+    old_value = {
+        "decision_id": approval.decision_id,
+        "reviewer_id": approval.reviewer_id,
+        "status": approval.status,
+        "completed_at": (
+            approval.completed_at.isoformat()
+            if approval.completed_at
+            else None
+        ),
+    }
+
     approval.status = "Approved"
     approval.completed_at = datetime.utcnow()
 
@@ -146,6 +179,30 @@ def approve(
 
     if decision:
         decision.status = "Approved"
+
+    db.flush()
+
+    # Audit: approval approved
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="APPROVE",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=(
+            f"User {current_user.id} approved "
+            f"Approval {approval.id}"
+        ),
+        old_value=old_value,
+        new_value={
+            "decision_id": approval.decision_id,
+            "reviewer_id": approval.reviewer_id,
+            "status": "Approved",
+            "completed_at": approval.completed_at.isoformat(),
+        },
+        request_method="PATCH",
+        endpoint=f"/approvals/{approval_id}/approve",
+    )
 
     create_activity(
         db=db,
@@ -199,6 +256,18 @@ def reject(
             detail="Approval is already completed",
         )
 
+    # Capture old value before modification
+    old_value = {
+        "decision_id": approval.decision_id,
+        "reviewer_id": approval.reviewer_id,
+        "status": approval.status,
+        "completed_at": (
+            approval.completed_at.isoformat()
+            if approval.completed_at
+            else None
+        ),
+    }
+
     approval.status = "Rejected"
     approval.completed_at = datetime.utcnow()
 
@@ -210,6 +279,30 @@ def reject(
 
     if decision:
         decision.status = "Rejected"
+
+    db.flush()
+
+    # Audit: approval rejected
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="REJECT",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=(
+            f"User {current_user.id} rejected "
+            f"Approval {approval.id}"
+        ),
+        old_value=old_value,
+        new_value={
+            "decision_id": approval.decision_id,
+            "reviewer_id": approval.reviewer_id,
+            "status": "Rejected",
+            "completed_at": approval.completed_at.isoformat(),
+        },
+        request_method="PATCH",
+        endpoint=f"/approvals/{approval_id}/reject",
+    )
 
     create_activity(
         db=db,

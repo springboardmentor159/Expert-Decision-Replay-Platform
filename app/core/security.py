@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import os
+import uuid
 
 from jose import jwt
 from passlib.context import CryptContext
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
+from app.models.revoked_token import RevokedToken
 
 
 pwd_context = CryptContext(
@@ -49,7 +51,13 @@ def create_access_token(
             minutes=ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
-    to_encode.update({"exp": expire})
+    # Generate a unique ID for this JWT
+    jti = str(uuid.uuid4())
+
+    to_encode.update({
+        "exp": expire,
+        "jti": jti,
+    })
 
     return jwt.encode(
         to_encode,
@@ -72,11 +80,25 @@ def get_current_user(
         )
 
         user_id = payload.get("sub")
+        jti = payload.get("jti")
 
-        if user_id is None:
+        if user_id is None or jti is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token"
+            )
+
+        # Check whether the JWT has been revoked
+        revoked_token = (
+            db.query(RevokedToken)
+            .filter(RevokedToken.jti == jti)
+            .first()
+        )
+
+        if revoked_token is not None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked"
             )
 
         user = (
@@ -92,6 +114,9 @@ def get_current_user(
             )
 
         return user
+
+    except HTTPException:
+        raise
 
     except Exception:
         raise HTTPException(
