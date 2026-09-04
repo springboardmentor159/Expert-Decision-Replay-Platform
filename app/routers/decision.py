@@ -16,6 +16,7 @@ from app.models.discussion_thread import DiscussionThread
 from app.models.tag import Tag
 
 from app.services.activity import create_activity_log
+from app.services.audit import create_audit_log
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -32,7 +33,6 @@ from app.schemas.tag import (
 )
 
 from app.core.security import get_current_user
-from app.services.audit import create_audit_log
 
 
 router = APIRouter(
@@ -42,8 +42,9 @@ router = APIRouter(
 
 
 # =========================================================
-# Sprint 11: Decision History RBAC
+# HELPERS
 # =========================================================
+
 def check_decision_history_access(
     decision: Decision,
     current_user,
@@ -51,17 +52,11 @@ def check_decision_history_access(
 ):
     role = current_user.role
 
-    # -----------------------------------------------------
     # Administrator
-    # Organization-wide decision history access
-    # -----------------------------------------------------
     if role in {"Admin", "Administrator"}:
         return
 
-    # -----------------------------------------------------
     # Employee
-    # Employee can access history of their own decisions
-    # -----------------------------------------------------
     if role == "Employee":
         if decision.created_by != current_user.id:
             raise HTTPException(
@@ -71,15 +66,9 @@ def check_decision_history_access(
                     "of their own decisions"
                 ),
             )
-
         return
 
-    # -----------------------------------------------------
     # Reviewer
-    # Reviewer can access:
-    # 1. Their own decisions
-    # 2. Decisions that have progressed beyond Draft
-    # -----------------------------------------------------
     if role == "Reviewer":
         if (
             decision.created_by == current_user.id
@@ -95,11 +84,7 @@ def check_decision_history_access(
             ),
         )
 
-    # -----------------------------------------------------
     # Manager
-    # Manager can access decisions created by users
-    # belonging to the same department
-    # -----------------------------------------------------
     if role == "Manager":
         creator = (
             db.query(User)
@@ -122,9 +107,6 @@ def check_decision_history_access(
             ),
         )
 
-    # -----------------------------------------------------
-    # Unknown / unsupported role
-    # -----------------------------------------------------
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail=(
@@ -132,6 +114,84 @@ def check_decision_history_access(
             "decision history"
         ),
     )
+
+
+def check_decision_edit_access(
+    decision: Decision,
+    current_user,
+):
+    """
+    Only the decision creator can modify a Draft decision.
+    Administrators can modify any decision.
+    Final decisions cannot be edited.
+    """
+
+    if current_user.role in {"Admin", "Administrator"}:
+        return
+
+    if current_user.role != "Employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Only the decision creator or Administrator "
+                "can modify a decision"
+            ),
+        )
+
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "You can only modify your own decisions"
+            ),
+        )
+
+    if decision.status != "Draft":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Decision cannot be modified when its "
+                f"status is '{decision.status}'"
+            ),
+        )
+
+
+def create_decision_version(
+    db: Session,
+    decision: Decision,
+    user_id: int,
+):
+    latest_version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision.id
+        )
+        .order_by(
+            DecisionVersion.version_number.desc()
+        )
+        .first()
+    )
+
+    next_version_number = (
+        latest_version.version_number + 1
+        if latest_version
+        else 1
+    )
+
+    version = DecisionVersion(
+        decision_id=decision.id,
+        version_number=next_version_number,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        description=None,
+        category=decision.category,
+        status=decision.status,
+        created_by=user_id,
+    )
+
+    db.add(version)
+
+    return version
 
 
 # =========================================================
@@ -235,6 +295,20 @@ def create_decision(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    # Decisions are created by Employees.
+    if current_user.role not in {
+        "Employee",
+        "Admin",
+        "Administrator",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Only Employees or Administrators "
+                "can create decisions"
+            ),
+        )
+
     new_decision = Decision(
         title=decision.title,
         problem_statement=decision.problem_statement,
@@ -244,12 +318,8 @@ def create_decision(
     )
 
     db.add(new_decision)
-
     db.flush()
 
-    # =====================================================
-    # Sprint 11: Create initial decision version
-    # =====================================================
     initial_version = DecisionVersion(
         decision_id=new_decision.id,
         version_number=1,
@@ -263,9 +333,6 @@ def create_decision(
 
     db.add(initial_version)
 
-    # =====================================================
-    # Sprint 11: CREATE audit
-    # =====================================================
     create_audit_log(
         db=db,
         decision_id=new_decision.id,
@@ -284,7 +351,6 @@ def create_decision(
         },
     )
 
-    # Sprint 10 activity log
     create_activity_log(
         db=db,
         user_id=current_user.id,
@@ -414,7 +480,8 @@ def get_decision_timeline(
                     "event_type": "Alternative Added",
                     "timestamp": alternative.created_at,
                     "description": (
-                        f"Alternative '{alternative.name}' was added"
+                        f"Alternative '{alternative.name}' "
+                        f"was added"
                     ),
                 }
             )
@@ -537,9 +604,6 @@ def get_decision_versions(
             detail="Decision not found",
         )
 
-    # =====================================================
-    # Sprint 11: RBAC
-    # =====================================================
     check_decision_history_access(
         decision=decision,
         current_user=current_user,
@@ -585,9 +649,6 @@ def get_decision_version(
             detail="Decision not found",
         )
 
-    # =====================================================
-    # Sprint 11: RBAC
-    # =====================================================
     check_decision_history_access(
         decision=decision,
         current_user=current_user,
@@ -635,9 +696,6 @@ def get_decision_history(
             detail="Decision not found",
         )
 
-    # =====================================================
-    # Sprint 11: RBAC
-    # =====================================================
     check_decision_history_access(
         decision=decision,
         current_user=current_user,
@@ -726,9 +784,11 @@ def update_decision(
             detail="Decision not found",
         )
 
-    # =====================================================
-    # Sprint 11: Capture old values
-    # =====================================================
+    check_decision_edit_access(
+        decision=decision,
+        current_user=current_user,
+    )
+
     old_value = {
         "title": decision.title,
         "problem_statement": decision.problem_statement,
@@ -742,45 +802,12 @@ def update_decision(
 
     db.flush()
 
-    # =====================================================
-    # Sprint 11: Get latest version
-    # =====================================================
-    latest_version = (
-        db.query(DecisionVersion)
-        .filter(
-            DecisionVersion.decision_id == decision.id
-        )
-        .order_by(
-            DecisionVersion.version_number.desc()
-        )
-        .first()
+    new_version = create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=current_user.id,
     )
 
-    next_version_number = (
-        latest_version.version_number + 1
-        if latest_version
-        else 1
-    )
-
-    # =====================================================
-    # Sprint 11: Create new version
-    # =====================================================
-    new_version = DecisionVersion(
-        decision_id=decision.id,
-        version_number=next_version_number,
-        title=decision.title,
-        problem_statement=decision.problem_statement,
-        description=None,
-        category=decision.category,
-        status=decision.status,
-        created_by=current_user.id,
-    )
-
-    db.add(new_version)
-
-    # =====================================================
-    # Sprint 11: Capture new values
-    # =====================================================
     new_value = {
         "title": decision.title,
         "problem_statement": decision.problem_statement,
@@ -802,7 +829,6 @@ def update_decision(
         new_value=new_value,
     )
 
-    # Sprint 10 activity log
     create_activity_log(
         db=db,
         user_id=current_user.id,
@@ -823,6 +849,15 @@ def update_decision(
 
 # =========================================================
 # UPDATE DECISION STATUS
+#
+# Controlled lifecycle:
+#
+# Draft -> Under Review
+# Under Review -> Approved  ❌ blocked here
+# Under Review -> Rejected  ❌ blocked here
+# Approved -> Archived
+#
+# Approval/rejection must happen through /approvals.
 # =========================================================
 @router.patch(
     "/{decision_id}/status",
@@ -849,125 +884,170 @@ def update_decision_status(
     old_status = decision.status
     new_status = status_data.status.value
 
-    # =====================================================
-    # Prevent unnecessary duplicate status updates
-    # =====================================================
     if old_status == new_status:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Decision already has this status",
         )
 
-    # =====================================================
-    # Sprint 11: Determine controlled audit action
-    # =====================================================
-    if new_status == "Under Review":
-        audit_action = "SUBMIT"
-        action_description = "submitted for review"
+    # -----------------------------------------------------
+    # Controlled transition: Draft -> Under Review
+    # -----------------------------------------------------
+    if old_status == "Draft" and new_status == "Under Review":
 
-    elif new_status == "Approved":
-        audit_action = "APPROVE"
-        action_description = "approved"
+        if current_user.role not in {
+            "Employee",
+            "Admin",
+            "Administrator",
+        }:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Only the decision creator or "
+                    "Administrator can submit a decision"
+                ),
+            )
 
-    elif new_status == "Rejected":
-        audit_action = "REJECT"
-        action_description = "rejected"
+        if (
+            current_user.role == "Employee"
+            and decision.created_by != current_user.id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You can only submit your own decisions"
+                ),
+            )
 
-    elif new_status == "Archived":
-        audit_action = "UPDATE"
-        action_description = "archived"
+        decision.status = "Under Review"
 
-    else:
-        audit_action = "UPDATE"
-        action_description = "status updated"
+        db.flush()
 
-    # =====================================================
-    # Update decision status
-    # =====================================================
-    decision.status = new_status
-
-    db.flush()
-
-    # =====================================================
-    # Sprint 11: Get latest version number
-    # =====================================================
-    latest_version = (
-        db.query(DecisionVersion)
-        .filter(
-            DecisionVersion.decision_id == decision.id
+        create_decision_version(
+            db=db,
+            decision=decision,
+            user_id=current_user.id,
         )
-        .order_by(
-            DecisionVersion.version_number.desc()
+
+        create_audit_log(
+            db=db,
+            decision_id=decision.id,
+            user_id=current_user.id,
+            action="SUBMIT",
+            description=(
+                f"Decision '{decision.title}' was "
+                f"submitted for review"
+            ),
+            entity_type="Decision",
+            entity_id=decision.id,
+            old_value={
+                "status": old_status,
+            },
+            new_value={
+                "status": new_status,
+            },
         )
-        .first()
-    )
 
-    next_version_number = (
-        latest_version.version_number + 1
-        if latest_version
-        else 1
-    )
+        create_activity_log(
+            db=db,
+            user_id=current_user.id,
+            action="submitted",
+            entity_type="Decision",
+            entity_id=decision.id,
+            description=(
+                f"User {current_user.id} submitted "
+                f"Decision {decision.id} for review"
+            ),
+        )
 
-    # =====================================================
-    # Sprint 11: Create version for status change
-    # =====================================================
-    new_version = DecisionVersion(
-        decision_id=decision.id,
-        version_number=next_version_number,
-        title=decision.title,
-        problem_statement=decision.problem_statement,
-        description=None,
-        category=decision.category,
-        status=decision.status,
-        created_by=current_user.id,
-    )
+        db.commit()
+        db.refresh(decision)
 
-    db.add(new_version)
+        return decision
 
-    # =====================================================
-    # Sprint 11: Audit status change
-    # =====================================================
-    create_audit_log(
-        db=db,
-        decision_id=decision.id,
-        user_id=current_user.id,
-        action=audit_action,
-        description=(
-            f"Decision '{decision.title}' was "
-            f"{action_description} "
-            f"(status changed from '{old_status}' "
-            f"to '{new_status}')"
+    # -----------------------------------------------------
+    # Controlled transition: Approved -> Archived
+    # -----------------------------------------------------
+    if old_status == "Approved" and new_status == "Archived":
+
+        if current_user.role not in {
+            "Manager",
+            "Admin",
+            "Administrator",
+        }:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Only Managers or Administrators "
+                    "can archive an approved decision"
+                ),
+            )
+
+        decision.status = "Archived"
+
+        db.flush()
+
+        create_decision_version(
+            db=db,
+            decision=decision,
+            user_id=current_user.id,
+        )
+
+        create_audit_log(
+            db=db,
+            decision_id=decision.id,
+            user_id=current_user.id,
+            action="UPDATE",
+            description=(
+                f"Decision '{decision.title}' was archived"
+            ),
+            entity_type="Decision",
+            entity_id=decision.id,
+            old_value={
+                "status": old_status,
+            },
+            new_value={
+                "status": new_status,
+            },
+        )
+
+        create_activity_log(
+            db=db,
+            user_id=current_user.id,
+            action="archived",
+            entity_type="Decision",
+            entity_id=decision.id,
+            description=(
+                f"User {current_user.id} archived "
+                f"Decision {decision.id}"
+            ),
+        )
+
+        db.commit()
+        db.refresh(decision)
+
+        return decision
+
+    # -----------------------------------------------------
+    # Everything else is invalid.
+    #
+    # This prevents:
+    # Draft -> Approved
+    # Draft -> Rejected
+    # Draft -> Archived
+    # Under Review -> Approved
+    # Under Review -> Rejected
+    # Rejected -> Approved
+    # Archived -> anything
+    # -----------------------------------------------------
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            f"Invalid decision status transition: "
+            f"'{old_status}' -> '{new_status}'. "
+            f"Use the Approval workflow for approval/rejection."
         ),
-        entity_type="Decision",
-        entity_id=decision.id,
-        old_value={
-            "status": old_status,
-        },
-        new_value={
-            "status": new_status,
-        },
     )
-
-    # =====================================================
-    # Sprint 10 activity log
-    # =====================================================
-    create_activity_log(
-        db=db,
-        user_id=current_user.id,
-        action="status_changed",
-        entity_type="Decision",
-        entity_id=decision.id,
-        description=(
-            f"User {current_user.id} changed "
-            f"Decision {decision.id} status from "
-            f"'{old_status}' to '{new_status}'"
-        ),
-    )
-
-    db.commit()
-    db.refresh(decision)
-
-    return decision
 
 
 # =========================================================
@@ -992,6 +1072,38 @@ def delete_decision(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
+        )
+
+    # Only creator can delete Draft.
+    # Administrators can delete any decision.
+    if current_user.role in {"Admin", "Administrator"}:
+        pass
+
+    elif current_user.role == "Employee":
+        if decision.created_by != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "You can only delete your own decisions"
+                ),
+            )
+
+        if decision.status != "Draft":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Decision cannot be deleted when its "
+                    f"status is '{decision.status}'"
+                ),
+            )
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Only the decision creator or "
+                "Administrator can delete a decision"
+            ),
         )
 
     decision_title = decision.title
@@ -1057,6 +1169,11 @@ def assign_tags_to_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+
+    check_decision_edit_access(
+        decision=decision,
+        current_user=current_user,
+    )
 
     tags = (
         db.query(Tag)
@@ -1151,6 +1268,11 @@ def remove_tag_from_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+
+    check_decision_edit_access(
+        decision=decision,
+        current_user=current_user,
+    )
 
     tag = (
         db.query(Tag)
