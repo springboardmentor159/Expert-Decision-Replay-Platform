@@ -42,8 +42,18 @@ Covered workflow:
 - `BUG-006` High: public registration could create privileged roles. Fixed so only administrators can create Reviewer, Manager, or Administrator users.
 - `BUG-007` High: non-administrators could update or delete other users. Fixed with ownership and administrator checks.
 
-## Known Scope
+## Additional Coverage
 
-Supporting document upload endpoints are not implemented in the current application, so file-upload cases remain not applicable until that module is added.
+- Document upload: `201`
+- Document listing: `200`
+- Document download: `200` with matching file content
+- Oversized upload: `413`
+- Unauthorized document access: `403`
+- PostgreSQL document count: verified
+- Orphan documents: `0`
+- Orphan decisions: `0`
+- Concurrent read checks: passed for decisions, search, dashboard, and reports
+- Postman collection: `postman/Sprint13.postman_collection.json`
+- Performance script: `test_sprint13_performance.py`
 
 The real `.env` must define `SECRET_KEY`; `.env.example` contains placeholders only and no credentials.

@@ -86,6 +86,16 @@ request("PUT", f"/decisions/{decision_id}", token=employee_token, json={
 }, expected=200)
 request("PUT", f"/decisions/{decision_id}/rationale", token=employee_token, json={"rationale": "Updated rationale"}, expected=200)
 request("POST", f"/decisions/{decision_id}/meeting-notes", token=employee_token, json={"title": "Review", "content": "Meeting", "meeting_date": "2026-09-04T10:00:00"}, expected=201)
+document = request(
+    "POST",
+    f"/decisions/{decision_id}/documents",
+    token=employee_token,
+    files={"file": ("integration.txt", b"Sprint 13 document", "text/plain")},
+    expected=201,
+).json()
+request("GET", f"/decisions/{decision_id}/documents", token=employee_token, expected=200)
+download = request("GET", f"/documents/{document['id']}/download", token=employee_token, expected=200)
+assert download.content == b"Sprint 13 document"
 
 request("PATCH", f"/decisions/{decision_id}/status", token=employee_token, json={"status": "Under Review"}, expected=200)
 request("PATCH", f"/decisions/{decision_id}/status", token=employee_token, json={"status": "Archived"}, expected=409)

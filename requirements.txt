@@ -34,3 +34,4 @@ typing_extensions==4.16.0
 uvicorn==0.52.1
 reportlab==5.0.1
 openpyxl==3.1.5
+python-multipart==0.0.20

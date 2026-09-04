@@ -50,3 +50,4 @@ class User(Base):
     security_logs = relationship("SecurityLog", back_populates="user")
     access_logs = relationship("AccessLog", back_populates="user")
     decision_versions = relationship("DecisionVersion", back_populates="user")
+    documents = relationship("DecisionDocument", back_populates="uploader")

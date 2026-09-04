@@ -75,3 +75,4 @@ class Decision(Base):
     )
     approvals = relationship("Approval", back_populates="decision", cascade="all, delete-orphan")
     versions = relationship("DecisionVersion", back_populates="decision", cascade="all, delete-orphan")
+    documents = relationship("DecisionDocument", back_populates="decision", cascade="all, delete-orphan")

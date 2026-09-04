@@ -13,6 +13,7 @@ from app.routers import tag
 from app.routers import dashboard, activity, approval
 from app.routers import audit
 from app.routers import reports
+from app.routers import document
 
 app = FastAPI(
     title="Expert Decision Replay Platform"
@@ -32,3 +33,4 @@ app.include_router(activity.router)
 app.include_router(approval.router)
 app.include_router(audit.router)
 app.include_router(reports.router)
+app.include_router(document.router)

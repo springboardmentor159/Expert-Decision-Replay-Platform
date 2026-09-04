@@ -25,7 +25,7 @@ def assign_approval(data: ApprovalCreate, db: Session = Depends(get_db), user=De
 
 @router.patch("/{approval_id}", response_model=ApprovalResponse)
 def complete_approval(approval_id: int, data: ApprovalDecision, db: Session = Depends(get_db), user=Depends(require_roles("Reviewer", "Manager", "Administrator"))):
-    approval = db.query(Approval).filter(Approval.id == approval_id).first()
+    approval = db.query(Approval).filter(Approval.id == approval_id).with_for_update().first()
     if not approval:
         raise HTTPException(status_code=404, detail="Approval not found")
     if int(user["sub"]) != approval.reviewer_id and user.get("role") not in ("Manager", "Administrator"):

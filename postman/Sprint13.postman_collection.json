@@ -1,0 +1,46 @@
+{
+  "info": {
+    "name": "Expert Decision Replay Platform - Sprint 13",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8000"},
+    {"key": "employee_token", "value": ""},
+    {"key": "reviewer_token", "value": ""},
+    {"key": "manager_token", "value": ""},
+    {"key": "admin_token", "value": ""},
+    {"key": "decision_id", "value": ""},
+    {"key": "approval_id", "value": ""},
+    {"key": "document_id", "value": ""}
+  ],
+  "item": [
+    {"name": "Authentication", "item": [
+      {"name": "Login", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"email\": \"replace@example.com\",\n  \"password\": \"replace-me\"\n}"}, "url": "{{base_url}}/auth/login"}},
+      {"name": "Invalid Login", "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"email\": \"invalid@example.com\",\n  \"password\": \"invalid\"\n}"}, "url": "{{base_url}}/auth/login"}}
+    ]},
+    {"name": "Decisions", "item": [
+      {"name": "Create Decision", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"title\": \"Postman integration decision\",\n  \"problem_statement\": \"Validate the workflow\",\n  \"category\": \"Technology\",\n  \"rationale\": \"Integration test\"\n}"}, "url": "{{base_url}}/decisions"}},
+      {"name": "Search Decisions", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/decisions/search?q=integration"}},
+      {"name": "Submit Decision", "request": {"method": "PATCH", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"status\": \"Under Review\"\n}"}, "url": "{{base_url}}/decisions/{{decision_id}}/status"}}
+    ]},
+    {"name": "Alternatives", "item": [
+      {"name": "Create Alternative", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"PostgreSQL\",\n  \"description\": \"Relational option\",\n  \"pros\": \"Reliable\",\n  \"cons\": \"Migration effort\",\n  \"estimated_cost\": 1000,\n  \"feasibility_score\": 4,\n  \"risk_level\": \"Medium\"\n}"}, "url": "{{base_url}}/decisions/{{decision_id}}/alternatives"}},
+      {"name": "Compare Alternatives", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/decisions/{{decision_id}}/alternatives/compare"}}
+    ]},
+    {"name": "Discussion", "item": [
+      {"name": "Add Comment", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"content\": \"Postman comment\"\n}"}, "url": "{{base_url}}/decisions/{{decision_id}}/comments"}},
+      {"name": "Add Thread", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"title\": \"Postman thread\",\n  \"description\": \"Discussion\"\n}"}, "url": "{{base_url}}/decisions/{{decision_id}}/threads"}}
+    ]},
+    {"name": "Approvals", "item": [
+      {"name": "Assign Approval", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"decision_id\": {{decision_id}},\n  \"reviewer_id\": 1,\n  \"approval_level\": 1\n}"}, "url": "{{base_url}}/approvals"}},
+      {"name": "Complete Approval", "request": {"method": "PATCH", "header": [{"key": "Authorization", "value": "Bearer {{reviewer_token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"decision\": \"Approved\"\n}"}, "url": "{{base_url}}/approvals/{{approval_id}}"}}
+    ]},
+    {"name": "Documents", "item": [
+      {"name": "Upload Document", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "body": {"mode": "formdata", "formdata": [{"key": "file", "type": "file", "src": ""}]}, "url": "{{base_url}}/decisions/{{decision_id}}/documents"}},
+      {"name": "List Documents", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/decisions/{{decision_id}}/documents"}},
+      {"name": "Download Document", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/documents/{{document_id}}/download"}}
+    ]},
+    {"name": "Dashboards", "item": [{"name": "Employee Dashboard", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/dashboard/employee"}}, {"name": "Manager Dashboard", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{manager_token}}"}], "url": "{{base_url}}/dashboard/manager"}}, {"name": "Admin Dashboard", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}], "url": "{{base_url}}/dashboard/admin"}}]},
+    {"name": "Reports", "item": [{"name": "Decision Report", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/reports/decisions"}}, {"name": "Decision PDF", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/reports/decisions/export/pdf"}}, {"name": "Decision Excel", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{employee_token}}"}], "url": "{{base_url}}/reports/decisions/export/excel"}}]}
+  ]
+}
