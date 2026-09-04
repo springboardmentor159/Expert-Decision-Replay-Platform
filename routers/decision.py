@@ -38,6 +38,20 @@ def _ensure_not_archived(decision: Decision) -> None:
         raise HTTPException(status_code=409, detail="Archived decisions cannot be modified")
 
 
+def _ensure_can_modify(decision: Decision, user: User) -> None:
+    if decision.created_by != user.id and str(user.role).lower() not in {"manager", "admin", "administrator"}:
+        raise HTTPException(status_code=403, detail="Insufficient permission")
+
+
+VALID_STATUS_TRANSITIONS = {
+    DecisionStatus.Draft.value: {DecisionStatus.Draft.value, DecisionStatus.UnderReview.value, DecisionStatus.Archived.value},
+    DecisionStatus.UnderReview.value: {DecisionStatus.UnderReview.value, DecisionStatus.Approved.value, DecisionStatus.Rejected.value},
+    DecisionStatus.Approved.value: {DecisionStatus.Approved.value, DecisionStatus.Archived.value},
+    DecisionStatus.Rejected.value: {DecisionStatus.Rejected.value, DecisionStatus.Draft.value, DecisionStatus.Archived.value},
+    DecisionStatus.Archived.value: {DecisionStatus.Archived.value},
+}
+
+
 @router.post(
     "",
     response_model=DecisionResponse,
@@ -261,6 +275,7 @@ def update_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    _ensure_can_modify(decision, current_user)
     _ensure_not_archived(decision)
     old_value = {"title": decision.title, "problem_statement": decision.problem_statement, "category": decision.category}
 
@@ -305,10 +320,16 @@ def update_decision_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    _ensure_can_modify(decision, current_user)
     _ensure_not_archived(decision)
 
     # Update status with validated enum value
     previous_status = decision.status
+    if status_update.status.value not in VALID_STATUS_TRANSITIONS[previous_status]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Invalid status transition from {previous_status} to {status_update.status.value}",
+        )
     decision.status = status_update.status.value
     record_activity(
         db, current_user.id, "decision_status_changed", "Decision",
@@ -344,6 +365,7 @@ def delete_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    _ensure_can_modify(decision, current_user)
 
     decision.status = DecisionStatus.Archived.value
     record_activity(db, current_user.id, "decision_archived", "Decision", "Decision archived", decision.id)
@@ -376,6 +398,7 @@ def update_decision_rationale(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    _ensure_can_modify(decision, current_user)
     _ensure_not_archived(decision)
 
     decision.rationale = rationale_update.rationale

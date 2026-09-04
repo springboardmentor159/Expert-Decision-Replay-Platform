@@ -7,8 +7,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     APP_NAME: str = "Expert Decision Replay Platform"
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:1234@localhost:5432/expert_decision_replay"
-    SECRET_KEY: str = "a_super_secret_key_change_me"
+    DATABASE_URL: str = "sqlite:///./expert_decision_replay.db"
+    SECRET_KEY: str = "development-only-change-this-secret"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
