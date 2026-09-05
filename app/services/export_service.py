@@ -14,7 +14,7 @@ def generate_pdf(title: str, headers: list, rows: list, summary: dict = None) ->
     styles = getSampleStyleSheet()
     elements = []
 
-    # Title
+    
     elements.append(Paragraph(title, styles["Title"]))
     elements.append(Paragraph(
         f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
@@ -22,14 +22,14 @@ def generate_pdf(title: str, headers: list, rows: list, summary: dict = None) ->
     ))
     elements.append(Spacer(1, 12))
 
-    # Summary
+    
     if summary:
         elements.append(Paragraph("Summary", styles["Heading2"]))
         for key, value in summary.items():
             elements.append(Paragraph(f"{key}: {value}", styles["Normal"]))
         elements.append(Spacer(1, 12))
 
-    # Table
+    
     if rows:
         table_data = [headers] + rows
         table = Table(table_data, repeatRows=1)
@@ -65,13 +65,13 @@ def generate_excel(title: str, headers: list, rows: list, summary: dict = None) 
 
     row_num = 1
 
-    # Title
+    
     ws.cell(row=row_num, column=1, value=title).font = Font(bold=True, size=14)
     row_num += 1
     ws.cell(row=row_num, column=1, value=f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     row_num += 2
 
-    # Summary
+    
     if summary:
         ws.cell(row=row_num, column=1, value="Summary").font = summary_font
         row_num += 1
@@ -81,7 +81,7 @@ def generate_excel(title: str, headers: list, rows: list, summary: dict = None) 
             row_num += 1
         row_num += 1
 
-    # Headers
+    
     for col_num, header in enumerate(headers, 1):
         cell = ws.cell(row=row_num, column=col_num, value=header)
         cell.font = header_font
@@ -89,13 +89,13 @@ def generate_excel(title: str, headers: list, rows: list, summary: dict = None) 
         cell.alignment = Alignment(horizontal="center")
     row_num += 1
 
-    # Data rows
+    
     for row in rows:
         for col_num, value in enumerate(row, 1):
             ws.cell(row=row_num, column=col_num, value=str(value) if value is not None else "")
         row_num += 1
 
-    # Auto-fit columns
+    
     for col in ws.columns:
         max_length = 0
         col_letter = col[0].column_letter
