@@ -15,6 +15,9 @@ from app.models.audit_log import AuditLog
 from app.models.decision_version import DecisionVersion
 from app.models.security_log import SecurityLog
 from app.models.access_log import AccessLog
+from app.routers.audit_logs import router as audit_logs_router
+from app.routers.security_logs import router as security_logs_router
+from app.routers.access_logs import router as access_logs_router
 app = FastAPI(
     title="Expert Decision Replay Platform"
 )
@@ -30,3 +33,6 @@ app.include_router(tags_router)
 app.include_router(activity_logs_router)
 app.include_router(approvals_router)
 app.include_router(dashboard_router)
+app.include_router(audit_logs_router)
+app.include_router(security_logs_router)
+app.include_router(access_logs_router)

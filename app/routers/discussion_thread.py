@@ -1,6 +1,7 @@
+
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
@@ -13,6 +14,7 @@ from app.schemas.discussion_thread import (
     DiscussionThreadUpdate,
 )
 from app.services.activity_log_service import create_activity_log
+from app.services.audit_log_service import create_audit_log
 
 
 router = APIRouter(
@@ -33,10 +35,10 @@ router = APIRouter(
 def create_thread(
     decision_id: int,
     thread_data: DiscussionThreadCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    # Check whether Decision exists
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
@@ -49,10 +51,8 @@ def create_thread(
             detail="Decision not found"
         )
 
-    # Get authenticated user's ID
     user_id = int(current_user["sub"])
 
-    # Create discussion thread
     new_thread = DiscussionThread(
         decision_id=decision_id,
         created_by=user_id,
@@ -62,10 +62,8 @@ def create_thread(
     )
 
     db.add(new_thread)
-    db.commit()
-    db.refresh(new_thread)
+    db.flush()
 
-    # Create activity log
     create_activity_log(
         db=db,
         user_id=user_id,
@@ -74,6 +72,27 @@ def create_thread(
         entity_id=new_thread.id,
         description=f"Created discussion thread: {new_thread.title}",
     )
+
+    create_audit_log(
+        db=db,
+        user_id=user_id,
+        action="CREATE",
+        entity_type="DiscussionThread",
+        entity_id=new_thread.id,
+        description=f"Created discussion thread: {new_thread.title}",
+        new_value={
+            "decision_id": decision_id,
+            "title": new_thread.title,
+            "description": new_thread.description,
+            "status": new_thread.status,
+        },
+        ip_address=request.client.host if request.client else None,
+        request_method=request.method,
+        endpoint=request.url.path,
+    )
+
+    db.commit()
+    db.refresh(new_thread)
 
     return new_thread
 
@@ -90,7 +109,6 @@ def get_threads(
     decision_id: int,
     db: Session = Depends(get_db)
 ):
-    # Check whether Decision exists
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
@@ -152,7 +170,9 @@ def get_thread(
 def update_thread(
     thread_id: int,
     thread_data: DiscussionThreadUpdate,
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     thread = (
         db.query(DiscussionThread)
@@ -166,9 +186,50 @@ def update_thread(
             detail="Discussion thread not found"
         )
 
+    user_id = int(current_user["sub"])
+
+    old_value = {
+        "decision_id": thread.decision_id,
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status,
+    }
+
     thread.title = thread_data.title
     thread.description = thread_data.description
     thread.status = thread_data.status
+
+    db.flush()
+
+    new_value = {
+        "decision_id": thread.decision_id,
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status,
+    }
+
+    create_activity_log(
+        db=db,
+        user_id=user_id,
+        action="UPDATE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"Updated discussion thread: {thread.title}",
+    )
+
+    create_audit_log(
+        db=db,
+        user_id=user_id,
+        action="UPDATE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"Updated discussion thread: {thread.title}",
+        old_value=old_value,
+        new_value=new_value,
+        ip_address=request.client.host if request.client else None,
+        request_method=request.method,
+        endpoint=request.url.path,
+    )
 
     db.commit()
     db.refresh(thread)
@@ -185,7 +246,9 @@ def update_thread(
 )
 def delete_thread(
     thread_id: int,
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     thread = (
         db.query(DiscussionThread)
@@ -198,6 +261,38 @@ def delete_thread(
             status_code=404,
             detail="Discussion thread not found"
         )
+
+    user_id = int(current_user["sub"])
+
+    old_value = {
+        "decision_id": thread.decision_id,
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status,
+    }
+
+    create_audit_log(
+        db=db,
+        user_id=user_id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"Deleted discussion thread: {thread.title}",
+        old_value=old_value,
+        new_value=None,
+        ip_address=request.client.host if request.client else None,
+        request_method=request.method,
+        endpoint=request.url.path,
+    )
+
+    create_activity_log(
+        db=db,
+        user_id=user_id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description=f"Deleted discussion thread: {thread.title}",
+    )
 
     db.delete(thread)
     db.commit()

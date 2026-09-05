@@ -1,6 +1,7 @@
+
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -20,6 +21,7 @@ from app.core.dependencies import (
 )
 
 from app.services.activity_log_service import create_activity_log
+from app.services.audit_log_service import create_audit_log
 
 
 router = APIRouter(
@@ -39,6 +41,7 @@ router = APIRouter(
 )
 def submit_decision_for_approval(
     decision_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(
         require_role("Employee")
@@ -58,21 +61,18 @@ def submit_decision_for_approval(
             detail="Decision not found",
         )
 
-    # Only the creator can submit the decision
     if decision.created_by != user_id:
         raise HTTPException(
             status_code=403,
             detail="You can only submit your own decisions",
         )
 
-    # Decision must be in Draft status
     if decision.status != "Draft":
         raise HTTPException(
             status_code=400,
             detail="Only Draft decisions can be submitted for approval",
         )
 
-    # Find an available reviewer
     reviewer = (
         db.query(User)
         .filter(User.role == "Reviewer")
@@ -85,7 +85,6 @@ def submit_decision_for_approval(
             detail="No reviewer is available",
         )
 
-    # Create approval record
     approval = Approval(
         decision_id=decision.id,
         assigned_to=reviewer.id,
@@ -95,12 +94,10 @@ def submit_decision_for_approval(
 
     db.add(approval)
 
-    # Update decision status
     old_status = decision.status
     decision.status = "Under Review"
 
-    db.commit()
-    db.refresh(approval)
+    db.flush()
 
     # Activity: approval assignment
     create_activity_log(
@@ -115,6 +112,27 @@ def submit_decision_for_approval(
         ),
     )
 
+    # Audit: decision submission
+    create_audit_log(
+        db=db,
+        user_id=user_id,
+        action="SUBMIT",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Submitted decision {decision.id} for approval",
+        old_value={
+            "status": old_status,
+        },
+        new_value={
+            "status": decision.status,
+            "approval_id": approval.id,
+            "assigned_reviewer": reviewer.id,
+        },
+        ip_address=request.client.host if request.client else None,
+        request_method=request.method,
+        endpoint=request.url.path,
+    )
+
     # Activity: decision status change
     create_activity_log(
         db=db,
@@ -127,6 +145,9 @@ def submit_decision_for_approval(
             f"{old_status} to {decision.status}"
         ),
     )
+
+    db.commit()
+    db.refresh(approval)
 
     return approval
 
@@ -170,6 +191,7 @@ def get_pending_approvals(
 )
 def approve_decision(
     approval_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(
         require_role("Reviewer")
@@ -189,7 +211,6 @@ def approve_decision(
             detail="Approval not found",
         )
 
-    # Only assigned reviewer can approve
     if approval.assigned_to != user_id:
         raise HTTPException(
             status_code=403,
@@ -214,25 +235,49 @@ def approve_decision(
             detail="Decision not found",
         )
 
+    old_status = decision.status
+    old_approval_status = approval.status
+
     approval.status = ApprovalStatus.APPROVED.value
     approval.completed_at = datetime.utcnow()
 
     decision.status = "Approved"
 
-    db.commit()
-    db.refresh(approval)
+    db.flush()
 
+    # Audit: approval
+    create_audit_log(
+        db=db,
+        user_id=user_id,
+        action="APPROVE",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=f"Approved decision {decision.id}",
+        old_value={
+            "approval_status": old_approval_status,
+            "decision_status": old_status,
+        },
+        new_value={
+            "approval_status": approval.status,
+            "decision_status": decision.status,
+            "completed_at": approval.completed_at.isoformat(),
+        },
+        ip_address=request.client.host if request.client else None,
+        request_method=request.method,
+        endpoint=request.url.path,
+    )
+
+    # Activity: approval
     create_activity_log(
         db=db,
         user_id=user_id,
         action="APPROVAL",
         entity_type="Approval",
         entity_id=approval.id,
-        description=(
-            f"Approved decision {decision.id}"
-        ),
+        description=f"Approved decision {decision.id}",
     )
 
+    # Activity: decision status change
     create_activity_log(
         db=db,
         user_id=user_id,
@@ -240,9 +285,13 @@ def approve_decision(
         entity_type="Decision",
         entity_id=decision.id,
         description=(
-            "Changed decision status from Under Review to Approved"
+            f"Changed decision status from "
+            f"{old_status} to {decision.status}"
         ),
     )
+
+    db.commit()
+    db.refresh(approval)
 
     return approval
 
@@ -257,6 +306,7 @@ def approve_decision(
 )
 def reject_decision(
     approval_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(
         require_role("Reviewer")
@@ -276,7 +326,6 @@ def reject_decision(
             detail="Approval not found",
         )
 
-    # Only assigned reviewer can reject
     if approval.assigned_to != user_id:
         raise HTTPException(
             status_code=403,
@@ -301,25 +350,49 @@ def reject_decision(
             detail="Decision not found",
         )
 
+    old_status = decision.status
+    old_approval_status = approval.status
+
     approval.status = ApprovalStatus.REJECTED.value
     approval.completed_at = datetime.utcnow()
 
     decision.status = "Rejected"
 
-    db.commit()
-    db.refresh(approval)
+    db.flush()
 
+    # Audit: rejection
+    create_audit_log(
+        db=db,
+        user_id=user_id,
+        action="REJECT",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=f"Rejected decision {decision.id}",
+        old_value={
+            "approval_status": old_approval_status,
+            "decision_status": old_status,
+        },
+        new_value={
+            "approval_status": approval.status,
+            "decision_status": decision.status,
+            "completed_at": approval.completed_at.isoformat(),
+        },
+        ip_address=request.client.host if request.client else None,
+        request_method=request.method,
+        endpoint=request.url.path,
+    )
+
+    # Activity: rejection
     create_activity_log(
         db=db,
         user_id=user_id,
         action="REJECTION",
         entity_type="Approval",
         entity_id=approval.id,
-        description=(
-            f"Rejected decision {decision.id}"
-        ),
+        description=f"Rejected decision {decision.id}",
     )
 
+    # Activity: decision status change
     create_activity_log(
         db=db,
         user_id=user_id,
@@ -327,8 +400,12 @@ def reject_decision(
         entity_type="Decision",
         entity_id=decision.id,
         description=(
-            "Changed decision status from Under Review to Rejected"
+            f"Changed decision status from "
+            f"{old_status} to {decision.status}"
         ),
     )
+
+    db.commit()
+    db.refresh(approval)
 
     return approval
