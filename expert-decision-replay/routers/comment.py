@@ -10,6 +10,7 @@ from app.schemas.comment import (
     CommentResponse,
 )
 from app.core.dependencies import get_current_user
+from app.core.audit_logger import create_audit_log
 
 
 router = APIRouter(
@@ -49,13 +50,33 @@ def create_comment(
     # Create comment
     comment = Comment(
         decision_id=decision_id,
-        user_id=int(current_user),
+        user_id=current_user.id,
         content=comment_data.content
     )
 
     db.add(comment)
     db.commit()
     db.refresh(comment)
+
+    # =====================================================
+    # AUTOMATIC AUDIT LOG - CREATE COMMENT
+    # =====================================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Comment {comment.id} created for decision {decision_id}",
+        new_value={
+            "decision_id": comment.decision_id,
+            "user_id": comment.user_id,
+            "content": comment.content
+        },
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/comments"
+    )
 
     return comment
 
@@ -154,16 +175,40 @@ def update_comment(
         )
 
     # Only the user who created the comment can update it
-    if comment.user_id != int(current_user):
+    if comment.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to update this comment"
         )
 
+    # Store old value before update
+    old_content = comment.content
+
     comment.content = comment_data.content
 
     db.commit()
     db.refresh(comment)
+
+    # =====================================================
+    # AUTOMATIC AUDIT LOG - UPDATE COMMENT
+    # =====================================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Comment",
+        entity_id=comment.id,
+        description=f"Comment {comment.id} updated",
+        old_value={
+            "content": old_content
+        },
+        new_value={
+            "content": comment.content
+        },
+        request_method="PUT",
+        endpoint=f"/comments/{comment_id}"
+    )
 
     return comment
 
@@ -195,13 +240,36 @@ def delete_comment(
         )
 
     # Only the user who created the comment can delete it
-    if comment.user_id != int(current_user):
+    if comment.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to delete this comment"
         )
 
+    # Store old value before deletion
+    old_value = {
+        "decision_id": comment.decision_id,
+        "user_id": comment.user_id,
+        "content": comment.content
+    }
+
     db.delete(comment)
     db.commit()
+
+    # =====================================================
+    # AUTOMATIC AUDIT LOG - DELETE COMMENT
+    # =====================================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Comment",
+        entity_id=comment_id,
+        description=f"Comment {comment_id} deleted",
+        old_value=old_value,
+        request_method="DELETE",
+        endpoint=f"/comments/{comment_id}"
+    )
 
     return None

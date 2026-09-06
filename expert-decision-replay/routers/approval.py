@@ -9,6 +9,7 @@ from app.models.decision import Decision
 from app.models.user import User
 from app.schemas.approval import ApprovalCreate, ApprovalResponse
 from app.core.dependencies import get_current_user
+from app.core.audit_logger import create_audit_log
 
 
 router = APIRouter(
@@ -77,6 +78,30 @@ def create_approval(
     db.add(db_approval)
     db.commit()
     db.refresh(db_approval)
+
+    # =====================================================
+    # AUTOMATIC AUDIT LOG - CREATE APPROVAL
+    # =====================================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Approval",
+        entity_id=db_approval.id,
+        description=(
+            f"Approval {db_approval.id} created "
+            f"for decision {db_approval.decision_id}"
+        ),
+        new_value={
+            "decision_id": db_approval.decision_id,
+            "reviewer_id": db_approval.reviewer_id,
+            "approval_level": db_approval.approval_level,
+            "status": db_approval.status
+        },
+        request_method="POST",
+        endpoint="/approvals/"
+    )
 
     return db_approval
 
@@ -150,6 +175,9 @@ def approve_decision(
             detail="Approval is already completed"
         )
 
+    # Store old status
+    old_status = approval.status
+
     # -----------------------------------------------------
     # Approve
     # -----------------------------------------------------
@@ -159,6 +187,35 @@ def approve_decision(
 
     db.commit()
     db.refresh(approval)
+
+    # =====================================================
+    # AUTOMATIC AUDIT LOG - APPROVE
+    # =====================================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="APPROVE",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=(
+            f"Approval {approval.id} approved "
+            f"for decision {approval.decision_id}"
+        ),
+        old_value={
+            "status": old_status
+        },
+        new_value={
+            "status": approval.status,
+            "completed_at": (
+                approval.completed_at.isoformat()
+                if approval.completed_at
+                else None
+            )
+        },
+        request_method="PUT",
+        endpoint=f"/approvals/{approval_id}/approve"
+    )
 
     return approval
 
@@ -208,6 +265,9 @@ def reject_decision(
             detail="Approval is already completed"
         )
 
+    # Store old status
+    old_status = approval.status
+
     # -----------------------------------------------------
     # Reject
     # -----------------------------------------------------
@@ -217,5 +277,34 @@ def reject_decision(
 
     db.commit()
     db.refresh(approval)
+
+    # =====================================================
+    # AUTOMATIC AUDIT LOG - REJECT
+    # =====================================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="REJECT",
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=(
+            f"Approval {approval.id} rejected "
+            f"for decision {approval.decision_id}"
+        ),
+        old_value={
+            "status": old_status
+        },
+        new_value={
+            "status": approval.status,
+            "completed_at": (
+                approval.completed_at.isoformat()
+                if approval.completed_at
+                else None
+            )
+        },
+        request_method="PUT",
+        endpoint=f"/approvals/{approval_id}/reject"
+    )
 
     return approval

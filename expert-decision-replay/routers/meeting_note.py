@@ -10,6 +10,7 @@ from app.schemas.meeting_note import (
     MeetingNoteResponse,
 )
 from app.core.dependencies import get_current_user
+from app.core.audit_logger import create_audit_log
 
 
 router = APIRouter(
@@ -50,7 +51,7 @@ def create_meeting_note(
     # Create meeting note
     db_note = MeetingNote(
         decision_id=decision_id,
-        created_by=int(current_user),
+        created_by=current_user.id,
         title=note.title,
         content=note.content,
         meeting_date=note.meeting_date,
@@ -59,6 +60,25 @@ def create_meeting_note(
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="MeetingNote",
+        entity_id=db_note.id,
+        description="Created a meeting note",
+        new_value={
+            "decision_id": decision_id,
+            "created_by": current_user.id,
+            "title": db_note.title,
+            "content": db_note.content,
+            "meeting_date": str(db_note.meeting_date),
+        },
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/meeting-notes",
+    )
 
     return db_note
 
@@ -157,12 +177,20 @@ def update_meeting_note(
         )
 
     # Ownership check
-    if note.created_by != int(current_user):
+    if note.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to update this meeting note",
         )
 
+    # Store old values
+    old_value = {
+        "title": note.title,
+        "content": note.content,
+        "meeting_date": str(note.meeting_date),
+    }
+
+    # Update fields
     if note_data.title is not None:
         note.title = note_data.title
 
@@ -174,6 +202,24 @@ def update_meeting_note(
 
     db.commit()
     db.refresh(note)
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="MeetingNote",
+        entity_id=note.id,
+        description="Updated a meeting note",
+        old_value=old_value,
+        new_value={
+            "title": note.title,
+            "content": note.content,
+            "meeting_date": str(note.meeting_date),
+        },
+        request_method="PUT",
+        endpoint=f"/meeting-notes/{note_id}",
+    )
 
     return note
 
@@ -205,14 +251,36 @@ def delete_meeting_note(
         )
 
     # Ownership check
-    if note.created_by != int(current_user):
+    if note.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to delete this meeting note",
         )
 
+    # Store old values before deletion
+    old_value = {
+        "decision_id": note.decision_id,
+        "created_by": note.created_by,
+        "title": note.title,
+        "content": note.content,
+        "meeting_date": str(note.meeting_date),
+    }
+
     db.delete(note)
     db.commit()
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="MeetingNote",
+        entity_id=note_id,
+        description="Deleted a meeting note",
+        old_value=old_value,
+        request_method="DELETE",
+        endpoint=f"/meeting-notes/{note_id}",
+    )
 
     return {
         "message": "Meeting note deleted successfully"

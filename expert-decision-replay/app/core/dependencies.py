@@ -1,9 +1,10 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.audit_logger import create_audit_log
 from app.db.database import get_db
 from app.models.user import User
 
@@ -20,6 +21,7 @@ security = HTTPBearer()
 # =========================================================
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
@@ -70,6 +72,22 @@ def get_current_user(
             detail="User not found"
         )
 
+    # -----------------------------------------------------
+    # AUTOMATIC ACCESS AUDIT LOG
+    # -----------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=user.id,
+        action="ACCESS",
+        entity_type="User",
+        entity_id=user.id,
+        description=f"User accessed {request.url.path}",
+        ip_address=request.client.host if request.client else None,
+        request_method=request.method,
+        endpoint=request.url.path,
+    )
+
     return user
 
 
@@ -99,7 +117,7 @@ def require_admin(
 ):
     role = get_user_role(current_user)
 
-    if role != "Admin":
+    if role != "Administrator":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permission"

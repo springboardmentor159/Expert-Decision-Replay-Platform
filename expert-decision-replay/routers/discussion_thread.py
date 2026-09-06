@@ -10,6 +10,7 @@ from app.schemas.discussion_thread import (
     DiscussionThreadResponse,
 )
 from app.core.dependencies import get_current_user
+from app.core.audit_logger import create_audit_log
 
 
 router = APIRouter(
@@ -31,7 +32,7 @@ def create_thread(
     decision_id: int,
     thread: DiscussionThreadCreate,
     db: Session = Depends(get_db),
-    current_user: int = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     # Check whether decision exists
     decision = (
@@ -49,7 +50,7 @@ def create_thread(
     # Create discussion thread
     db_thread = DiscussionThread(
         decision_id=decision_id,
-        created_by=int(current_user),
+        created_by=current_user.id,
         title=thread.title,
         description=thread.description,
         status="Open",
@@ -58,6 +59,25 @@ def create_thread(
     db.add(db_thread)
     db.commit()
     db.refresh(db_thread)
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="DiscussionThread",
+        entity_id=db_thread.id,
+        description="Created a discussion thread",
+        new_value={
+            "decision_id": decision_id,
+            "created_by": current_user.id,
+            "title": db_thread.title,
+            "description": db_thread.description,
+            "status": db_thread.status,
+        },
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/threads",
+    )
 
     return db_thread
 
@@ -74,7 +94,7 @@ def create_thread(
 def get_threads(
     decision_id: int,
     db: Session = Depends(get_db),
-    current_user: int = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     # Check whether decision exists
     decision = (
@@ -113,7 +133,7 @@ def get_threads(
 def get_thread(
     thread_id: int,
     db: Session = Depends(get_db),
-    current_user: int = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     thread = (
         db.query(DiscussionThread)
@@ -143,7 +163,7 @@ def update_thread(
     thread_id: int,
     thread_data: DiscussionThreadUpdate,
     db: Session = Depends(get_db),
-    current_user: int = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     thread = (
         db.query(DiscussionThread)
@@ -158,18 +178,44 @@ def update_thread(
         )
 
     # Only creator can update
-    if thread.created_by != int(current_user):
+    if thread.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only update your own discussion thread",
         )
 
+    # Store old values
+    old_value = {
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status,
+    }
+
+    # Update thread
     thread.title = thread_data.title
     thread.description = thread_data.description
     thread.status = thread_data.status
 
     db.commit()
     db.refresh(thread)
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="DiscussionThread",
+        entity_id=thread.id,
+        description="Updated a discussion thread",
+        old_value=old_value,
+        new_value={
+            "title": thread.title,
+            "description": thread.description,
+            "status": thread.status,
+        },
+        request_method="PUT",
+        endpoint=f"/threads/{thread_id}",
+    )
 
     return thread
 
@@ -186,7 +232,7 @@ def update_thread(
 def delete_thread(
     thread_id: int,
     db: Session = Depends(get_db),
-    current_user: int = Depends(get_current_user),
+    current_user=Depends(get_current_user),
 ):
     thread = (
         db.query(DiscussionThread)
@@ -201,13 +247,35 @@ def delete_thread(
         )
 
     # Only creator can delete
-    if thread.created_by != int(current_user):
+    if thread.created_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own discussion thread",
         )
 
+    # Store old values before deletion
+    old_value = {
+        "decision_id": thread.decision_id,
+        "created_by": thread.created_by,
+        "title": thread.title,
+        "description": thread.description,
+        "status": thread.status,
+    }
+
     db.delete(thread)
     db.commit()
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="DiscussionThread",
+        entity_id=thread_id,
+        description="Deleted a discussion thread",
+        old_value=old_value,
+        request_method="DELETE",
+        endpoint=f"/threads/{thread_id}",
+    )
 
     return None

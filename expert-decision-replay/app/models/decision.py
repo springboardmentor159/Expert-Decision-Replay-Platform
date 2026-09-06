@@ -127,3 +127,13 @@ class Decision(Base):
         secondary="decision_tags",
         back_populates="decisions"
     )
+
+    # =====================================================
+    # One Decision -> Many Versions
+    # =====================================================
+
+    versions = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )

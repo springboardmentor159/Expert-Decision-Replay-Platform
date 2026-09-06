@@ -3,13 +3,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, asc, desc
 
 from app.core.activity_logger import create_activity_log
-from app.core.dependencies import get_current_user
-
+from app.core.audit_logger import create_audit_log
+from app.core.dependencies import get_current_user, require_admin
 from app.db.database import get_db
 
 from app.models.decision import Decision
 from app.models.tag import Tag
 from app.models.user import User
+from app.models.decision_version import DecisionVersion
+from app.models.audit_log import AuditLog
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -24,13 +26,6 @@ from app.schemas.tag import (
     AssignTagsRequest,
     TagResponse,
 )
-
-from app.core.dependencies import (
-    get_current_user,
-    require_admin,
-)
-
-from app.core.activity_logger import create_activity_log
 
 
 router = APIRouter(
@@ -65,7 +60,26 @@ def create_decision(
     db.commit()
     db.refresh(decision)
 
-    # Activity log for decision creation
+    # -----------------------------------------------------
+    # Create Version 1
+    # -----------------------------------------------------
+
+    first_version = DecisionVersion(
+        decision_id=decision.id,
+        version_number=1,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        description=None,
+        category=decision.category,
+        status=decision.status,
+        created_by=current_user.id
+    )
+
+    db.add(first_version)
+    db.commit()
+    db.refresh(first_version)
+
+    # Activity log
     create_activity_log(
         db=db,
         user=current_user,
@@ -75,7 +89,22 @@ def create_decision(
         description=f"Created decision: {decision.title}"
     )
 
-    db.commit()
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Created decision: {decision.title}",
+        old_value=None,
+        new_value={
+            "title": decision.title,
+            "problem_statement": decision.problem_statement,
+            "category": decision.category,
+            "status": decision.status
+        }
+    )
 
     return decision
 
@@ -95,42 +124,34 @@ def get_decisions(
         default=None,
         description="Search by decision title or problem statement"
     ),
-
     status_filter: DecisionStatus | None = Query(
         default=None,
         alias="status"
     ),
-
     category: str | None = Query(
         default=None
     ),
-
     tag: str | None = Query(
         default=None,
         description="Filter decisions by tag name"
     ),
-
     page: int = Query(
         default=1,
         ge=1
     ),
-
     limit: int = Query(
         default=10,
         ge=1,
         le=100
     ),
-
     sort_by: str = Query(
         default="created_at",
         description="Allowed values: created_at, updated_at, title"
     ),
-
     order: str = Query(
         default="desc",
         description="Allowed values: asc, desc"
     ),
-
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
@@ -235,22 +256,17 @@ def search_decisions(
         min_length=1,
         description="Search in title, problem statement and rationale"
     ),
-
     category: str | None = Query(
         default=None
     ),
-
     status_filter: DecisionStatus | None = Query(
         default=None,
         alias="status"
     ),
-
     tag: str | None = Query(
         default=None
     ),
-
     db: Session = Depends(get_db),
-
     current_user=Depends(get_current_user)
 ):
     search_pattern = f"%{q}%"
@@ -520,6 +536,116 @@ def get_decision_timeline(
 
 
 # =========================================================
+# GET DECISION VERSIONS
+# =========================================================
+
+@router.get("/{decision_id}/versions")
+def get_decision_versions(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = db.query(Decision).filter(
+        Decision.id == decision_id
+    ).first()
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    versions = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id
+        )
+        .order_by(
+            DecisionVersion.version_number.asc()
+        )
+        .all()
+    )
+
+    return versions
+
+
+# =========================================================
+# GET SPECIFIC DECISION VERSION
+# =========================================================
+
+@router.get("/{decision_id}/versions/{version_number}")
+def get_specific_decision_version(
+    decision_id: int,
+    version_number: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if not decision:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision_id,
+            DecisionVersion.version_number == version_number
+        )
+        .first()
+    )
+
+    if not version:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision version not found"
+        )
+
+    return version
+
+
+# =========================================================
+# DECISION CHANGE HISTORY
+# =========================================================
+
+@router.get("/{decision_id}/history")
+def get_decision_history(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = db.query(Decision).filter(
+        Decision.id == decision_id
+    ).first()
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    history = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "Decision",
+            AuditLog.entity_id == decision_id
+        )
+        .order_by(
+            AuditLog.created_at.asc()
+        )
+        .all()
+    )
+
+    return history
+
+
+# =========================================================
 # GET DECISION BY ID
 # =========================================================
 
@@ -573,6 +699,20 @@ def update_decision(
             detail="Decision not found"
         )
 
+    # -----------------------------------------------------
+    # Store old values before changing
+    # -----------------------------------------------------
+
+    old_value = {
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category
+    }
+
+    # -----------------------------------------------------
+    # Update decision
+    # -----------------------------------------------------
+
     decision.title = decision_data.title
     decision.problem_statement = decision_data.problem_statement
     decision.category = decision_data.category
@@ -580,7 +720,50 @@ def update_decision(
     db.commit()
     db.refresh(decision)
 
-    # Activity log for decision update
+    # -----------------------------------------------------
+    # Find latest version
+    # -----------------------------------------------------
+
+    latest_version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision.id
+        )
+        .order_by(
+            DecisionVersion.version_number.desc()
+        )
+        .first()
+    )
+
+    next_version_number = (
+        latest_version.version_number + 1
+        if latest_version
+        else 1
+    )
+
+    # -----------------------------------------------------
+    # Create new version
+    # -----------------------------------------------------
+
+    new_version = DecisionVersion(
+        decision_id=decision.id,
+        version_number=next_version_number,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        description=None,
+        category=decision.category,
+        status=decision.status,
+        created_by=current_user.id
+    )
+
+    db.add(new_version)
+    db.commit()
+    db.refresh(new_version)
+
+    # -----------------------------------------------------
+    # Activity log
+    # -----------------------------------------------------
+
     create_activity_log(
         db=db,
         user=current_user,
@@ -590,9 +773,27 @@ def update_decision(
         description=f"Updated decision: {decision.title}"
     )
 
-    db.commit()
+    # -----------------------------------------------------
+    # Audit log
+    # -----------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Updated decision: {decision.title}",
+        old_value=old_value,
+        new_value={
+            "title": decision.title,
+            "problem_statement": decision.problem_statement,
+            "category": decision.category
+        }
+    )
 
     return decision
+
 
 # =========================================================
 # UPDATE DECISION STATUS
@@ -626,32 +827,129 @@ def update_decision_status(
         )
 
     # -----------------------------------------------------
+    # Store old status
+    # -----------------------------------------------------
+
+    old_status = decision.status
+    new_status = status_data.status.value
+
+    # -----------------------------------------------------
     # Update status
     # -----------------------------------------------------
 
-    decision.status = status_data.status.value
+    decision.status = new_status
+
+    db.commit()
+    db.refresh(decision)
 
     # -----------------------------------------------------
-    # Create activity log
+    # Find latest version
+    # -----------------------------------------------------
+
+    latest_version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision.id
+        )
+        .order_by(
+            DecisionVersion.version_number.desc()
+        )
+        .first()
+    )
+
+    next_version_number = (
+        latest_version.version_number + 1
+        if latest_version
+        else 1
+    )
+
+    # -----------------------------------------------------
+    # Create new version
+    # -----------------------------------------------------
+
+    new_version = DecisionVersion(
+        decision_id=decision.id,
+        version_number=next_version_number,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        description=None,
+        category=decision.category,
+        status=decision.status,
+        created_by=current_user.id
+    )
+
+    db.add(new_version)
+    db.commit()
+    db.refresh(new_version)
+
+    # -----------------------------------------------------
+    # Determine audit action
+    # -----------------------------------------------------
+
+    if new_status == "Under Review" and old_status == "Draft":
+
+        audit_action = "SUBMIT"
+        activity_action = "SUBMIT"
+
+        description = (
+            f"Submitted decision for review "
+            f"by changing status from {old_status} to {new_status}"
+        )
+
+    elif new_status == "Archived":
+
+        audit_action = "ARCHIVE"
+        activity_action = "ARCHIVE"
+
+        description = (
+            f"Archived decision "
+            f"by changing status from {old_status} to {new_status}"
+        )
+
+    else:
+
+        audit_action = "UPDATE"
+        activity_action = "STATUS_CHANGE"
+
+        description = (
+            f"Changed decision status "
+            f"from {old_status} to {new_status}"
+        )
+
+    # -----------------------------------------------------
+    # Activity log
     # -----------------------------------------------------
 
     create_activity_log(
         db=db,
         user=current_user,
-        action="STATUS_CHANGE",
+        action=activity_action,
         entity_type="Decision",
         entity_id=decision.id,
-        description=f"Changed decision status to {decision.status}"
+        description=description
     )
 
     # -----------------------------------------------------
-    # Save changes
+    # Audit log
     # -----------------------------------------------------
 
-    db.commit()
-    db.refresh(decision)
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=audit_action,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=description,
+        old_value={
+            "status": old_status
+        },
+        new_value={
+            "status": new_status
+        }
+    )
 
     return decision
+
 
 # =========================================================
 # UPDATE DECISION RATIONALE
@@ -679,10 +977,79 @@ def update_decision_rationale(
             detail="Decision not found"
         )
 
+    # -----------------------------------------------------
+    # Store old rationale
+    # -----------------------------------------------------
+
+    old_rationale = decision.rationale
+
+    # -----------------------------------------------------
+    # Update rationale
+    # -----------------------------------------------------
+
     decision.rationale = rationale_data.rationale
 
     db.commit()
     db.refresh(decision)
+
+    # -----------------------------------------------------
+    # Find latest version
+    # -----------------------------------------------------
+
+    latest_version = (
+        db.query(DecisionVersion)
+        .filter(
+            DecisionVersion.decision_id == decision.id
+        )
+        .order_by(
+            DecisionVersion.version_number.desc()
+        )
+        .first()
+    )
+
+    next_version_number = (
+        latest_version.version_number + 1
+        if latest_version
+        else 1
+    )
+
+    # -----------------------------------------------------
+    # Create new version
+    # -----------------------------------------------------
+
+    new_version = DecisionVersion(
+        decision_id=decision.id,
+        version_number=next_version_number,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        description=None,
+        category=decision.category,
+        status=decision.status,
+        created_by=current_user.id
+    )
+
+    db.add(new_version)
+    db.commit()
+    db.refresh(new_version)
+
+    # -----------------------------------------------------
+    # Audit log
+    # -----------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Updated rationale for decision: {decision.title}",
+        old_value={
+            "rationale": old_rationale
+        },
+        new_value={
+            "rationale": decision.rationale
+        }
+    )
 
     return decision
 
@@ -743,8 +1110,39 @@ def delete_decision(
             detail="Decision not found"
         )
 
+    # -----------------------------------------------------
+    # Store values before deletion
+    # -----------------------------------------------------
+
+    old_value = {
+        "id": decision.id,
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "category": decision.category,
+        "status": decision.status,
+        "rationale": decision.rationale
+    }
+
+    decision_id_value = decision.id
+    decision_title = decision.title
+
     db.delete(decision)
     db.commit()
+
+    # -----------------------------------------------------
+    # Audit log
+    # -----------------------------------------------------
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="DELETE",
+        entity_type="Decision",
+        entity_id=decision_id_value,
+        description=f"Deleted decision: {decision_title}",
+        old_value=old_value,
+        new_value=None
+    )
 
     return {
         "message": "Decision deleted successfully"

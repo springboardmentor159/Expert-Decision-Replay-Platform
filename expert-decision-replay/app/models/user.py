@@ -1,3 +1,4 @@
+
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 
@@ -113,3 +114,19 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
+    # =====================================================
+    # One User -> Many Audit Logs
+    # =====================================================
+
+    audit_logs = relationship(
+        "AuditLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    security_logs = relationship(
+    "SecurityLog",
+    back_populates="user",
+    cascade="all, delete-orphan"
+)
+
