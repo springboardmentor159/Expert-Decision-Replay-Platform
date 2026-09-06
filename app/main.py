@@ -9,7 +9,8 @@ from app.routers import (
     tags,
     analytics,
     audit_logs,
-    reports
+    reports,
+    approvals
 )
 
 from app.routers.dashboard import router as dashboard_router
@@ -29,6 +30,7 @@ app.include_router(alternatives.router)
 app.include_router(comments.router)
 app.include_router(tags.router)
 app.include_router(audit_logs.router)
+app.include_router(approvals.router)
 
 # Dashboard routes
 app.include_router(dashboard_router)

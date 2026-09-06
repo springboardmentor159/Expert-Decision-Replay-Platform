@@ -14,6 +14,7 @@ from app.database import get_db
 from app.models.decision import Decision
 from app.models.user import User
 from app.models.audit_log import AuditLog
+from app.services.activity_service import log_activity
 
 from app.schemas.decision import (
     DecisionCreate,
@@ -77,6 +78,17 @@ def create_decision(
     )
 
     db.add(audit_log)
+
+    # Create activity log
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="CREATE",
+        entity_type="decision",
+        entity_id=new_decision.id,
+        description="Decision created"
+    )
+
     db.commit()
 
     return new_decision
@@ -277,6 +289,17 @@ def update_decision(
     )
 
     db.add(audit_log)
+
+    # Create activity log
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="UPDATE",
+        entity_type="decision",
+        entity_id=decision.id,
+        description="Decision updated"
+    )
+
     db.commit()
 
     return decision
@@ -336,6 +359,17 @@ def update_decision_status(
     )
 
     db.add(audit_log)
+
+    # Create activity log
+    log_activity(
+        db=db,
+        user_id=current_user.id,
+        action="STATUS_UPDATE",
+        entity_type="decision",
+        entity_id=decision.id,
+        description="Decision status updated"
+    )
+
     db.commit()
 
     return decision
