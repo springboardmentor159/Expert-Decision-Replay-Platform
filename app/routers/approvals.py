@@ -22,6 +22,7 @@ from app.core.dependencies import (
 
 from app.services.activity_log_service import create_activity_log
 from app.services.audit_log_service import create_audit_log
+from app.services.decision_version_service import create_decision_version
 
 
 router = APIRouter(
@@ -245,6 +246,13 @@ def approve_decision(
 
     db.flush()
 
+    # Version: decision approval
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=user_id,
+    )
+
     # Audit: approval
     create_audit_log(
         db=db,
@@ -359,6 +367,13 @@ def reject_decision(
     decision.status = "Rejected"
 
     db.flush()
+
+    # Version: decision rejection
+    create_decision_version(
+        db=db,
+        decision=decision,
+        user_id=user_id,
+    )
 
     # Audit: rejection
     create_audit_log(
