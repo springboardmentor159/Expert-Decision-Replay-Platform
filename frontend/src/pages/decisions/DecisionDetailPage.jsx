@@ -22,6 +22,8 @@ import {
   Scale,
   Sparkles,
   Download,
+  Check,
+  Award,
 } from 'lucide-react';
 import { decisionsApi } from '../../api/decisions';
 import { alternativesApi } from '../../api/alternatives';
@@ -48,6 +50,22 @@ export function DecisionDetailPage({ decisionId, onBack }) {
   const [comparisonData, setComparisonData] = useState(null);
   const [showAddAlternativeModal, setShowAddAlternativeModal] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [selectedAltId, setSelectedAltId] = useState(() => {
+    const saved = localStorage.getItem(`selected_alt_${decisionId}`);
+    return saved ? Number(saved) : null;
+  });
+
+  const handleSelectAlternative = (altId) => {
+    if (selectedAltId === altId) {
+      setSelectedAltId(null);
+      localStorage.removeItem(`selected_alt_${decisionId}`);
+      success('Deselected candidate option');
+    } else {
+      setSelectedAltId(altId);
+      localStorage.setItem(`selected_alt_${decisionId}`, altId);
+      success('Marked alternative as the chosen / recommended option');
+    }
+  };
   const [altForm, setAltForm] = useState({
     name: '',
     description: '',
@@ -590,59 +608,122 @@ export function DecisionDetailPage({ decisionId, onBack }) {
             />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
-              {alternatives.map((alt) => (
-                <div key={alt.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                      <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)' }}>{alt.name}</h3>
-                      <RiskBadge level={alt.risk_level} />
-                    </div>
-                    {alt.description && (
-                      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                        {alt.description}
-                      </p>
-                    )}
+              {alternatives.map((alt) => {
+                const isSelected = selectedAltId === alt.id;
+                return (
+                  <div
+                    key={alt.id}
+                    className="card"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      border: isSelected ? '2px solid var(--success)' : '1px solid var(--border-color)',
+                      background: isSelected ? 'linear-gradient(180deg, var(--bg-card), var(--bg-hover))' : 'var(--bg-card)',
+                      boxShadow: isSelected ? '0 0 16px rgba(16, 185, 129, 0.18)' : 'none',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', gap: '0.5rem' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <h3 style={{ fontSize: '1.1rem', color: 'var(--text-primary)', margin: 0 }}>{alt.name}</h3>
+                            {isSelected && (
+                              <span
+                                className="badge"
+                                style={{
+                                  background: 'var(--success-light)',
+                                  color: 'var(--success)',
+                                  border: '1px solid var(--success)',
+                                  fontSize: '0.72rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  padding: '2px 6px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <Award size={12} /> Selected Option
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <RiskBadge level={alt.risk_level} />
+                      </div>
+                      {alt.description && (
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                          {alt.description}
+                        </p>
+                      )}
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', background: 'var(--bg-hover)', padding: '0.75rem', borderRadius: '8px' }}>
-                      <div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Feasibility Score</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)' }}>
-                          {alt.feasibility_score} / 5
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', background: 'var(--bg-hover)', padding: '0.75rem', borderRadius: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Feasibility Score</div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary)' }}>
+                            {alt.feasibility_score} / 5
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Estimated Cost</div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                            ${alt.estimated_cost != null ? alt.estimated_cost.toLocaleString() : 'N/A'}
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Estimated Cost</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                          ${alt.estimated_cost != null ? alt.estimated_cost.toLocaleString() : 'N/A'}
+
+                      {alt.pros && (
+                        <div style={{ marginBottom: '0.5rem', fontSize: '0.825rem' }}>
+                          <strong style={{ color: 'var(--success)' }}>Pros:</strong> {alt.pros}
                         </div>
-                      </div>
+                      )}
+                      {alt.cons && (
+                        <div style={{ marginBottom: '0.5rem', fontSize: '0.825rem' }}>
+                          <strong style={{ color: 'var(--danger)' }}>Cons:</strong> {alt.cons}
+                        </div>
+                      )}
                     </div>
 
-                    {alt.pros && (
-                      <div style={{ marginBottom: '0.5rem', fontSize: '0.825rem' }}>
-                        <strong style={{ color: 'var(--success)' }}>Pros:</strong> {alt.pros}
-                      </div>
-                    )}
-                    {alt.cons && (
-                      <div style={{ marginBottom: '0.5rem', fontSize: '0.825rem' }}>
-                        <strong style={{ color: 'var(--danger)' }}>Cons:</strong> {alt.cons}
-                      </div>
-                    )}
-                  </div>
-
-                  {canModify && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', marginTop: '1rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      borderTop: '1px solid var(--border-color)',
+                      paddingTop: '0.75rem',
+                      marginTop: '1rem'
+                    }}>
                       <button
-                        className="btn btn-secondary btn-sm"
-                        style={{ color: 'var(--danger)' }}
-                        onClick={() => handleDeleteAlternative(alt.id)}
+                        type="button"
+                        className={`btn btn-sm ${isSelected ? 'btn-success' : 'btn-secondary'}`}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                        onClick={() => handleSelectAlternative(alt.id)}
                       >
-                        <Trash2 size={14} /> Remove
+                        {isSelected ? (
+                          <>
+                            <Check size={14} /> Selected Option
+                          </>
+                        ) : (
+                          <>
+                            <Award size={14} /> Select as Choice
+                          </>
+                        )}
                       </button>
+
+                      {canModify && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ color: 'var(--danger)' }}
+                          onClick={() => handleDeleteAlternative(alt.id)}
+                        >
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1102,23 +1183,40 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {comparisonData.alternatives.map((alt, idx) => (
-                    <tr key={idx}>
-                      <td><strong style={{ fontSize: '0.95rem' }}>{alt.name}</strong></td>
-                      <td>
-                        <span style={{
-                          fontWeight: 700,
-                          color: alt.feasibility_score >= 4 ? 'var(--success)' : alt.feasibility_score <= 2 ? 'var(--danger)' : 'var(--warning)',
-                        }}>
-                          {alt.feasibility_score} / 5
-                        </span>
-                      </td>
-                      <td>
-                        {alt.estimated_cost != null ? `$${alt.estimated_cost.toLocaleString()}` : 'N/A'}
-                      </td>
-                      <td><RiskBadge level={alt.risk_level} /></td>
-                    </tr>
-                  ))}
+                  {comparisonData.alternatives.map((alt, idx) => {
+                    const isSelected = selectedAltId === alt.id;
+                    return (
+                      <tr
+                        key={idx}
+                        style={{
+                          background: isSelected ? 'var(--primary-light)' : 'transparent',
+                        }}
+                      >
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ fontSize: '0.95rem' }}>{alt.name}</strong>
+                            {isSelected && (
+                              <span className="badge" style={{ background: 'var(--success-light)', color: 'var(--success)', border: '1px solid var(--success)', fontSize: '0.7rem' }}>
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            fontWeight: 700,
+                            color: alt.feasibility_score >= 4 ? 'var(--success)' : alt.feasibility_score <= 2 ? 'var(--danger)' : 'var(--warning)',
+                          }}>
+                            {alt.feasibility_score} / 5
+                          </span>
+                        </td>
+                        <td>
+                          {alt.estimated_cost != null ? `$${alt.estimated_cost.toLocaleString()}` : 'N/A'}
+                        </td>
+                        <td><RiskBadge level={alt.risk_level} /></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

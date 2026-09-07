@@ -71,6 +71,56 @@ export function AuditLogsPage() {
     return 'var(--warning)';
   };
 
+  const renderAuditValue = (val) => {
+    if (val === null || val === undefined) {
+      return <span style={{ color: 'var(--text-muted)' }}>None</span>;
+    }
+    let parsed = val;
+    if (typeof val === 'string') {
+      try {
+        parsed = JSON.parse(val);
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch { /* no-op */ }
+        }
+      } catch {
+        return <span style={{ fontFamily: 'monospace' }}>{val}</span>;
+      }
+    }
+
+    if (typeof parsed === 'object' && parsed !== null) {
+      const entries = Object.entries(parsed);
+      if (entries.length === 0) {
+        return <span style={{ color: 'var(--text-muted)' }}>Empty</span>;
+      }
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {entries.map(([key, value]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: 'var(--text-muted)', fontWeight: 600, textTransform: 'capitalize', fontSize: '0.8rem' }}>
+                {key.replace(/_/g, ' ')}:
+              </span>
+              <span
+                className="badge"
+                style={{
+                  background: 'var(--bg-hover)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.8rem',
+                  padding: '2px 8px',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return <span style={{ fontFamily: 'monospace' }}>{String(parsed)}</span>;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div>
@@ -258,32 +308,30 @@ export function AuditLogsPage() {
             </div>
             {selectedLog.old_value && (
               <div>
-                <strong>Old Value:</strong>
-                <pre style={{
+                <strong style={{ color: 'var(--text-muted)' }}>Old Value:</strong>
+                <div style={{
                   background: 'var(--bg-input)',
                   padding: '0.75rem',
                   borderRadius: '6px',
                   marginTop: '4px',
-                  overflowX: 'auto',
-                  fontSize: '0.775rem',
+                  border: '1px solid var(--border-color)',
                 }}>
-                  {JSON.stringify(selectedLog.old_value, null, 2)}
-                </pre>
+                  {renderAuditValue(selectedLog.old_value)}
+                </div>
               </div>
             )}
             {selectedLog.new_value && (
               <div>
-                <strong>New Value:</strong>
-                <pre style={{
+                <strong style={{ color: 'var(--text-muted)' }}>New Value:</strong>
+                <div style={{
                   background: 'var(--bg-input)',
                   padding: '0.75rem',
                   borderRadius: '6px',
                   marginTop: '4px',
-                  overflowX: 'auto',
-                  fontSize: '0.775rem',
+                  border: '1px solid var(--border-color)',
                 }}>
-                  {JSON.stringify(selectedLog.new_value, null, 2)}
-                </pre>
+                  {renderAuditValue(selectedLog.new_value)}
+                </div>
               </div>
             )}
           </div>
