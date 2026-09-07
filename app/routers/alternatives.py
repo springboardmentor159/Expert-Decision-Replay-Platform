@@ -4,21 +4,31 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+
 from app.models.decision import Decision
 from app.models.alternative import Alternative
 from app.models.user import User
+
 from app.schemas.alternative import (
     AlternativeCreate,
     AlternativeUpdate,
     AlternativeResponse,
     AlternativeCompareResponse,
 )
+
 from app.core.security import get_current_user
 
-router = APIRouter(tags=["Alternatives"])
+from app.services.activity_log import create_activity_log
 
 
+router = APIRouter(
+    tags=["Alternatives"]
+)
+
+
+# ==========================================
 # CREATE ALTERNATIVE FOR A DECISION
+# ==========================================
 @router.post(
     "/decisions/{decision_id}/alternatives",
     response_model=AlternativeResponse,
@@ -30,7 +40,12 @@ def create_alternative(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
     if not decision:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -49,13 +64,33 @@ def create_alternative(
     )
 
     db.add(new_alternative)
+    db.flush()
+
+    # ==========================================
+    # CREATE ACTIVITY LOG
+    # ==========================================
+
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="created",
+        entity_type="alternative",
+        entity_id=new_alternative.id,
+        description=(
+            f"Created alternative: {new_alternative.name} "
+            f"for decision: {decision.title}"
+        )
+    )
+
     db.commit()
     db.refresh(new_alternative)
 
     return new_alternative
 
 
+# ==========================================
 # GET ALL ALTERNATIVES FOR A DECISION
+# ==========================================
 @router.get(
     "/decisions/{decision_id}/alternatives",
     response_model=List[AlternativeResponse]
@@ -65,17 +100,30 @@ def get_alternatives_for_decision(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
     if not decision:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
 
-    return db.query(Alternative).filter(Alternative.decision_id == decision_id).all()
+    return (
+        db.query(Alternative)
+        .filter(
+            Alternative.decision_id == decision_id
+        )
+        .all()
+    )
 
 
+# ==========================================
 # COMPARE ALTERNATIVES FOR A DECISION
+# ==========================================
 @router.get(
     "/decisions/{decision_id}/alternatives/compare",
     response_model=AlternativeCompareResponse
@@ -85,14 +133,25 @@ def compare_alternatives(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
     if not decision:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
 
-    alternatives = db.query(Alternative).filter(Alternative.decision_id == decision_id).all()
+    alternatives = (
+        db.query(Alternative)
+        .filter(
+            Alternative.decision_id == decision_id
+        )
+        .all()
+    )
 
     return {
         "decision_id": decision_id,
@@ -100,7 +159,9 @@ def compare_alternatives(
     }
 
 
+# ==========================================
 # GET ALTERNATIVE BY ID
+# ==========================================
 @router.get(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -110,7 +171,12 @@ def get_alternative(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    alternative = db.query(Alternative).filter(Alternative.id == alternative_id).first()
+    alternative = (
+        db.query(Alternative)
+        .filter(Alternative.id == alternative_id)
+        .first()
+    )
+
     if not alternative:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -120,7 +186,9 @@ def get_alternative(
     return alternative
 
 
+# ==========================================
 # UPDATE ALTERNATIVE
+# ==========================================
 @router.put(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -131,7 +199,12 @@ def update_alternative(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    alternative = db.query(Alternative).filter(Alternative.id == alternative_id).first()
+    alternative = (
+        db.query(Alternative)
+        .filter(Alternative.id == alternative_id)
+        .first()
+    )
+
     if not alternative:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -146,7 +219,22 @@ def update_alternative(
     alternative.feasibility_score = alternative_data.feasibility_score
     alternative.risk_level = alternative_data.risk_level
 
+    # ==========================================
+    # CREATE ACTIVITY LOG
+    # ==========================================
+
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="updated",
+        entity_type="alternative",
+        entity_id=alternative.id,
+        description=(
+            f"Updated alternative: {alternative.name}"
+        )
+    )
+
     db.commit()
     db.refresh(alternative)
 
-    return alternative
+    return alternative  

@@ -13,6 +13,7 @@ from app.schemas.discussion_thread import (
     DiscussionThreadResponse,
 )
 from app.core.security import get_current_user
+from app.services.activity_log import create_activity_log
 
 
 router = APIRouter(tags=["Discussion Threads"])
@@ -79,7 +80,7 @@ def create_thread(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    get_decision_or_404(decision_id, db)
+    decision = get_decision_or_404(decision_id, db)
 
     new_thread = DiscussionThread(
         decision_id=decision_id,
@@ -90,6 +91,18 @@ def create_thread(
     )
 
     db.add(new_thread)
+    db.flush()
+
+    # Activity log
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="created",
+        entity_type="discussion_thread",
+        entity_id=new_thread.id,
+        description=f"Created discussion thread: {new_thread.title}",
+    )
+
     db.commit()
     db.refresh(new_thread)
 

@@ -14,6 +14,7 @@ from app.schemas.comment import (
     CommentResponse,
 )
 from app.core.security import get_current_user
+from app.services.activity_log import create_activity_log
 
 
 router = APIRouter(
@@ -53,6 +54,18 @@ def create_comment(
     )
 
     db.add(new_comment)
+    db.flush()
+
+    # Activity log
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="created",
+        entity_type="comment",
+        entity_id=new_comment.id,
+        description=f"Created comment on decision: {decision.title}",
+    )
+
     db.commit()
     db.refresh(new_comment)
 
@@ -119,6 +132,18 @@ def create_thread_comment(
     )
 
     db.add(new_comment)
+    db.flush()
+
+    # Activity log
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="created",
+        entity_type="comment",
+        entity_id=new_comment.id,
+        description=f"Created reply in discussion thread: {thread.id}",
+    )
+
     db.commit()
     db.refresh(new_comment)
 
@@ -208,6 +233,18 @@ def update_comment(
         )
 
     comment.content = comment_data.content
+
+    db.flush()
+
+    # Activity log
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="updated",
+        entity_type="comment",
+        entity_id=comment.id,
+        description=f"Updated comment {comment.id}",
+    )
 
     db.commit()
     db.refresh(comment)
