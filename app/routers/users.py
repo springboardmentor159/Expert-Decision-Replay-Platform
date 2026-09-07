@@ -11,7 +11,8 @@ from app.utils.security import (
     hash_password,
     verify_password,
     create_access_token,
-    get_current_user
+    get_current_user,
+    require_role
 )
 from app.utils.audit import log_security_event
 
@@ -143,7 +144,7 @@ def login(
 )
 def get_users(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role("Administrator"))
 ):
     return db.query(User).all()
 
@@ -168,8 +169,13 @@ def get_user(
             detail="User not found"
         )
 
-    return user
+    if user_id != current_user.id and current_user.role != "Administrator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view this user"
+        )
 
+    return user
 
 # UPDATE USER
 @router.put(
@@ -182,6 +188,21 @@ def update_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    is_self = user_id == current_user.id
+    is_admin = current_user.role == "Administrator"
+
+    if not is_self and not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this user"
+        )
+
+    if user_data.role is not None and not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only an Administrator can change a user's role"
+        )
+
     user = db.query(User).filter(
         User.id == user_id
     ).first()
@@ -253,7 +274,7 @@ def update_user(
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role("Administrator"))
 ):
     user = db.query(User).filter(
         User.id == user_id

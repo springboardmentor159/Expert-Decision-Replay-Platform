@@ -1,0 +1,534 @@
+{
+  "info": {
+    "name": "Expert Decision Replay Platform - Sprint 13",
+    "description": "Sprint 13 integration/regression collection. Organized per spec Section 25. Run the 'Authentication' and 'Users' folders first (or use Postman's Collection Runner on the whole collection top-to-bottom) so downstream requests inherit {{jwt_token}}, {{decision_id}}, etc.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{jwt_token}}", "type": "string" } ]
+  },
+  "variable": [ { "key": "base_url", "value": "http://localhost:8000" } ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Employee",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/users/",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Employee Tester\",\n  \"email\": \"{{user_email}}\",\n  \"role\": \"Employee\",\n  \"password\": \"{{user_password}}\",\n  \"employee_id\": \"EMP-PM-001\",\n  \"department\": \"Engineering\",\n  \"designation\": \"Developer\",\n  \"phone_number\": \"9000000000\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Employee registered (201) or already exists (400)', function () {",
+                  "  pm.expect([201, 400]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('user_id', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (get JWT)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+            "url": "{{base_url}}/users/login",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "{{user_email}}" },
+                { "key": "password", "value": "{{user_password}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login succeeds with a bearer token', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().access_token).to.be.a('string');",
+                  "});",
+                  "pm.environment.set('jwt_token', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - invalid password (401)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+            "url": "{{base_url}}/users/login",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "{{user_email}}" },
+                { "key": "password", "value": "definitely-wrong" }
+              ]
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Invalid login returns 401', function () { pm.response.to.have.status(401); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "Protected endpoint without token (401)",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions", "auth": { "type": "noauth" } },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('No token -> 401', function () { pm.response.to.have.status(401); });"
+            ] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get current user's profile",
+          "request": { "method": "GET", "url": "{{base_url}}/users/{{user_id}}" },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Profile fetched', function () { pm.response.to.have.status(200); });",
+              "pm.test('Password never returned', function () { pm.expect(pm.response.json()).to.not.have.property('password'); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "List all users",
+          "request": { "method": "GET", "url": "{{base_url}}/users/" }
+        },
+        {
+          "name": "Update user (invalid email -> 422)",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/users/{{user_id}}",
+            "body": { "mode": "raw", "raw": "{ \"email\": \"not-an-email\" }" }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Invalid email rejected with 422', function () { pm.response.to.have.status(422); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "Get non-existent user (404)",
+          "request": { "method": "GET", "url": "{{base_url}}/users/999999999" },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Missing user -> 404', function () { pm.response.to.have.status(404); });"
+            ] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Decisions",
+      "item": [
+        {
+          "name": "Create decision",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Primary datastore selection\",\n  \"problem_statement\": \"We need to choose a primary datastore.\",\n  \"category\": \"Technology\"\n}"
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Decision created (201), status Draft', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(pm.response.json().status).to.eql('Draft');",
+              "});",
+              "pm.environment.set('decision_id', pm.response.json().id);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Create decision - missing title (422)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions",
+            "body": { "mode": "raw", "raw": "{ \"problem_statement\": \"no title\", \"category\": \"Technology\" }" }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Missing required field -> 422', function () { pm.response.to.have.status(422); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "Get decision by id",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/{{decision_id}}" }
+        },
+        {
+          "name": "List/filter decisions",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions?status=Draft&category=Technology&page=1&page_size=10" }
+        },
+        {
+          "name": "Search decisions",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/search?q=datastore" }
+        },
+        {
+          "name": "Submit decision (Draft -> Under Review)",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/status",
+            "body": { "mode": "raw", "raw": "{ \"status\": \"Under Review\" }" }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Status moved to Under Review', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().status).to.eql('Under Review');",
+              "});"
+            ] } }
+          ]
+        },
+        {
+          "name": "Get decision versions",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/{{decision_id}}/versions" }
+        },
+        {
+          "name": "Get decision history",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/{{decision_id}}/history" }
+        },
+        {
+          "name": "Get decision timeline",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/{{decision_id}}/timeline" }
+        },
+        {
+          "name": "Get non-existent decision (404)",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/999999999" },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Missing decision -> 404', function () { pm.response.to.have.status(404); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "Non-integer decision id (422)",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/abc" },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Non-integer id -> 422', function () { pm.response.to.have.status(422); });"
+            ] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Alternatives",
+      "item": [
+        {
+          "name": "Create alternative",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/alternatives",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PostgreSQL\",\n  \"description\": \"Relational database\",\n  \"pros\": \"Mature, ACID-compliant\",\n  \"cons\": \"Vertical scaling limits\",\n  \"estimated_cost\": 5000,\n  \"feasibility_score\": 4,\n  \"risk_level\": \"Low\"\n}"
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Alternative created', function () { pm.response.to.have.status(201); });",
+              "pm.environment.set('alternative_id', pm.response.json().id);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Create alternative - feasibility_score 0 (422)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/alternatives",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"MySQL\",\n  \"description\": \"x\",\n  \"pros\": \"x\",\n  \"cons\": \"x\",\n  \"estimated_cost\": 1,\n  \"feasibility_score\": 0,\n  \"risk_level\": \"Low\"\n}"
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('feasibility_score=0 -> 422', function () { pm.response.to.have.status(422); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "Create alternative - invalid risk_level (422)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/alternatives",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"MongoDB\",\n  \"description\": \"x\",\n  \"pros\": \"x\",\n  \"cons\": \"x\",\n  \"estimated_cost\": 1,\n  \"feasibility_score\": 3,\n  \"risk_level\": \"Very Dangerous\"\n}"
+            }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Invalid risk_level -> 422', function () { pm.response.to.have.status(422); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "List alternatives for decision",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/{{decision_id}}/alternatives" }
+        },
+        {
+          "name": "Compare alternatives",
+          "request": { "method": "GET", "url": "{{base_url}}/decisions/{{decision_id}}/alternatives/compare" }
+        }
+      ]
+    },
+    {
+      "name": "Discussion",
+      "item": [
+        {
+          "name": "Create discussion thread",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/threads",
+            "body": { "mode": "raw", "raw": "{ \"title\": \"Which datastore should we pick?\", \"description\": \"Kickoff discussion\" }" }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Thread created', function () { pm.response.to.have.status(201); });",
+              "pm.environment.set('thread_id', pm.response.json().id);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Create comment on decision",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/comments",
+            "body": { "mode": "raw", "raw": "{ \"content\": \"I'd lean towards PostgreSQL.\" }" }
+          }
+        },
+        {
+          "name": "Reply within thread",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/threads/{{thread_id}}/comments",
+            "body": { "mode": "raw", "raw": "{ \"content\": \"Agreed, PostgreSQL fits our reliability needs.\" }" }
+          }
+        },
+        {
+          "name": "Set decision rationale",
+          "request": {
+            "method": "PUT",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/rationale",
+            "body": { "mode": "raw", "raw": "{ \"rationale\": \"PostgreSQL best balances familiarity and reliability.\" }" }
+          }
+        },
+        {
+          "name": "Add meeting note",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/meeting-notes",
+            "body": { "mode": "raw", "raw": "{ \"title\": \"Architecture review\", \"content\": \"Team agreed PostgreSQL is the frontrunner.\", \"meeting_date\": \"2026-09-01T10:00:00\" }" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Approvals",
+      "item": [
+        {
+          "name": "Assign reviewer to decision",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/approvals",
+            "body": { "mode": "raw", "raw": "{ \"level\": 1, \"reviewer_id\": {{reviewer_id}} }" },
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{manager_jwt_token}}" } ] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Approval assigned (Manager/Administrator only)', function () { pm.response.to.have.status(201); });",
+              "pm.environment.set('approval_id', pm.response.json().id);"
+            ] } }
+          ]
+        },
+        {
+          "name": "Assign reviewer as Employee (403)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/decisions/{{decision_id}}/approvals",
+            "body": { "mode": "raw", "raw": "{ \"level\": 1, \"reviewer_id\": {{reviewer_id}} }" }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Employee cannot assign reviewers -> 403', function () { pm.response.to.have.status(403); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "Reviewer approves",
+          "request": {
+            "method": "PATCH",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": "{{base_url}}/approvals/{{approval_id}}",
+            "body": { "mode": "raw", "raw": "{ \"decision\": \"Approved\", \"comments\": \"Looks solid.\" }" },
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{reviewer_jwt_token}}" } ] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Approval action succeeds', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().status).to.eql('Approved');",
+              "});"
+            ] } }
+          ]
+        },
+        {
+          "name": "My pending approvals",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/approvals/pending",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{reviewer_jwt_token}}" } ] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        { "name": "Employee dashboard", "request": { "method": "GET", "url": "{{base_url}}/dashboard/employee" } },
+        {
+          "name": "Manager dashboard",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/dashboard/manager",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{manager_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Administrator dashboard",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/dashboard/admin",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{admin_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Admin dashboard as Employee (403)",
+          "request": { "method": "GET", "url": "{{base_url}}/dashboard/admin" },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Non-admin blocked from admin dashboard', function () { pm.response.to.have.status(403); });"
+            ] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "Audit logs (Administrator only)",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/audit-logs?entity_type=Decision&entity_id={{decision_id}}",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{admin_jwt_token}}" } ] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Audit trail retrieved', function () { pm.response.to.have.status(200); });"
+            ] } }
+          ]
+        },
+        {
+          "name": "Security logs (Administrator only)",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/security-logs",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{admin_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Access logs (Administrator only)",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/access-logs",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{admin_jwt_token}}" } ] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Decision report",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/reports/decisions?status=Approved",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{manager_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Decision report - export PDF",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/reports/decisions/export/pdf",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{manager_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Decision report - export Excel",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/reports/decisions/export/excel",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{manager_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Approval report",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/reports/approvals",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{manager_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Team report (Manager/Administrator)",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/reports/teams",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{manager_jwt_token}}" } ] }
+          }
+        },
+        {
+          "name": "Audit report (Administrator only)",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/reports/audit",
+            "auth": { "type": "bearer", "bearer": [ { "key": "token", "value": "{{admin_jwt_token}}" } ] }
+          }
+        }
+      ]
+    }
+  ]
+}

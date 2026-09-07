@@ -53,6 +53,14 @@ ALLOWED_SORT_FIELDS = {
     "title": Decision.title,
 }
 
+VALID_STATUS_TRANSITIONS = {
+    "Draft": {"Under Review", "Archived"},
+    "Under Review": {"Approved", "Rejected", "Draft"},
+    "Approved": {"Archived"},
+    "Rejected": {"Archived"},
+    "Archived": set(),
+}
+
 
 def _apply_decision_filters(
     query,
@@ -98,7 +106,27 @@ def _validate_sort(sort: str, order: str):
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid order. Allowed values: asc, desc"
         )
+def _validate_status_transition(
+    current_status: str,
+    new_status: str
+) -> None:
+    if new_status == current_status:
+        return
 
+    allowed = VALID_STATUS_TRANSITIONS.get(
+        current_status,
+        set()
+    )
+
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Cannot transition decision from '{current_status}' "
+                f"to '{new_status}'. Allowed next states: "
+                f"{sorted(allowed) or 'none (terminal state)'}"
+            ),
+        )
 
 def _apply_sorting(query, sort: str, order: str):
     column = ALLOWED_SORT_FIELDS[sort]
@@ -362,6 +390,11 @@ def update_decision_status(
     current_user: User = Depends(get_current_user)
 ):
     decision = get_decision_or_404(decision_id, db)
+
+    _validate_status_transition(
+        decision.status,
+        status_data.status.value
+    )
 
     old_snapshot = _decision_snapshot(decision)
 
