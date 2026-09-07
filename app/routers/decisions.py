@@ -478,188 +478,6 @@ def get_decision_timeline(
 
 
 # =========================================================
-# GET DECISION HISTORY
-# =========================================================
-
-@router.get(
-    "/{decision_id}/history"
-)
-def get_decision_history(
-    decision_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-
-    # IMPORTANT:
-    # First check whether the Decision exists.
-    # This prevents a non-existing decision from
-    # incorrectly returning 200 with an empty history.
-
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
-        .first()
-    )
-
-    if decision is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Decision not found"
-        )
-
-    versions = (
-        db.query(DecisionVersion)
-        .filter(
-            DecisionVersion.decision_id == decision_id
-        )
-        .order_by(
-            DecisionVersion.version_number.asc()
-        )
-        .all()
-    )
-
-    return {
-        "decision_id": decision_id,
-        "history": [
-            {
-                "id": version.id,
-                "decision_id": version.decision_id,
-                "version_number": version.version_number,
-                "title": version.title,
-                "problem_statement": version.problem_statement,
-                "category": version.category,
-                "rationale": version.rationale,
-                "status": version.status,
-                "created_by": version.created_by,
-                "created_at": version.created_at
-            }
-            for version in versions
-        ]
-    }
-
-
-# =========================================================
-# GET ALL DECISION VERSIONS
-# =========================================================
-
-@router.get(
-    "/{decision_id}/versions"
-)
-def get_decision_versions(
-    decision_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-
-    # IMPORTANT:
-    # Check the Decision first.
-    # Non-existing Decision must return 404.
-
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
-        .first()
-    )
-
-    if decision is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Decision not found"
-        )
-
-    versions = (
-        db.query(DecisionVersion)
-        .filter(
-            DecisionVersion.decision_id == decision_id
-        )
-        .order_by(
-            DecisionVersion.version_number.asc()
-        )
-        .all()
-    )
-
-    return {
-        "decision_id": decision_id,
-        "versions": [
-            {
-                "id": version.id,
-                "decision_id": version.decision_id,
-                "version_number": version.version_number,
-                "title": version.title,
-                "problem_statement": version.problem_statement,
-                "category": version.category,
-                "rationale": version.rationale,
-                "status": version.status,
-                "created_by": version.created_by,
-                "created_at": version.created_at
-            }
-            for version in versions
-        ]
-    }
-
-
-# =========================================================
-# GET SPECIFIC DECISION VERSION
-# =========================================================
-
-@router.get(
-    "/{decision_id}/versions/{version_number}"
-)
-def get_specific_decision_version(
-    decision_id: int,
-    version_number: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
-):
-
-    # First check Decision
-    decision = (
-        db.query(Decision)
-        .filter(Decision.id == decision_id)
-        .first()
-    )
-
-    if decision is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Decision not found"
-        )
-
-    # Then find requested version
-    version = (
-        db.query(DecisionVersion)
-        .filter(
-            DecisionVersion.decision_id == decision_id,
-            DecisionVersion.version_number == version_number
-        )
-        .first()
-    )
-
-    if version is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Decision version not found"
-        )
-
-    return {
-        "id": version.id,
-        "decision_id": version.decision_id,
-        "version_number": version.version_number,
-        "title": version.title,
-        "problem_statement": version.problem_statement,
-        "category": version.category,
-        "rationale": version.rationale,
-        "status": version.status,
-        "created_by": version.created_by,
-        "created_at": version.created_at
-    }
-
-
-# =========================================================
 # GET DECISION BY ID
 # =========================================================
 
@@ -875,6 +693,13 @@ def update_decision_status(
     old_status = decision.status
     new_status = status_data.status.value
 
+    # Prevent duplicate/no-op status changes
+    if old_status == new_status:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Decision is already in '{new_status}' status"
+        )
+
     decision.status = new_status
 
     db.commit()
@@ -910,7 +735,6 @@ def update_decision_status(
     db.commit()
 
     return decision
-
 
 # =========================================================
 # UPDATE DECISION RATIONALE

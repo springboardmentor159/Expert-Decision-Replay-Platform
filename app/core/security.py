@@ -1,51 +1,46 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-from jose import JWTError, jwt
+from jose import jwt, JWTError
 from passlib.context import CryptContext
 
+from app.core.config import settings
 
-# Password hashing
+
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
 
-
-# JWT configuration
-
-SECRET_KEY = "change-this-to-a-long-random-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+security = HTTPBearer()
 
 
-# Hash password
-
-def hash_password(password: str):
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-
-# Verify password
 
 def verify_password(
     plain_password: str,
     hashed_password: str
-):
+) -> bool:
     return pwd_context.verify(
         plain_password,
         hashed_password
     )
 
 
-# Create JWT token
-
 def create_access_token(
     data: dict,
-    expires_delta: timedelta | None = None
-):
+    expires_delta: Optional[timedelta] = None
+) -> str:
+
     to_encode = data.copy()
 
     if expires_delta:
@@ -68,9 +63,8 @@ def create_access_token(
     return encoded_jwt
 
 
-# Decode JWT token
-
 def decode_access_token(token: str):
+
     try:
         payload = jwt.decode(
             token,
@@ -84,16 +78,10 @@ def decode_access_token(token: str):
         return None
 
 
-# Bearer token security
-
-security = HTTPBearer()
-
-
-# Get current authenticated user
-
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+
     token = credentials.credentials
 
     payload = decode_access_token(token)
@@ -101,8 +89,15 @@ def get_current_user(
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid or expired token"
+        )
+
+    user_id = payload.get("sub")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
         )
 
     return payload
