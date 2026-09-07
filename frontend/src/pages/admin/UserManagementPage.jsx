@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Shield, Search, UserCheck, Briefcase, Building } from 'lucide-react';
 import { usersApi } from '../../api/users';
+import { organizationsApi } from '../../api/organizations';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
@@ -11,6 +12,7 @@ export function UserManagementPage() {
   const { isAdmin } = useAuth();
   const { error } = useNotification();
   const [users, setUsers] = useState([]);
+  const [orgMap, setOrgMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeRoleTab, setActiveRoleTab] = useState('ALL'); // 'ALL' | 'Employee' | 'Reviewer' | 'Manager' | 'Administrator'
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,7 +21,17 @@ export function UserManagementPage() {
     async function loadUsers() {
       setLoading(true);
       try {
-        const list = await usersApi.getUsers();
+        const [list, orgs] = await Promise.all([
+          usersApi.getUsers(),
+          organizationsApi.getPublicList().catch(() => []),
+        ]);
+        const map = {};
+        if (Array.isArray(orgs)) {
+          orgs.forEach((o) => {
+            map[o.id] = o.name;
+          });
+        }
+        setOrgMap(map);
         setUsers(list || []);
       } catch (err) {
         error(err.message || 'Failed to fetch users');
@@ -198,7 +210,7 @@ export function UserManagementPage() {
                   <th>Department</th>
                   <th>Designation</th>
                   <th>Employee ID</th>
-                  <th>Organization ID</th>
+                  <th>Organization</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,7 +224,12 @@ export function UserManagementPage() {
                     <td>{u.department || '—'}</td>
                     <td>{u.designation || '—'}</td>
                     <td><code style={{ fontSize: '0.8rem' }}>{u.employee_id || '—'}</code></td>
-                    <td>Org #{u.organization_id}</td>
+                    <td>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                        <Building size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                        {orgMap[u.organization_id] || (u.organization_id ? `Org #${u.organization_id}` : '—')}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

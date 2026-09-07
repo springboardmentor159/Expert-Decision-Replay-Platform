@@ -12,16 +12,19 @@ import {
   Shield,
   Layers,
   ChevronRight,
+  Building,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { dashboardApi } from '../../api/dashboard';
 import { approvalsApi } from '../../api/approvals';
+import { organizationsApi } from '../../api/organizations';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
 export function DashboardPage({ onSelectDecision, onNavigateCreate, onNavigateReviews }) {
   const { user, role, isEmployee, isReviewer, isManager, isAdmin } = useAuth();
   const [data, setData] = useState(null);
+  const [orgName, setOrgName] = useState('');
   const [recentDecisions, setRecentDecisions] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
@@ -87,6 +90,25 @@ export function DashboardPage({ onSelectDecision, onNavigateCreate, onNavigateRe
     loadDashboard();
   }, [role, isEmployee, isReviewer, isManager, isAdmin]);
 
+  useEffect(() => {
+    async function loadOrgName() {
+      try {
+        const orgs = await organizationsApi.getPublicList();
+        if (Array.isArray(orgs)) {
+          const matched = orgs.find((o) => o.id === user?.organization_id);
+          if (matched) {
+            setOrgName(matched.name);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (user?.organization_id) {
+      loadOrgName();
+    }
+  }, [user?.organization_id]);
+
   if (loading) {
     return <LoadingSpinner message="Loading your dashboard analytics..." size="large" />;
   }
@@ -119,9 +141,27 @@ export function DashboardPage({ onSelectDecision, onNavigateCreate, onNavigateRe
           <h1 style={{ fontSize: '1.75rem', marginBottom: '0.35rem' }}>
             {role} Dashboard
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Welcome back, <strong style={{ color: 'var(--text-primary)' }}>{user?.full_name}</strong>. Here is your governance overview.
-          </p>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+            <span>Welcome back, <strong style={{ color: 'var(--text-primary)' }}>{user?.full_name}</strong>.</span>
+            {orgName && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'var(--bg-hover)',
+                border: '1px solid var(--border-color)',
+                padding: '2px 10px',
+                borderRadius: '20px',
+                fontSize: '0.8rem',
+                color: 'var(--text-primary)',
+                fontWeight: 500,
+              }}>
+                <Building size={13} style={{ color: 'var(--primary)' }} />
+                {orgName}
+              </span>
+            )}
+            <span>Here is your governance overview.</span>
+          </div>
         </div>
         {isEmployee && (
           <button onClick={onNavigateCreate} className="btn btn-primary">

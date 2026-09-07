@@ -30,6 +30,7 @@ import { alternativesApi } from '../../api/alternatives';
 import { approvalsApi } from '../../api/approvals';
 import { discussionsApi } from '../../api/discussions';
 import { usersApi } from '../../api/users';
+import { organizationsApi } from '../../api/organizations';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { StatusBadge, RiskBadge } from '../../components/common/StatusBadge';
@@ -96,6 +97,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
 
   // Tag input
   const [newTag, setNewTag] = useState('');
+  const [orgName, setOrgName] = useState('');
 
   const loadAllDetails = useCallback(async () => {
     try {
@@ -117,6 +119,15 @@ export function DecisionDetailPage({ decisionId, onBack }) {
       setMeetingNotes(notes || []);
       setTimeline(tline || []);
       setVersions(vers || []);
+
+      if (detail && detail.organization_id) {
+        organizationsApi.getPublicList()
+          .then((orgs) => {
+            const found = orgs.find((o) => o.id === detail.organization_id);
+            if (found) setOrgName(found.name);
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       error(err.message || 'Failed to load complete decision data');
     } finally {
@@ -377,7 +388,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Building size={15} />
-                Org #{decision.organization_id}
+                {orgName || (decision.organization_id ? `Org #${decision.organization_id}` : 'Default Organization')}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <User size={15} />
