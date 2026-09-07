@@ -24,6 +24,7 @@ import {
   Download,
   Check,
   Award,
+  Archive,
 } from 'lucide-react';
 import { decisionsApi } from '../../api/decisions';
 import { alternativesApi } from '../../api/alternatives';
@@ -98,6 +99,32 @@ export function DecisionDetailPage({ decisionId, onBack }) {
   // Tag input
   const [newTag, setNewTag] = useState('');
   const [orgName, setOrgName] = useState('');
+
+  // Delete & Archive modals
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+
+  const handleArchiveDecision = async () => {
+    try {
+      await decisionsApi.updateStatus(decision.id, 'Archived');
+      success('Decision has been archived successfully');
+      setShowArchiveModal(false);
+      loadAllDetails();
+    } catch (err) {
+      error(err.message || 'Failed to archive decision');
+    }
+  };
+
+  const handleDeleteDecision = async () => {
+    try {
+      await decisionsApi.deleteDecision(decision.id);
+      success('Decision and all associated records deleted successfully');
+      setShowDeleteModal(false);
+      onBack();
+    } catch (err) {
+      error(err.message || 'Failed to delete decision');
+    }
+  };
 
   const loadAllDetails = useCallback(async () => {
     try {
@@ -363,6 +390,25 @@ export function DecisionDetailPage({ decisionId, onBack }) {
           {(isManager || isAdmin || decision.created_by === user?.id) && (
             <button className="btn btn-secondary btn-sm" onClick={() => setShowAssignModal(true)}>
               <User size={15} /> Assign Reviewer
+            </button>
+          )}
+          {(isAdmin || isManager || decision.created_by === user?.id) && decision.status !== 'Archived' && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowArchiveModal(true)}
+              title="Archive Decision"
+            >
+              <Archive size={15} /> Archive
+            </button>
+          )}
+          {(isAdmin || (decision.created_by === user?.id && decision.status === 'Draft')) && (
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              onClick={() => setShowDeleteModal(true)}
+              title="Delete Decision"
+            >
+              <Trash2 size={15} /> Delete
             </button>
           )}
         </div>
@@ -1320,6 +1366,78 @@ export function DecisionDetailPage({ decisionId, onBack }) {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Archive Confirmation Modal */}
+      <Modal
+        isOpen={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+        title="Archive Decision"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setShowArchiveModal(false)}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={handleArchiveDecision}>
+              Confirm Archive
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+          <div style={{
+            background: 'var(--warning-light)',
+            color: 'var(--warning)',
+            padding: '0.75rem',
+            borderRadius: '50%',
+          }}>
+            <Archive size={24} />
+          </div>
+          <div>
+            <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+              Are you sure you want to archive this decision?
+            </p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              Archiving "{decision?.title}" will retire it from active reviewer and manager queues while retaining all historical audit trails and version records intact.
+            </p>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Permanently Delete Decision"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </button>
+            <button className="btn btn-danger" onClick={handleDeleteDecision}>
+              Permanently Delete
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+          <div style={{
+            background: 'var(--danger-light)',
+            color: 'var(--danger)',
+            padding: '0.75rem',
+            borderRadius: '50%',
+          }}>
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+              Are you sure you want to permanently delete this decision?
+            </p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+              "{decision?.title}". This will completely remove this decision and all associated alternatives, criteria, discussion threads, and approvals. This action cannot be undone.
+            </p>
+          </div>
+        </div>
       </Modal>
     </div>
   );

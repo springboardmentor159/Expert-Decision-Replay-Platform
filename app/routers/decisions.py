@@ -5,9 +5,14 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.models.alternative import Alternative
+from app.models.approval import Approval
 from app.models.audit import AuditAction, AuditLog, DecisionVersion
+from app.models.comment import Comment
 from app.models.decision import Decision, DecisionStatus
+from app.models.meeting_note import MeetingNote
 from app.models.tag import Tag
+from app.models.thread import DiscussionThread
 from app.models.user import User, UserRole
 from app.schemas.audit import DecisionVersionResponse, TimelineResponse
 from app.schemas.decision import (
@@ -1268,3 +1273,62 @@ def update_decision_status(
     db.refresh(decision)
 
     return decision
+
+
+# DELETE DECISION (ADMINISTRATOR OR AUTHOR/MANAGER)
+@router.delete(
+    "/{decision_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a decision record",
+)
+def delete_decision(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(
+        decision_id,
+        db,
+        current_user,
+    )
+
+    is_admin = current_user.role == UserRole.ADMINISTRATOR
+    is_creator = decision.created_by == current_user.id
+    is_manager = current_user.role == UserRole.MANAGER
+
+    if not (is_admin or is_creator or is_manager):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this decision. Only Administrators, Managers, and the author can delete it.",
+        )
+
+    # Clean up dependent records in order to respect FK constraints
+    # 1. Comments
+    db.query(Comment).filter(Comment.decision_id == decision.id).delete(synchronize_session=False)
+
+    # 2. Discussion threads
+    db.query(DiscussionThread).filter(DiscussionThread.decision_id == decision.id).delete(synchronize_session=False)
+
+    # 3. Meeting notes
+    db.query(MeetingNote).filter(MeetingNote.decision_id == decision.id).delete(synchronize_session=False)
+
+    # 4. Clear tag associations
+    decision.tags.clear()
+
+    # 5. Alternatives
+    db.query(Alternative).filter(Alternative.decision_id == decision.id).delete(synchronize_session=False)
+
+    # 6. Approvals
+    db.query(Approval).filter(Approval.decision_id == decision.id).delete(synchronize_session=False)
+
+    # 7. Decision versions
+    db.query(DecisionVersion).filter(DecisionVersion.decision_id == decision.id).delete(synchronize_session=False)
+
+    # 8. Audit logs
+    db.query(AuditLog).filter(AuditLog.decision_id == decision.id).delete(synchronize_session=False)
+
+    # 9. Delete the decision
+    db.delete(decision)
+    db.commit()
+
+    return None

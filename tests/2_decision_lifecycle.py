@@ -222,3 +222,49 @@ def test_complete_decision_lifecycle(
     assert "CREATE" in actions
     assert "SUBMIT" in actions
     assert "APPROVE" in actions
+
+
+def test_delete_decision_by_admin_and_creator(
+    client: TestClient,
+    employee_headers: dict,
+    admin_headers: dict,
+):
+    """
+    Test that Creator and Administrator can delete a decision and its associated records.
+    """
+    # 1. Employee creates a decision
+    res = client.post(
+        "/decisions",
+        json={
+            "title": "Temporary Decision For Deletion Test",
+            "problem_statement": "Verifying complete cascade deletion of decisions.",
+            "category": "Technology",
+        },
+        headers=employee_headers,
+    )
+    assert res.status_code == 201
+    dec_id = res.json()["id"]
+
+    # 2. Add an alternative
+    res = client.post(
+        f"/decisions/{dec_id}/alternatives",
+        json={
+            "name": "Alt To Be Deleted",
+            "description": "Will be cleaned up with decision.",
+            "pros": "None",
+            "cons": "None",
+            "estimated_cost": 1000.0,
+            "feasibility_score": 3,
+            "risk_level": "Low",
+        },
+        headers=employee_headers,
+    )
+    assert res.status_code == 201
+
+    # 3. Admin deletes the decision
+    res = client.delete(f"/decisions/{dec_id}", headers=admin_headers)
+    assert res.status_code == 204
+
+    # 4. Confirm decision is 404
+    res = client.get(f"/decisions/{dec_id}", headers=admin_headers)
+    assert res.status_code == 404
