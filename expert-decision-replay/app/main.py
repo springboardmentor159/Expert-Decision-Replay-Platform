@@ -15,6 +15,7 @@ from routers import tags
 from routers import dashboard
 from routers import approval
 from routers import activities
+from routers import reports
 
 from app.core.config import settings
 from app.core.security import (
@@ -50,7 +51,7 @@ app.include_router(dashboard.router)
 app.include_router(approval.router)
 app.include_router(activities.router)
 app.include_router(audit.router)
-
+app.include_router(reports.router)
 
 # =========================================================
 # BEARER TOKEN SECURITY
