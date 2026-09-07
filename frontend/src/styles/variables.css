@@ -1,0 +1,85 @@
+/* Design System Variables - Light & Dark Themes */
+:root,
+[data-theme="dark"] {
+  --bg-app: #090d16;
+  --bg-sidebar: #0d121f;
+  --bg-card: rgba(20, 27, 45, 0.75);
+  --bg-card-hover: rgba(30, 41, 67, 0.85);
+  --bg-card-solid: #131b2e;
+  --bg-input: #101626;
+  --bg-dropdown: #131b2e;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(59, 130, 246, 0.15);
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #090d16;
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-focus: #3b82f6;
+  --border-hover: rgba(255, 255, 255, 0.16);
+
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: rgba(59, 130, 246, 0.15);
+  --primary-glow: rgba(59, 130, 246, 0.35);
+
+  --success: #10b981;
+  --success-light: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;
+  --warning-light: rgba(245, 158, 11, 0.15);
+  --danger: #ef4444;
+  --danger-light: rgba(239, 68, 68, 0.15);
+  --info: #06b6d4;
+  --info-light: rgba(6, 182, 212, 0.15);
+  --purple: #8b5cf6;
+  --purple-light: rgba(139, 92, 246, 0.15);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
+  --glass-blur: blur(12px);
+}
+
+[data-theme="light"] {
+  --bg-app: #f4f6f9;
+  --bg-sidebar: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card-hover: #ffffff;
+  --bg-card-solid: #ffffff;
+  --bg-input: #ffffff;
+  --bg-dropdown: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(37, 99, 235, 0.08);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #f8fafc;
+
+  --border-color: #e2e8f0;
+  --border-focus: #2563eb;
+  --border-hover: #cbd5e1;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: rgba(37, 99, 235, 0.1);
+  --primary-glow: rgba(37, 99, 235, 0.2);
+
+  --success: #059669;
+  --success-light: rgba(5, 150, 105, 0.1);
+  --warning: #d97706;
+  --warning-light: rgba(217, 119, 6, 0.1);
+  --danger: #dc2626;
+  --danger-light: rgba(220, 38, 38, 0.1);
+  --info: #0891b2;
+  --info-light: rgba(8, 145, 178, 0.1);
+  --purple: #7c3aed;
+  --purple-light: rgba(124, 58, 237, 0.1);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.08);
+  --glass-blur: blur(8px);
+}

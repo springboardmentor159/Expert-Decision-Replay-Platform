@@ -18,9 +18,19 @@ from app.routers.organizations import router as organization_router
 from app.routers.reports import router as reports_router
 
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

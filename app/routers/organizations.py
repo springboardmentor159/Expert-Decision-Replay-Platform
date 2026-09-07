@@ -78,6 +78,21 @@ def get_organizations(
     )
 
 
+# PUBLIC ORGANIZATIONS LIST (For user registration)
+@router.get(
+    "/public/list",
+    response_model=list[OrganizationResponse]
+)
+def get_public_organizations(
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(Organization)
+        .order_by(Organization.name)
+        .all()
+    )
+
+
 # GET ORGANIZATION BY ID
 #
 # Administrator can view any organization.
