@@ -33,7 +33,7 @@ export function KnowledgeRepositoryPage({ onSelectDecision }) {
         page_size: 9,
       });
 
-      setResults(data.items || []);
+      setResults(data.results || data.items || []);
       setTotal(data.total || 0);
       setTotalPages(data.total_pages || 1);
     } catch (err) {

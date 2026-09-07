@@ -362,38 +362,70 @@ export function ReportsPage() {
                   <tr key={idx}>
                     {activeReport === 'decisions' && (
                       <>
-                        <td><strong>#{row.id}</strong></td>
-                        <td>{row.title}</td>
+                        <td><strong>#{row.decision_id ?? row.id}</strong></td>
+                        <td>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {row.decision_title || row.title || 'Untitled Decision'}
+                          </div>
+                          {row.creator_name && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              Author: {row.creator_name}
+                            </div>
+                          )}
+                        </td>
                         <td><span className="badge badge-role">{row.category || 'General'}</span></td>
                         <td><StatusBadge status={row.status} /></td>
-                        <td>{row.created_at ? new Date(row.created_at).toLocaleDateString() : '—'}</td>
+                        <td>
+                          {(row.created_date || row.created_at)
+                            ? new Date(row.created_date || row.created_at).toLocaleDateString()
+                            : '—'}
+                        </td>
                       </>
                     )}
                     {activeReport === 'approvals' && (
                       <>
-                        <td><strong>#{row.id}</strong></td>
-                        <td>#{row.decision_id}</td>
+                        <td><strong>#{row.approval_id ?? row.id}</strong></td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>#{row.decision_id}</div>
+                          {row.decision_title && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              {row.decision_title}
+                            </div>
+                          )}
+                        </td>
                         <td>{row.reviewer_name || `Reviewer #${row.reviewer_id}`}</td>
-                        <td><StatusBadge status={row.status} /></td>
-                        <td>{row.created_at ? new Date(row.created_at).toLocaleDateString() : '—'}</td>
-                        <td>{row.completed_at ? new Date(row.completed_at).toLocaleDateString() : '—'}</td>
+                        <td><StatusBadge status={row.approval_status || row.status} /></td>
+                        <td>
+                          {(row.assigned_date || row.created_at)
+                            ? new Date(row.assigned_date || row.created_at).toLocaleDateString()
+                            : '—'}
+                        </td>
+                        <td>
+                          {(row.completed_date || row.completed_at)
+                            ? new Date(row.completed_date || row.completed_at).toLocaleDateString()
+                            : '—'}
+                        </td>
                       </>
                     )}
                     {activeReport === 'teams' && (
                       <>
-                        <td><strong>{row.department || row.team_name || 'General'}</strong></td>
+                        <td><strong>{row.team_name || row.department || 'General'}</strong></td>
                         <td>{row.total_decisions || 0}</td>
                         <td><span style={{ color: 'var(--success)' }}>{row.approved_decisions || 0}</span></td>
-                        <td><span style={{ color: 'var(--warning)' }}>{row.pending_approvals || 0}</span></td>
+                        <td><span style={{ color: 'var(--warning)' }}>{row.pending_decisions || 0}</span></td>
                       </>
                     )}
                     {activeReport === 'audit' && (
                       <>
-                        <td>#{row.id}</td>
+                        <td>#{row.audit_id ?? row.id}</td>
                         <td><span className="badge badge-role">{row.action}</span></td>
-                        <td>{row.entity_type} #{row.entity_id}</td>
-                        <td>User #{row.user_id}</td>
-                        <td>{row.created_at ? new Date(row.created_at).toLocaleString() : '—'}</td>
+                        <td>{row.entity_type} #{row.entity_id || ''}</td>
+                        <td>{row.user_name || `User #${row.user_id}`}</td>
+                        <td>
+                          {(row.timestamp || row.created_at)
+                            ? new Date(row.timestamp || row.created_at).toLocaleString()
+                            : '—'}
+                        </td>
                         <td style={{ maxWidth: '300px' }}>{row.description}</td>
                       </>
                     )}
