@@ -139,6 +139,27 @@ def get_users(
     )
 
 
+# GET QUALIFIED REVIEWERS IN ORGANIZATION
+# Accessible to Employees, Managers, and Admins to assign reviewers to decisions
+@router.get(
+    "/reviewers",
+    response_model=List[UserResponse],
+    summary="Get eligible reviewers in user's organization",
+)
+def get_eligible_reviewers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return (
+        db.query(User)
+        .filter(
+            User.organization_id == current_user.organization_id,
+            User.role.in_([UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR]),
+        )
+        .all()
+    )
+
+
 # GET USER BY ID
 #
 # Users can view themselves.

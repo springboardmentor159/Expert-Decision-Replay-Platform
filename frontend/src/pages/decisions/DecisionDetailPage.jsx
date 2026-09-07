@@ -39,6 +39,134 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Modal } from '../../components/common/Modal';
 import { EmptyState } from '../../components/common/EmptyState';
 
+function ThreadDiscussionCard({ thread, currentUserId }) {
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(true);
+  const [replyContent, setReplyContent] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const { success, error } = useNotification();
+
+  const loadComments = useCallback(async () => {
+    try {
+      const res = await discussionsApi.getThreadComments(thread.id);
+      setComments(res || []);
+    } catch (err) {
+      console.error('Failed to load thread comments', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [thread.id]);
+
+  useEffect(() => {
+    loadComments();
+  }, [loadComments]);
+
+  const handlePostReply = async (e) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+    try {
+      setSubmittingReply(true);
+      await discussionsApi.addThreadComment(thread.id, replyContent.trim());
+      setReplyContent('');
+      success('Reply posted');
+      loadComments();
+    } catch (err) {
+      error(err.message || 'Failed to post reply');
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ padding: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+        <div>
+          <h4 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+            {thread.title}
+          </h4>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>Started by <strong>{thread.user?.full_name || `User #${thread.created_by}`}</strong></span>
+            <span>•</span>
+            <span>{new Date(thread.created_at).toLocaleString()}</span>
+          </div>
+        </div>
+        <span className="badge badge-role" style={{ fontSize: '0.75rem' }}>
+          {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+        </span>
+      </div>
+
+      {/* Replies List */}
+      <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+        {loadingComments ? (
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+            Loading comments...
+          </div>
+        ) : comments.length === 0 ? (
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: '0.75rem' }}>
+            No comments on this thread yet. Be the first to share your thoughts below!
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '0.85rem' }}>
+            {comments.map((c) => (
+              <div
+                key={c.id}
+                style={{
+                  background: 'var(--bg-hover)',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                      {c.user?.full_name || `User #${c.user_id}`}
+                    </strong>
+                    {c.user?.role && (
+                      <span className="badge badge-role" style={{ fontSize: '0.7rem', padding: '1px 6px' }}>
+                        {c.user.role}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {new Date(c.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'pre-line', margin: 0 }}>
+                  {c.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Share your thoughts form */}
+        <form onSubmit={handlePostReply} style={{ marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Share your thoughts / reply to this thread..."
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              disabled={submittingReply}
+              style={{ fontSize: '0.85rem' }}
+            />
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              disabled={submittingReply || !replyContent.trim()}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              <Send size={14} /> Reply
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function DecisionDetailPage({ decisionId, onBack }) {
   const { user, role, isEmployee, isReviewer, isManager, isAdmin } = useAuth();
   const { success, error } = useNotification();
@@ -90,7 +218,12 @@ export function DecisionDetailPage({ decisionId, onBack }) {
   const [newThreadContent, setNewThreadContent] = useState('');
   const [meetingNotes, setMeetingNotes] = useState([]);
   const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteForm, setNoteForm] = useState({ title: '', attendees: '', notes: '' });
+  const [noteForm, setNoteForm] = useState({
+    title: '',
+    meeting_date: new Date().toISOString().split('T')[0],
+    attendees: '',
+    content: '',
+  });
 
   // Timeline & Versions
   const [timeline, setTimeline] = useState([]);
@@ -166,18 +299,30 @@ export function DecisionDetailPage({ decisionId, onBack }) {
     loadAllDetails();
   }, [loadAllDetails]);
 
-  // Load org users for reviewer assignment if Manager or Admin
+  // Load eligible reviewers for assignment (accessible to Creator, Manager, Admin)
   useEffect(() => {
-    if (isManager || isAdmin) {
-      usersApi.getUsers().then((res) => {
-        if (res) {
-          const reviewers = res.filter((u) => u.role === 'Reviewer' || u.role === 'Manager');
-          setOrgUsers(reviewers);
-          if (reviewers.length > 0) setSelectedReviewerId(reviewers[0].id);
-        }
-      }).catch(() => {});
+    const canAssign = isManager || isAdmin || (decision && decision.created_by === user?.id);
+    if (canAssign) {
+      usersApi.getReviewers()
+        .then((res) => {
+          if (res && res.length > 0) {
+            setOrgUsers(res);
+            setSelectedReviewerId((prev) => prev || String(res[0].id));
+          }
+        })
+        .catch(() => {
+          if (isManager || isAdmin) {
+            usersApi.getUsers().then((res) => {
+              if (res) {
+                const reviewers = res.filter((u) => u.role === 'Reviewer' || u.role === 'Manager' || u.role === 'Administrator');
+                setOrgUsers(reviewers);
+                if (reviewers.length > 0) setSelectedReviewerId((prev) => prev || String(reviewers[0].id));
+              }
+            }).catch(() => {});
+          }
+        });
     }
-  }, [isManager, isAdmin]);
+  }, [isManager, isAdmin, decision, user]);
 
   // Actions
   const handleAddTag = async (e) => {
@@ -305,13 +450,15 @@ export function DecisionDetailPage({ decisionId, onBack }) {
       return;
     }
     try {
-      await discussionsApi.createThread(decisionId, {
+      const thread = await discussionsApi.createThread(decisionId, {
         title: newThreadTitle.trim(),
-        content: newThreadContent.trim(),
       });
+      if (thread && thread.id && newThreadContent.trim()) {
+        await discussionsApi.addThreadComment(thread.id, newThreadContent.trim());
+      }
       setNewThreadTitle('');
       setNewThreadContent('');
-      success('Discussion thread created');
+      success('Discussion thread created with initial comment');
       loadAllDetails();
     } catch (err) {
       error(err.message || 'Failed to create discussion thread');
@@ -320,19 +467,28 @@ export function DecisionDetailPage({ decisionId, onBack }) {
 
   const handleCreateNote = async (e) => {
     e.preventDefault();
-    if (!noteForm.title.trim() || !noteForm.notes.trim()) {
-      error('Title and notes are required');
+    if (!noteForm.title.trim() || !noteForm.content.trim()) {
+      error('Meeting title and deliberation notes are required');
       return;
     }
     try {
+      let finalContent = noteForm.content.trim();
+      if (noteForm.attendees.trim()) {
+        finalContent = `Attendees: ${noteForm.attendees.trim()}\n\n${finalContent}`;
+      }
       await discussionsApi.createMeetingNote(decisionId, {
         title: noteForm.title.trim(),
-        notes: noteForm.notes.trim(),
-        attendees: noteForm.attendees.trim() || undefined,
+        content: finalContent,
+        meeting_date: noteForm.meeting_date || new Date().toISOString().split('T')[0],
       });
       setShowNoteModal(false);
-      setNoteForm({ title: '', attendees: '', notes: '' });
-      success('Meeting note recorded');
+      setNoteForm({
+        title: '',
+        meeting_date: new Date().toISOString().split('T')[0],
+        attendees: '',
+        content: '',
+      });
+      success('Meeting note recorded successfully');
       loadAllDetails();
     } catch (err) {
       error(err.message || 'Failed to save meeting note');
@@ -836,9 +992,9 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                 {meetingNotes.map((note) => (
                   <div key={note.id} style={{ background: 'var(--bg-hover)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <strong style={{ fontSize: '0.95rem' }}>{note.title}</strong>
+                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{note.title}</strong>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {new Date(note.created_at).toLocaleDateString()}
+                        Date: {note.meeting_date ? new Date(note.meeting_date).toLocaleDateString() : new Date(note.created_at).toLocaleDateString()}
                       </span>
                     </div>
                     {note.attendees && (
@@ -846,8 +1002,8 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                         <strong>Attendees:</strong> {note.attendees}
                       </div>
                     )}
-                    <p style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', color: 'var(--text-primary)' }}>
-                      {note.notes}
+                    <p style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', color: 'var(--text-primary)', margin: '0.35rem 0 0 0' }}>
+                      {note.content}
                     </p>
                   </div>
                 ))}
@@ -864,17 +1020,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {threads.map((thr) => (
-                <div key={thr.id} className="card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <h4 style={{ fontSize: '1.05rem' }}>{thr.title}</h4>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {new Date(thr.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                    {thr.content}
-                  </p>
-                </div>
+                <ThreadDiscussionCard key={thr.id} thread={thr} currentUserId={user?.id} />
               ))}
             </div>
           )}
@@ -1290,25 +1436,32 @@ export function DecisionDetailPage({ decisionId, onBack }) {
         <form onSubmit={handleAssignReviewer}>
           <div className="form-group">
             <label className="form-label">Select Qualified Reviewer / Manager</label>
-            <select
-              className="form-select"
-              value={selectedReviewerId}
-              onChange={(e) => setSelectedReviewerId(e.target.value)}
-              required
-            >
-              {orgUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.full_name} ({u.role} - {u.email})
-                </option>
-              ))}
-            </select>
+            {orgUsers.length === 0 ? (
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0.5rem 0' }}>
+                No qualified reviewers (Reviewer, Manager, Admin) found in your organization.
+              </p>
+            ) : (
+              <select
+                className="form-select"
+                value={selectedReviewerId}
+                onChange={(e) => setSelectedReviewerId(e.target.value)}
+                required
+              >
+                <option value="" disabled>-- Select a Reviewer or Manager --</option>
+                {orgUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.full_name} ({u.role} - {u.email})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
             <button type="button" className="btn btn-secondary" onClick={() => setShowAssignModal(false)}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={orgUsers.length === 0}>
               Confirm Assignment
             </button>
           </div>
@@ -1335,6 +1488,17 @@ export function DecisionDetailPage({ decisionId, onBack }) {
           </div>
 
           <div className="form-group">
+            <label className="form-label">Meeting Date *</label>
+            <input
+              type="date"
+              className="form-input"
+              value={noteForm.meeting_date}
+              onChange={(e) => setNoteForm({ ...noteForm, meeting_date: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Attendees</label>
             <input
               type="text"
@@ -1351,8 +1515,8 @@ export function DecisionDetailPage({ decisionId, onBack }) {
               className="form-textarea"
               rows={4}
               placeholder="Record consensus, dissent, and architectural trade-offs discussed..."
-              value={noteForm.notes}
-              onChange={(e) => setNoteForm({ ...noteForm, notes: e.target.value })}
+              value={noteForm.content}
+              onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })}
               required
             />
           </div>

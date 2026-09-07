@@ -5,6 +5,10 @@ export const usersApi = {
     return await request('/users');
   },
 
+  getReviewers: async () => {
+    return await request('/users/reviewers');
+  },
+
   createUser: async (userData) => {
     return await request('/users', {
       method: 'POST',

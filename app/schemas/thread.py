@@ -1,6 +1,9 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.user import UserResponse
 
 
 class ThreadCreate(BaseModel):
@@ -18,6 +21,7 @@ class ThreadResponse(BaseModel):
     created_by: int
     created_at: datetime
     updated_at: datetime
+    user: Optional[UserResponse] = None
 
     model_config = ConfigDict(
         from_attributes=True
