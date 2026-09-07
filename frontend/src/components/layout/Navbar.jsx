@@ -5,15 +5,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { RoleBadge } from '../common/StatusBadge';
 
 export function Navbar({ onToggleSidebar }) {
-  const { user, role, logout, login } = useAuth();
-
-  const handleQuickSwitch = async (email) => {
-    try {
-      await login(email, 'Password123!');
-    } catch {
-      // Handled in auth context
-    }
-  };
+  const { user, role, logout } = useAuth();
 
   return (
     <header style={{
@@ -65,55 +57,8 @@ export function Navbar({ onToggleSidebar }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {/* Quick Role Switcher for Demo Evaluation */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          background: 'var(--bg-hover)',
-          padding: '0.3rem 0.5rem',
-          borderRadius: '8px',
-          border: '1px solid var(--border-color)',
-          fontSize: '0.75rem',
-        }}>
-          <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Shield size={13} /> Switch Role:
-          </span>
-          <button
-            onClick={() => handleQuickSwitch('employee@example.com')}
-            className={`btn btn-sm ${role === 'Employee' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
-            title="Log in as Employee"
-          >
-            Employee
-          </button>
-          <button
-            onClick={() => handleQuickSwitch('reviewer@example.com')}
-            className={`btn btn-sm ${role === 'Reviewer' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
-            title="Log in as Reviewer"
-          >
-            Reviewer
-          </button>
-          <button
-            onClick={() => handleQuickSwitch('manager@example.com')}
-            className={`btn btn-sm ${role === 'Manager' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
-            title="Log in as Manager"
-          >
-            Manager
-          </button>
-          <button
-            onClick={() => handleQuickSwitch('admin@example.com')}
-            className={`btn btn-sm ${role === 'Administrator' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
-            title="Log in as Administrator"
-          >
-            Admin
-          </button>
-        </div>
-
         {/* Light/Dark Theme Switcher */}
+
         <ThemeToggle />
 
         {/* User Info & Profile */}
