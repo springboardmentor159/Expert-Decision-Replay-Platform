@@ -842,6 +842,92 @@ def delete_decision(
 
 
 # =========================================================
+# COMPARE DECISION ALTERNATIVES
+# =========================================================
+
+@router.get("/{decision_id}/alternatives/compare")
+def compare_decision_alternatives(
+
+    decision_id: int,
+
+    db: Session = Depends(get_db),
+
+    current_user: User = Depends(get_current_user)
+):
+
+    decision = get_decision_or_404(
+        decision_id,
+        db
+    )
+
+    alternatives = db.query(
+        Alternative
+    ).filter(
+        Alternative.decision_id == decision.id
+    ).order_by(
+        Alternative.id.asc()
+    ).all()
+
+    # -----------------------------------------------------
+    # AUDIT LOG
+    # -----------------------------------------------------
+
+    log_audit(
+        db=db,
+        user_id=current_user.id,
+        action="ACCESS",
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=(
+            f"User {current_user.id} compared "
+            f"alternatives for Decision {decision.id}"
+        ),
+        request_method="GET",
+        endpoint=(
+            f"/decisions/{decision.id}/"
+            f"alternatives/compare"
+        )
+    )
+
+    # -----------------------------------------------------
+    # ACCESS LOG
+    # -----------------------------------------------------
+
+    log_access(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Decision",
+        resource_id=decision.id,
+        action="VIEW"
+    )
+
+    db.commit()
+
+    # -----------------------------------------------------
+    # RESPONSE
+    # -----------------------------------------------------
+
+    return {
+        "decision_id": decision.id,
+        "decision_title": decision.title,
+        "alternative_count": len(alternatives),
+        "alternatives": [
+            {
+                "id": alternative.id,
+                "name": alternative.name,
+                "description": alternative.description,
+                "pros": alternative.pros,
+                "cons": alternative.cons,
+                "estimated_cost": alternative.estimated_cost,
+                "feasibility_score": alternative.feasibility_score,
+                "risk_level": alternative.risk_level
+            }
+            for alternative in alternatives
+        ]
+    }
+
+
+# =========================================================
 # DECISION VERSIONS
 # =========================================================
 

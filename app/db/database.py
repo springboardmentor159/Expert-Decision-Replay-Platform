@@ -2,12 +2,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.base import Base
+from app.core.config import settings
 
 
-DATABASE_URL = "postgresql://postgres:12345@localhost:5432/expert-decision-replay"
+DATABASE_URL = settings.database_url
 
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL
+)
 
 
 SessionLocal = sessionmaker(

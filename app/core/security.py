@@ -8,11 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
+from app.core.config import settings
 
 
-# -----------------------------
-# Password Hashing
-# -----------------------------
+# =========================================================
+# PASSWORD HASHING
+# =========================================================
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
@@ -34,13 +35,13 @@ def verify_password(
     )
 
 
-# -----------------------------
-# JWT Configuration
-# -----------------------------
+# =========================================================
+# JWT CONFIGURATION
+# =========================================================
 
-SECRET_KEY = "expert-decision-replay-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = settings.secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 
 # Swagger will use this for Bearer authentication
@@ -49,9 +50,9 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
-# -----------------------------
-# Create JWT Token
-# -----------------------------
+# =========================================================
+# CREATE JWT TOKEN
+# =========================================================
 
 def create_access_token(
     data: dict,
@@ -78,9 +79,9 @@ def create_access_token(
     )
 
 
-# -----------------------------
-# Get Current Authenticated User
-# -----------------------------
+# =========================================================
+# GET CURRENT AUTHENTICATED USER
+# =========================================================
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -109,8 +110,13 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
 
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        raise credentials_exception
+
     user = db.query(User).filter(
-        User.id == int(user_id)
+        User.id == user_id
     ).first()
 
     if user is None:
