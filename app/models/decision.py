@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import (
     Column,
     Integer,
@@ -8,9 +10,10 @@ from sqlalchemy import (
     Table,
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
 
 from app.db.base import Base
+
+
 decision_tags = Table(
     "decision_tags",
     Base.metadata,
@@ -28,7 +31,7 @@ decision_tags = Table(
     ),
 )
 
-from sqlalchemy.orm import relationship
+
 class Decision(Base):
     __tablename__ = "decisions"
 
@@ -66,17 +69,14 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan",
     )
+
     discussion_threads = relationship(
-    "DiscussionThread",
-    back_populates="decision",
-)
+        "DiscussionThread",
+        back_populates="decision",
+    )
+
     tags = relationship(
-    "Tag",
-    secondary=decision_tags,
-    back_populates="decisions",
-)
-    alternatives = relationship(
-    "Alternative",
-    back_populates="decision",
-    cascade="all, delete-orphan",
-)
+        "Tag",
+        secondary=decision_tags,
+        back_populates="decisions",
+    )

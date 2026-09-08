@@ -21,6 +21,7 @@ from app.routers import comment
 from app.routers import approval
 
 from app.routers import report
+from app.routers import dashboard
 
 
 app = FastAPI(
@@ -48,6 +49,7 @@ app.include_router(comment.router)
 app.include_router(approval.router)
 
 app.include_router(report.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health")

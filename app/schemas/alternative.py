@@ -1,6 +1,13 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class RiskLevel(str, Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
 
 
 class AlternativeCreate(BaseModel):
@@ -10,7 +17,7 @@ class AlternativeCreate(BaseModel):
     cons: str
     estimated_cost: float
     feasibility_score: int = Field(ge=1, le=5)
-    risk_level: str
+    risk_level: RiskLevel
 
 
 class AlternativeResponse(BaseModel):
