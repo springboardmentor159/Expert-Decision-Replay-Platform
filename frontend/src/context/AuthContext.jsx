@@ -20,18 +20,53 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => Boolean(localStorage.getItem('token')));
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+  }, []);
+
+  useEffect(() => {
+    if (!token) {
+      setIsLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    const storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+    const profilePath = storedUser?.id ? `/users/${storedUser.id}` : '/users/me';
+    apiClient.get(profilePath)
+      .then((response) => {
+        if (active) {
+          const userData = response.data;
+          localStorage.setItem('user', JSON.stringify(userData));
+          setUser(userData);
+        }
+      })
+      .catch(() => {
+        if (active) clearSession();
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token, clearSession]);
 
   // Synchronize 401 unauthorized events across windows/interceptors
   useEffect(() => {
     const handleUnauthorized = () => {
-      setToken(null);
-      setUser(null);
+      clearSession();
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
-  }, []);
+  }, [clearSession]);
 
   const login = useCallback(async (email, password) => {
     setIsLoading(true);
@@ -81,6 +116,19 @@ export const AuthProvider = ({ children }) => {
     return user.role === allowedRoles;
   }, [user]);
 
+  const hasPermission = useCallback((permission) => {
+    const permissions = {
+      view_decisions: [UserRole.EMPLOYEE, UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
+      create_decision: [UserRole.EMPLOYEE, UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
+      review_decision: [UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
+      manager_dashboard: [UserRole.MANAGER, UserRole.ADMINISTRATOR],
+      admin_dashboard: [UserRole.ADMINISTRATOR],
+      security_logs: [UserRole.MANAGER, UserRole.ADMINISTRATOR],
+      reports: [UserRole.EMPLOYEE, UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
+    };
+    return hasRole(permissions[permission] || []);
+  }, [hasRole]);
+
   const value = useMemo(() => ({
     token,
     user,
@@ -89,6 +137,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     hasRole,
+    hasPermission,
     isEmployee: user?.role === UserRole.EMPLOYEE,
     isReviewer: user?.role === UserRole.REVIEWER,
     isManager: user?.role === UserRole.MANAGER,

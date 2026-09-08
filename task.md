@@ -1,5 +1,13 @@
 # Task State — Decisions CRUD
 
+- [x] 2026-09-09 20:28 — Confirmed Vite build and backend report contracts; fixed the reports page's missing `Select` import so its filter controls can render.
+- [x] 2026-09-09 20:34 — Added persisted document upload/list/download/delete APIs with file validation and owner/admin permissions; installed and recorded `python-multipart`.
+- [x] 2026-09-09 20:38 — Extended audit entity validation for document events after upload testing exposed a rollback; added the follow-up migration and isolated document tests.
+- [x] 2026-09-09 20:44 — Verified Dashboard → Report → Approved filter → PDF export → Document upload with real API data; 3 focused tests passed, frontend build passed, and Alembic has one head.
+- [x] 2026-09-09 20:48 — Fixed post-login redirect loop: auth bootstrap now validates the numeric user endpoint returned by login, avoiding the live `/users/me` route shadow that returned 422.
+- [x] 2026-09-09 20:55 — Corrected demo account roles in the live database and added an Alembic migration: employee, reviewer, manager, and administrator now receive their intended permissions.
+- [x] 2026-09-09 21:02 — Fixed decision detail retrieval when an optional documents endpoint returns 404; decisions now render independently while document support can be enabled by restarting the backend.
+
 ## Part 1 (Create + Read): COMPLETE
 ## Part 2 (Update): COMPLETE (2026-08-17)
 
@@ -3008,3 +3016,39 @@ Backend must be running at `http://localhost:8000` for API calls.
 
 **Sprint Status**: **COMPLETED** — React SPA built with 17 reusable components, 6 pages, JWT-authenticated API integration, role-based routing and navigation, Apple-inspired design system, and working login → dashboard → decisions flow. Frontend builds cleanly (`npm run build` — 556ms, 0 errors). Backend test suite unaffected (**853 passed, 4 pre-existing date-filter flaky tests**). Ready for incremental feature development on top of the established architecture.
 
+---
+
+## Sprint 14 — Frontend: Complete User Flow Wiring (2026-09-09)
+
+### Phase 2 deliverables continued — Frontend Build
+
+- [x] Fixed DashboardPage to handle all three dashboard endpoint response shapes (employee/manager/admin) — AdminDashboard uses decision_stats, ManagerStatistics has flat fields, EmployeeDashboard uses decisions_by_status array. Added recent activity feed, stat cards, and proper role-based capabilities display.
+- [x] Creating DecisionDetailPage (decision hub with tabs: Overview, Alternatives, Discussion, Meeting Notes, Rationale, Versions/History)
+- [x] Creating ReportsPage (decisions, approvals, teams, audit reports + PDF/Excel exports)
+- [x] Creating ManagerStatsPage (manager statistics + admin analytics/user-activity/pending approvals)
+- [x] Creating AdminUsersPage (user CRUD)
+- [x] Creating AdminAuditPage (audit trail with pagination/filters)
+- [x] Creating AdminSecurityLogsPage (security & access logs)
+- [x] Updating App.jsx routes, Sidebar.jsx nav, AppLayout.jsx page titles
+- [x] Updating DecisionsPage to add view/edit/detail navigation
+- [x] Connecting all pages to backend APIs (no mock data)
+- [ ] E2E workflow test (Approved path)
+- [ ] E2E workflow test (Rejected path)
+
+The browser E2E checks remain pending because this repository has no frontend test runner or browser automation configuration. The pages are build- and lint-validated, and the backend regression suite was run separately.
+
+## Phase 2 — Core Decision Workflow Audit (2026-09-09)
+
+- [x] Audited the Phase 2 workflow against backend routers and schemas — decision, alternative, discussion, meeting-note, rationale, status, version, and history APIs are present.
+- [x] Connected decision detail workflow to alternative create/edit/view, feasibility and risk fields, and backend comparison endpoint.
+- [x] Connected discussion workflow to decision comments, thread creation, and thread replies.
+- [x] Connected meeting-note creation to the existing decision meeting-notes API.
+- [x] Preserved ownership enforcement in the UI — decision editing is limited to the creator or Administrator, matching the backend; status changes remain available to creator, Reviewer, Manager, and Administrator.
+- [x] Added report filters for search, status, category, date range, sorting, pagination, and summary statistics; selected backend filters are forwarded to PDF and Excel exports.
+- [ ] Tags and supporting documents are blocked — no tag fields/endpoints, document model, upload endpoint, download endpoint, or file validation contract exists in the backend.
+- [ ] Reviewer assignment, multi-level approval, and approval queue are blocked — no approval entity, assignment endpoint, or approval-level API exists; Approved/Rejected status and audit/version history are the available backend workflow primitives.
+- [ ] Knowledge repository users/teams/timeline/document filters are partially blocked — decisions support category/status and reports support creator/date/sort/pagination, but the backend has no tags, teams, or documents contract.
+- [x] Corrected report controls per backend contract — approval reports now use pending/approved/rejected statuses and endpoint-valid sort keys.
+- [x] Added an explicit Documents tab state — supporting-file upload/download/association/validation is reported as unavailable because no backend document API exists.
+- [x] Existing backend E2E coverage located for both lifecycle paths — `test_phase4_full_testing.py` covers Approved and Rejected flows; focused workflow APIs passed 92 tests.
+- [x] Generated comprehensive technical and operational system documentation in `Description.txt` and project transition guidelines in `handover.md` covering architecture, data models, RBAC, lifecycle replay engine, and execution instructions.

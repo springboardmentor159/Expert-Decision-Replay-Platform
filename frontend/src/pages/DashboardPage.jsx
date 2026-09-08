@@ -1,72 +1,133 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText,
   Shield,
   BarChart3,
   Users,
   CheckCircle2,
-  AlertTriangle,
-  ArrowRight,
+  Lock,
   PlusCircle,
   Component,
   Activity,
   History,
-  Lock,
+  TrendingUp,
+  Globe,
 } from 'lucide-react';
 import { useAuth, UserRole } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import apiClient from '../api/client';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import Alert from '../components/common/Alert';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 import RoleGate from '../components/auth/RoleGate';
 
 export const DashboardPage = () => {
   const { user, hasRole, isEmployee, isReviewer, isManager, isAdmin } = useAuth();
   const [apiStatus, setApiStatus] = useState('checking');
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalDecisions: 0,
+    totalUsers: 0,
+    draft: 0,
     underReview: 0,
     approved: 0,
     rejected: 0,
+    archived: 0,
+    recentActivity: [],
   });
 
+  const navigate = useNavigate();
+  const toast = useToast();
+
   useEffect(() => {
-    // Check backend connectivity
-    apiClient
-      .get('/')
-      .then(() => setApiStatus('connected'))
-      .catch(() => setApiStatus('disconnected'));
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        await apiClient.get('/');
+        setApiStatus('connected');
 
-    // Fetch dashboard stats if available
-    const endpoint = isEmployee
-      ? '/dashboard/employee'
-      : isManager
-      ? '/dashboard/manager/statistics'
-      : isAdmin
-      ? '/dashboard/admin'
-      : '/decisions';
+        let endpoint = '/dashboard/employee';
+        if (isManager) endpoint = '/dashboard/manager/statistics';
+        if (isAdmin) endpoint = '/dashboard/admin';
 
-    apiClient
-      .get(endpoint)
-      .then((res) => {
-        if (res.data) {
+        const res = await apiClient.get(endpoint);
+        const data = res.data;
+
+        if (endpoint === '/dashboard/employee') {
+          const byStatus = {};
+          (data.decisions_by_status || []).forEach((s) => {
+            const key = s.status.toLowerCase().replace(/\s+/g, '_');
+            byStatus[key] = s.count;
+          });
           setStats({
-            totalDecisions: res.data.total_decisions || res.data.length || 0,
-            underReview: res.data.status_counts?.['Under Review'] || 0,
-            approved: res.data.status_counts?.['Approved'] || 0,
-            rejected: res.data.status_counts?.['Rejected'] || 0,
+            totalDecisions: data.total_decisions,
+            totalUsers: 0,
+            draft: byStatus.draft || 0,
+            underReview: byStatus.under_review || 0,
+            approved: byStatus.approved || 0,
+            rejected: byStatus.rejected || 0,
+            archived: byStatus.archived || 0,
+            recentActivity: data.recent_activity || [],
+          });
+        } else if (endpoint === '/dashboard/manager/statistics') {
+          setStats({
+            totalDecisions: data.total || 0,
+            totalUsers: 0,
+            draft: data.draft || 0,
+            underReview: data.under_review || 0,
+            approved: data.approved || 0,
+            rejected: data.rejected || 0,
+            archived: data.archived || 0,
+            recentActivity: [],
+          });
+        } else if (endpoint === '/dashboard/admin') {
+          const ds = data.decision_stats || {};
+          setStats({
+            totalDecisions: data.total_decisions || ds.total || 0,
+            totalUsers: data.total_users || 0,
+            draft: ds.draft || 0,
+            underReview: ds.under_review || 0,
+            approved: ds.approved || 0,
+            rejected: ds.rejected || 0,
+            archived: ds.archived || 0,
+            recentActivity: data.recent_activity || [],
           });
         }
-      })
-      .catch(() => {
-        // Fallback gracefully
-      });
-  }, [user, isEmployee, isManager, isAdmin]);
+      } catch (err) {
+        setApiStatus('disconnected');
+        if (err.status !== 401) {
+          toast.error(err.formattedMessage || 'Failed to load dashboard data');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user, isEmployee, isManager, isAdmin, toast]);
+
+  const statCards = [
+    { label: 'Total Decisions', value: stats.totalDecisions, icon: FileText, color: '#0066cc', role: 'all' },
+    { label: 'Under Review', value: stats.underReview, icon: TrendingUp, color: '#d97706', role: 'all' },
+    { label: 'Approved', value: stats.approved, icon: CheckCircle2, color: '#16a34a', role: 'all' },
+    { label: 'Rejected', value: stats.rejected, icon: Lock, color: '#dc2626', role: 'all' },
+    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: '#7c3aed', role: 'admin' },
+    { label: 'Draft', value: stats.draft, icon: Activity, color: '#6b7280', role: 'all' },
+    { label: 'Archived', value: stats.archived, icon: History, color: '#9ca3af', role: 'all' },
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+        <LoadingSpinner size="large" text="Loading dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      {/* Welcome Banner */}
       <div
         className="apple-card"
         style={{
@@ -107,80 +168,45 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Backend API Connection Alert */}
       {apiStatus === 'disconnected' && (
         <Alert type="warning" title="Backend Connection Issue">
-          Could not establish connection to the FastAPI backend at <code>http://localhost:8000</code>. Please ensure the backend server is running.
+          Could not establish connection to the FastAPI backend. Please ensure the backend server is running at{' '}
+          <code>http://localhost:8000</code>.
         </Alert>
       )}
 
-      {/* Role-Based Quick Access Cards */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '16px',
         }}
       >
-        {/* Workspace Card (All roles) */}
-        <div className="apple-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--color-primary)' }}>
-            <FileText size={22} />
-            <h3 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--color-ink)' }}>Decisions Center</h3>
-          </div>
-          <p style={{ fontSize: '13px', color: 'var(--color-ink-muted-48)', lineHeight: 1.5 }}>
-            Create and browse decision proposals, evaluate weighted alternatives, participate in discussion threads.
-          </p>
-          <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
-            <Link to="/decisions" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
-              <span>Go to Decisions</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
-
-        {/* Manager & Admin Reports */}
-        <RoleGate allowedRoles={[UserRole.MANAGER, UserRole.ADMINISTRATOR]}>
-          <div className="apple-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0369a1' }}>
-              <BarChart3 size={22} />
-              <h3 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--color-ink)' }}>Manager Analytics & Reports</h3>
+        {statCards.filter((c) => c.role === 'all' || hasRole([UserRole.MANAGER, UserRole.ADMINISTRATOR])).map((card) => (
+          <div key={card.label} className="apple-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: 'var(--radius-pill)',
+                backgroundColor: `${card.color}15`,
+                color: card.color,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 10px',
+              }}
+            >
+              <card.icon size={20} />
             </div>
-            <p style={{ fontSize: '13px', color: 'var(--color-ink-muted-48)', lineHeight: 1.5 }}>
-              Access aggregate organizational decision metrics, department breakdowns, and export PDF/Excel summaries.
-            </p>
-            <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
-              <Link to="/reports" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
-                <span>Open Analytics</span>
-                <ArrowRight size={14} />
-              </Link>
-            </div>
+            <div style={{ fontSize: '28px', fontWeight: 600, color: 'var(--color-ink)' }}>{card.value}</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-ink-muted-48)' }}>{card.label}</div>
           </div>
-        </RoleGate>
-
-        {/* Administrator Security Hub */}
-        <RoleGate allowedRoles={[UserRole.ADMINISTRATOR]}>
-          <div className="apple-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#6d28d9' }}>
-              <Shield size={22} />
-              <h3 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--color-ink)' }}>Admin & Compliance Hub</h3>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--color-ink-muted-48)', lineHeight: 1.5 }}>
-              Manage users, audit immutable system logs, monitor login events, and oversee decision moderation.
-            </p>
-            <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
-              <Link to="/admin/audit" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
-                <span>Audit Trail</span>
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
-        </RoleGate>
+        ))}
       </div>
 
-      {/* Permissions Matrix Breakdown */}
       <div className="apple-card">
-        <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '6px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
           Role Capabilities: {user?.role}
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--color-ink-muted-48)', marginBottom: '16px' }}>
@@ -229,7 +255,7 @@ export const DashboardPage = () => {
               fontSize: '13px',
             }}
           >
-            {isReviewer || isManager || isAdmin ? (
+            {(isReviewer || isManager || isAdmin) ? (
               <CheckCircle2 size={16} color="#059669" />
             ) : (
               <Lock size={16} color="#9ca3af" />
@@ -250,7 +276,7 @@ export const DashboardPage = () => {
               fontSize: '13px',
             }}
           >
-            {isManager || isAdmin ? (
+            {(isManager || isAdmin) ? (
               <CheckCircle2 size={16} color="#059669" />
             ) : (
               <Lock size={16} color="#9ca3af" />
@@ -280,8 +306,93 @@ export const DashboardPage = () => {
               User management & Admin Audit
             </span>
           </div>
+
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--color-surface-pearl)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '13px',
+            }}
+          >
+            <CheckCircle2 size={16} color="#059669" />
+            <span>Audit trail & Activity log</span>
+          </div>
         </div>
       </div>
+
+      {stats.recentActivity.length > 0 && (
+        <div className="apple-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Recent Activity</h2>
+            <Link
+              to="/activities"
+              style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-primary)' }}
+            >
+              View all
+            </Link>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {stats.recentActivity.slice(0, 10).map((activity) => (
+              <div
+                key={activity.id}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--color-surface-pearl)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '13px',
+                }}
+              >
+                <Activity size={14} color="var(--color-ink-muted-48)" />
+                <span style={{ color: 'var(--color-ink-muted-80)' }}>{activity.description || `${activity.action} ${activity.entity_type}`}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--color-ink-muted-48)' }}>
+                  {new Date(activity.created_at).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <RoleGate allowedRoles={[UserRole.MANAGER, UserRole.ADMINISTRATOR]}>
+        <div className="apple-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0369a1' }}>
+            <BarChart3 size={22} />
+            <h3 style={{ fontSize: '17px', fontWeight: 600 }}>Manager Analytics & Reports</h3>
+          </div>
+          <p style={{ fontSize: '13px', color: 'var(--color-ink-muted-48)', lineHeight: 1.5 }}>
+            Access aggregate organizational decision metrics, department breakdowns, and export PDF/Excel summaries.
+          </p>
+          <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+            <Link to="/reports" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
+              <span>Open Analytics</span>
+              <TrendingUp size={14} />
+            </Link>
+          </div>
+        </div>
+
+        <div className="apple-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#6d28d9' }}>
+            <Shield size={22} />
+            <h3 style={{ fontSize: '17px', fontWeight: 600 }}>Admin & Compliance Hub</h3>
+          </div>
+          <p style={{ fontSize: '13px', color: 'var(--color-ink-muted-48)', lineHeight: 1.5 }}>
+            Manage users, audit immutable system logs, monitor login events, and oversee decision moderation.
+          </p>
+          <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
+            <Link to="/admin/audit" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 500 }}>
+              <span>Audit Trail</span>
+              <History size={14} />
+            </Link>
+          </div>
+        </div>
+      </RoleGate>
     </div>
   );
 };

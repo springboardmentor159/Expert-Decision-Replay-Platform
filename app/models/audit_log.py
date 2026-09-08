@@ -23,7 +23,7 @@ class AuditLog(Base):
             name="check_valid_audit_action",
         ),
         CheckConstraint(
-            "entity_type IN ('decision','alternative','comment','discussion_thread','meeting_note','user','auth','system')",
+            "entity_type IN ('decision','alternative','comment','discussion_thread','meeting_note','document','user','auth','system')",
             name="check_valid_audit_entity_type",
         ),
     )

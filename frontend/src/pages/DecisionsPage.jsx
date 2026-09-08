@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Eye, FileText, CheckCircle2, RotateCcw } from 'lucide-react';
 import { useAuth, UserRole } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -17,6 +18,7 @@ import RoleGate from '../components/auth/RoleGate';
 export const DecisionsPage = () => {
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const [decisions, setDecisions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -194,6 +196,7 @@ export const DecisionsPage = () => {
           columns={columns}
           data={filteredDecisions}
           loading={loading}
+          onRowClick={(decision) => navigate(`/decisions/${decision.id}`)}
           emptyTitle="No decisions found"
           emptyDescription="Create your first decision proposal to start collaborating with reviewers."
         />

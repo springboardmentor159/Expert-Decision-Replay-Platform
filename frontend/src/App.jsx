@@ -8,7 +8,13 @@ import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import DecisionsPage from './pages/DecisionsPage';
+import DecisionDetailPage from './pages/DecisionDetailPage';
 import ComponentShowcasePage from './pages/ComponentShowcasePage';
+import ReportsPage from './pages/ReportsPage';
+import ManagerStatsPage from './pages/ManagerStatsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminAuditPage from './pages/AdminAuditPage';
+import AdminSecurityLogsPage from './pages/AdminSecurityLogsPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -33,6 +39,7 @@ export const App = () => {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="decisions" element={<DecisionsPage />} />
+              <Route path="decisions/:decisionId" element={<DecisionDetailPage />} />
               <Route path="component-library" element={<ComponentShowcasePage />} />
 
               {/* Manager & Admin Only Areas */}
@@ -40,7 +47,7 @@ export const App = () => {
                 path="manager/stats"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.MANAGER, UserRole.ADMINISTRATOR]}>
-                    <DashboardPage />
+                    <ManagerStatsPage />
                   </ProtectedRoute>
                 }
               />
@@ -48,7 +55,7 @@ export const App = () => {
                 path="reports"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.MANAGER, UserRole.ADMINISTRATOR]}>
-                    <DashboardPage />
+                    <ReportsPage />
                   </ProtectedRoute>
                 }
               />
@@ -58,7 +65,7 @@ export const App = () => {
                 path="admin/users"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.ADMINISTRATOR]}>
-                    <DashboardPage />
+                    <AdminUsersPage />
                   </ProtectedRoute>
                 }
               />
@@ -66,7 +73,7 @@ export const App = () => {
                 path="admin/audit"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.ADMINISTRATOR]}>
-                    <DashboardPage />
+                    <AdminAuditPage />
                   </ProtectedRoute>
                 }
               />
@@ -74,7 +81,7 @@ export const App = () => {
                 path="admin/security-logs"
                 element={
                   <ProtectedRoute allowedRoles={[UserRole.ADMINISTRATOR]}>
-                    <DashboardPage />
+                    <AdminSecurityLogsPage />
                   </ProtectedRoute>
                 }
               />

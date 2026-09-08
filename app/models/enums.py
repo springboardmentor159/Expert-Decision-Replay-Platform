@@ -43,6 +43,7 @@ class AuditEntityType(str, Enum):
     COMMENT = "comment"
     DISCUSSION_THREAD = "discussion_thread"
     MEETING_NOTE = "meeting_note"
+    DOCUMENT = "document"
     USER = "user"
     AUTH = "auth"
     SYSTEM = "system"

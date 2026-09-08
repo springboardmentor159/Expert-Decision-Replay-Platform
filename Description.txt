@@ -1,0 +1,226 @@
+================================================================================
+EXPERT DECISION REPLAY PLATFORM — SYSTEM ARCHITECTURE & OPERATIONAL MANUAL
+================================================================================
+
+1. EXECUTIVE OVERVIEW & MISSION
+--------------------------------------------------------------------------------
+The Expert Decision Replay Platform is an enterprise-grade decision governance, 
+architectural compliance, and retrospective replay system. In fast-paced 
+engineering and business organizations, critical high-impact decisions (such as 
+cloud infrastructure migrations, database selections, framework deprecations, 
+and capital expenditures) are often fragmented across disparate chat threads, 
+unrecorded meetings, and ad-hoc documents.
+
+This platform provides a single source of truth for proposing, analyzing, 
+collaborating on, approving, versioning, and auditing critical organizational 
+decisions. Every decision evolves through an immutable audit trail and automated 
+version snapshot engine, allowing stakeholders to "replay" historical decisions 
+to understand the exact context, trade-offs, reviewer feedback, and financial or 
+risk assessments that led to the final outcome.
+
+
+2. TECHNOLOGY STACK & ARCHITECTURE
+--------------------------------------------------------------------------------
+The platform is designed with a decoupled client-server architecture:
+
+A. BACKEND ARCHITECTURE:
+   - Language & Framework: Python 3.14+ / FastAPI (high-performance async ASGI).
+   - Database ORM: SQLAlchemy 2.0 with PostgreSQL in production and SQLite in 
+     isolated automated test environments.
+   - Schema Migrations: Alembic for version-controlled, reproducible schema 
+     evolutions and DB-level CHECK constraints.
+   - Document Processing & Reports:
+     * ReportLab 5.0+ for high-fidelity PDF report synthesis.
+     * OpenPyXL 3.1+ for styled multi-sheet Excel (.xlsx) workbooks.
+     * Python-Multipart for secure multipart/form-data document uploads.
+   - Authentication & Security:
+     * OAuth2 Bearer Token specification with HS256-signed JWTs (JSON Web Tokens).
+     * Passlib with Bcrypt for cryptographically secure, salted password hashing.
+     * CORS middleware configured for secure cross-origin API access.
+
+B. FRONTEND ARCHITECTURE:
+   - Framework & Tooling: React 19 / Vite (Fast ESM bundling and HMR).
+   - Routing: React Router DOM with protected route wrappers and dynamic auth guards.
+   - Design System: Apple-inspired interface philosophy adhering to DESIGN.md:
+     * Typography: SF Pro / Inter typography with negative tracking at display scales.
+     * Color Palette: Action Blue (#0066cc), Focus Blue (#0071e3), Ink (#1d1d1f),
+       Parchment (#f5f5f7), Pearl (#fafafc), Dark Tile (#272729).
+     * Radii & Micro-interactions: Signature pill buttons (9999px), utility cards (18px),
+       active press down-scaling (transform: scale(0.95)), frosted-glass backdrops.
+   - Communication: Axios API client with automatic JWT bearer injection, 401 
+     unauthorized redirect intercepts, and unified validation error parsers.
+
+
+3. DATA MODELS & DATABASE SCHEMA
+--------------------------------------------------------------------------------
+The system is built on 12 relational database models with strict foreign key 
+cascades, indexes, and database-level constraints:
+
+1. `users`: Stores user identity, bcrypt password hashes, department, and roles.
+   - Roles: Employee, Reviewer, Manager, Administrator (enforced by CHECK constraint).
+2. `decisions`: Core decision entity containing title, problem_statement, category,
+   status, rationale, and created_by FK.
+   - Statuses: Draft, Under Review, Approved, Rejected, Archived (enforced by CHECK).
+3. `decision_versions`: Immutable historical snapshots capturing full decision state 
+   at every lifecycle transition (v1, v2, v3...).
+4. `alternatives`: Competing technical or strategic options evaluated under a decision.
+   - Attributes: name, description, pros, cons, estimated_cost.
+   - Constraints: `feasibility_score` (CHECK: 1 to 5), `risk_level` (CHECK: Low, 
+     Medium, High, Critical).
+5. `comments`: Direct contextual comments attached to decisions or discussion threads.
+6. `discussion_threads`: Dedicated multi-turn conversation topics tied to decisions.
+7. `meeting_notes`: Formal review and meeting minutes linked to decision deliberations.
+8. `documents`: Supporting files and attachments associated with decisions.
+9. `audit_log`: System-wide immutable compliance trail capturing user_id, action, 
+   entity_type, entity_id, description, IP address, and sanitized state diffs.
+10. `activity_log`: User-facing chronological activity feed.
+11. `security_logs`: Security event monitoring (login, logout, failed logins, lockouts).
+12. `access_logs`: Granular HTTP request audit tracking endpoint methods, status codes, 
+    and latency.
+
+
+4. ROLE-BASED ACCESS CONTROL (RBAC)
+--------------------------------------------------------------------------------
+The platform enforces strict role-based separation of concerns across 4 roles:
+
++-----------------------------+----------+----------+---------+---------------+
+| Resource / Action           | Employee | Reviewer | Manager | Administrator |
++-----------------------------+----------+----------+---------+---------------+
+| Propose Decisions           |   YES    |   YES    |   YES   |      YES      |
+| Add / Compare Alternatives  |   YES    |   YES    |   YES   |      YES      |
+| Edit Decision Metadata      | Owner    | Owner    | Owner   | Owner / Admin |
+| Submit (Draft -> In Review) |   YES    |   YES    |   YES   |      YES      |
+| Review & Endorse Proposals  |    --    |   YES    |   YES   |      YES      |
+| Approve / Reject Decisions  |    --    |    --    |   YES   |      YES      |
+| Post Comments / Threads     |   YES    |   YES    |   YES   |      YES      |
+| Edit / Delete Discussions   |  Author  |  Author  | Author  | Author/Admin  |
+| Personal Dashboard          |   YES    |   YES    |   YES   |      YES      |
+| Manager Statistics          |    --    |    --    |   YES   |      YES      |
+| Admin Governance & Users    |    --    |    --    |   --    |      YES      |
+| Security & Access Logs      |    --    |    --    |   YES   |      YES      |
+| Full Org-wide Audit Trail   |    --    |    --    |   YES   |      YES      |
+| Generate PDF/Excel Reports  |  Scoped  |  Scoped  | Org-wide|    Org-wide   |
++-----------------------------+----------+----------+---------+---------------+
+
+
+5. END-TO-END DECISION LIFECYCLE & REPLAY WORKFLOW
+--------------------------------------------------------------------------------
+The core workflow operates across seven cohesive phases:
+
+1. PROPOSAL INITIATION (Draft):
+   An Employee or Tech Lead creates a new decision proposal, providing a title, 
+   problem statement, and category (Technology, Infrastructure, Security, etc.). 
+   The initial state is forced to "Draft" and Version 1 snapshot is created.
+
+2. ALTERNATIVES EVALUATION & COMPARISON:
+   The author populates concrete alternatives (e.g., Kafka vs RabbitMQ vs AWS SQS). 
+   Each alternative is scored on Feasibility (1 to 5) and Risk Level (Low, Medium, 
+   High, Critical). The system provides a matrix comparison endpoint 
+   (`GET /decisions/{id}/alternatives/compare`) for side-by-side evaluation.
+
+3. MULTI-CHANNEL DELIBERATION:
+   Collaborators engage through three dedicated interaction channels:
+   - Inline Comments: Quick observations and questions.
+   - Discussion Threads & Replies: Deep technical debates on specific sub-topics.
+   - Meeting Notes: Minutes, attendee lists, and action items from review meetings.
+
+4. FORMAL SUBMISSION (Under Review):
+   When the proposal is mature, the author transitions the status to "Under Review". 
+   A version snapshot is automatically captured, and an audit event is logged.
+
+5. REVIEW & GOVERNANCE (Approved / Rejected):
+   Reviewers evaluate the alternatives and discussion history. Managers or 
+   Administrators execute the final governance decision (`PATCH /decisions/{id}/status`), 
+   transitioning the proposal to "Approved" or "Rejected" and recording the final 
+   rationale (`PUT /decisions/{id}/rationale`).
+
+6. VERSIONING & RETROSPECTIVE REPLAY:
+   Every state modification increments the version counter. Stakeholders can 
+   inspect earlier versions (`GET /decisions/{id}/versions/{version_number}`) to 
+   see exactly how requirements, scope, alternatives, and approvals changed over time.
+
+7. COMPLIANCE AUDITING & EXPORT:
+   The compliance team can review the complete timeline via `/decisions/{id}/history` 
+   or generate boardroom-ready PDF and Excel reports with active filters.
+
+
+6. REPORTING & EXPORT ENGINE
+--------------------------------------------------------------------------------
+The platform contains a dual-format reporting pipeline:
+
+A. JSON AGGREGATIONS:
+   - `/reports/decisions`: Filterable by category, status, creator, date ranges.
+   - `/reports/approvals`: Aggregates approval throughput, turnaround times, and status.
+   - `/reports/teams`: Department-level decision productivity and approval rates.
+   - `/reports/audit`: Chronological governance audit entries.
+
+B. BINARY EXPORTS:
+   - PDF Exports (`/reports/{type}/export/pdf`): Formatted documents with metadata 
+     headers, executive summaries, status distributions, and zebra-striped tables.
+   - Excel Exports (`/reports/{type}/export/excel`): Multi-column spreadsheets with 
+     formatted headers, auto-calculated column widths, and sanitized timestamps.
+
+
+7. SECURITY & ERROR HANDLING ARCHITECTURE
+--------------------------------------------------------------------------------
+- Authentication Tokens: 30-minute stateless HS256 JWTs with client storage in 
+  localStorage and automatic injection via Axios interceptors.
+- Privilege Escalation Defense: Public registration (`POST /users`) strictly forces 
+  the `Employee` role. Administrative promotions are isolated to authorized channels.
+- IDOR (Insecure Direct Object Reference) Protection: Ownership verification ensures 
+  users cannot modify decisions, comments, or user profiles belonging to others 
+  unless holding Administrator privileges.
+- Audit Sanitization: Sensitive keys (`password`, `token`, `secret`, `api_key`) are 
+  automatically scrubbed and masked to `***` before persisting to audit records.
+- Standardized Error Shapes: FastAPI/Pydantic validation errors return structured 
+  422 payloads with `loc` and `msg` keys, mapped automatically to field-level UI alerts.
+
+
+8. HOW TO RUN & OPERATE THE PROJECT
+--------------------------------------------------------------------------------
+A. PREREQUISITES:
+   - Python 3.12+ (or 3.14) with virtualenv.
+   - Node.js 18+ and npm.
+   - PostgreSQL 14+ (for production) or automated SQLite (for testing).
+
+B. BACKEND SETUP & EXECUTION:
+   ```bash
+   # 1. Activate virtual environment
+   .\venv\Scripts\Activate.ps1
+
+   # 2. Install dependencies
+   pip install -r requirements.txt
+
+   # 3. Apply database migrations
+   alembic upgrade head
+
+   # 4. Start the FastAPI development server
+   uvicorn app.main:app --port 8000 --reload
+   ```
+   API Swagger Documentation: http://localhost:8000/docs
+
+C. FRONTEND SETUP & EXECUTION:
+   ```bash
+   # 1. Navigate to frontend directory
+   cd frontend
+
+   # 2. Install Node dependencies
+   npm install
+
+   # 3. Launch Vite development server
+   npm run dev
+   ```
+   Web Application UI: http://localhost:5173
+
+D. RUNNING TEST SUITES:
+   ```bash
+   # Run full backend regression suite (850+ tests)
+   pytest -q
+
+   # Run frontend production build validation
+   cd frontend && npm run build
+   ```
+
+================================================================================
+END OF SYSTEM DESCRIPTION
+================================================================================

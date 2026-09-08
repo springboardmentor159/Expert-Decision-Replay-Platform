@@ -12,6 +12,7 @@ from app.routers.decision import router as decision_router
 from app.routers.discussion_thread import threads_router, router as thread_router
 from app.routers.meeting_note import meeting_notes_router, router as meeting_note_router
 from app.routers.report import router as report_router
+from app.routers.document import router as document_router
 from app.routers.security import router as security_router
 from app.routers.user import router as user_router
 
@@ -25,8 +26,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "*"
+        "http://127.0.0.1:3000"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -51,6 +51,7 @@ app.include_router(audit_logs_router)
 app.include_router(security_router)
 app.include_router(access_log_router)
 app.include_router(report_router)
+app.include_router(document_router)
 
 
 @app.get("/")
