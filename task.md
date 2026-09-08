@@ -2798,3 +2798,213 @@ python -m pytest --tb=short -q --ignore=tests/test_phase5_e2e.py
 
 **Phase Status**: **COMPLETED** — All cleanup tasks done (dead code removed, hardcoded values fixed, `.env.example` created, `.gitignore` updated, Excel timezone bug fixed). Complete E2E flow verified against PostgreSQL: Register → Login → Decision → Alternatives → Discussion → Submit → Review → Approval → Audit → Version → Dashboard → Report → PDF → Excel. Database contains expected linked records with FK integrity. Full test suite at **857 passed, 0 failed**. Ready for release.
 
+---
+
+## Sprint 14 — Complete Frontend/UI Development & Backend Integration (2026-09-09)
+
+### 0. Objective
+
+Build a complete React SPA frontend for the Expert Decision Replay Platform with Apple-inspired design, JWT-authenticated backend integration, role-based navigation, and a reusable component library. Connect to the existing FastAPI backend at `http://localhost:8000`.
+
+### 1. Stack & Tooling
+
+| Library | Version | Purpose |
+| --- | --- | --- |
+| React | ^19.2.8 | UI framework |
+| Vite | ^8.2.2 | Build tool & dev server |
+| react-router-dom | ^7.18.3 | Client-side routing |
+| axios | ^1.20.0 | HTTP client (JWT interceptor) |
+| lucide-react | ^1.43.0 | Icon library |
+| clsx | ^2.1.1 | Conditional classnames |
+| tailwind-merge | ^3.6.0 | Tailwind class deduplication |
+| oxlint | ^1.79.0 | Linter (dev) |
+
+No Tailwind CSS is installed — all styling uses **inline styles** with **CSS custom properties** defined in `src/index.css` (Apple Design System tokens from `DESIGN.md`).
+
+### 2. Design System
+
+Global design tokens in `src/index.css`:
+
+- **Colors**: `--color-primary`, `--color-ink`, `--color-canvas`, `--color-canvas-parchment`, `--color-surface-pearl`, `--color-hairline`, `--color-divider-soft`, etc.
+- **Semantic Status**: `--status-draft-*`, `--status-review-*`, `--status-approved-*`, `--status-rejected-*`, `--status-archived-*`
+- **Typography**: `--font-family-sans` (SF Pro Text / Inter), `--font-family-display` (SF Pro Display / Inter)
+- **Radii**: `--radius-xs` (5px) → `--radius-pill` (9999px)
+- **Shadows**: `--shadow-subtle`, `--shadow-modal`, `--shadow-product`
+- **Global reset**: box-sizing, margin/padding reset, scrollbar styling, button active transform, focus ring patterns
+
+### 3. File Structure
+
+```
+frontend/
+├── index.html
+├── package.json
+├── vite.config.js
+└── src/
+    ├── main.jsx                    # React root, BrowserRouter, ToastProvider
+    ├── index.css                   # CSS tokens, global reset, utility classes
+    ├── App.jsx                     # Route definitions, AuthContext, layout wrappers
+    ├── api/
+    │   └── client.js               # Axios instance, JWT interceptor, error formatting
+    ├── context/
+    │   ├── AuthContext.jsx          # Auth state, login/logout, role helpers, persist to localStorage
+    │   └── ToastContext.jsx         # Toast notification system (success/error/warning/info)
+    ├── pages/
+    │   ├── LoginPage.jsx            # Email/password login form
+    │   ├── DashboardPage.jsx        # Role-based dashboard stats
+    │   ├── DecisionsPage.jsx        # Decision CRUD, filtering, status changes
+    │   ├── ComponentShowcasePage.jsx # UI component library demo
+    │   ├── NotFoundPage.jsx         # 404 page
+    │   └── UnauthorizedPage.jsx     # 403 page
+    └── components/
+        ├── auth/
+        │   ├── ProtectedRoute.jsx   # Auth guard + role check + redirect
+        │   └── RoleGate.jsx         # Conditional render by role
+        ├── layout/
+        │   ├── AppLayout.jsx        # Shell: Navbar + Sidebar + Outlet
+        │   ├── Navbar.jsx           # Black top bar (Apple-style)
+        │   └── Sidebar.jsx          # Collapsible nav with role-based sections
+        └── common/
+            ├── Alert.jsx            # Info/success/warning/error alerts
+            ├── Badge.jsx            # Status/role/priority pill badges
+            ├── Button.jsx           # 7 variants (primary, secondary, dark, pearl, danger, ghost, icon) × 3 sizes
+            ├── EmptyState.jsx       # Empty data placeholder
+            ├── FilterBar.jsx        # Search + filter dropdowns + reset + action button
+            ├── FormField.jsx        # Label + error + hint wrapper
+            ├── Input.jsx            # Text input with optional icon
+            ├── LoadingSpinner.jsx   # Animated spinner with optional text
+            ├── Modal.jsx            # Dialog with ESC/outside-click close, 3 sizes
+            ├── Pagination.jsx       # Page controls with page size selector
+            ├── SearchInput.jsx      # Search with clear button
+            ├── Select.jsx           # Dropdown select
+            ├── Skeleton.jsx         # Loading skeleton placeholder
+            ├── Table.jsx            # Data table with sort, loading skeleton, empty state
+            └── Textarea.jsx         # Multi-line text input
+```
+
+### 4. Routing
+
+Defined in `App.jsx`:
+
+| Path | Component | Auth | Roles |
+| --- | --- | --- | --- |
+| `/login` | LoginPage | No | — |
+| `/dashboard` | DashboardPage | Yes | All |
+| `/decisions` | DecisionsPage | Yes | All |
+| `/component-library` | ComponentShowcasePage | Yes | All |
+| `/unauthorized` | UnauthorizedPage | No | — |
+| `*` | NotFoundPage | No | — |
+
+Protected routes wrapped in `<ProtectedRoute>` which checks `isAuthenticated` from `AuthContext`. Unauthorized → redirect to `/login?redirect=...`. Role-based restrictions via `allowedRoles` prop → redirect to `/unauthorized`.
+
+### 5. Auth Flow
+
+`AuthContext.jsx`:
+- `login(email, password)` → POST `/login` → stores JWT + user in `localStorage`
+- `logout()` → clears state + localStorage
+- `isAuthenticated` — derived from presence of `user` object
+- `hasRole(roles)` — checks `user.role` against string or array of roles
+- JWT interceptor in `api/client.js` attaches `Authorization: Bearer <token>` to every request; 401 responses trigger `logout()`
+
+### 6. API Client
+
+`api/client.js`:
+- Base URL: `http://localhost:8000/api`
+- Request interceptor: attaches JWT from `localStorage`
+- Response interceptor: formats errors into `{ message, status, data }` shape; 401 → auto-logout
+- Timeout: 30 seconds
+
+### 7. Pages
+
+#### LoginPage
+- Email + password form with validation (email format, min 8 chars)
+- Loading state on submit
+- Error display via Alert component
+- Redirect to `?redirect=` param after login or to `/dashboard`
+
+#### DashboardPage
+- **Employee**: total decisions, decisions by status (counts), recent activity feed
+- **Manager**: org-wide status counts (Draft/Under Review/Approved/Rejected/Archived)
+- **Administrator**: total users, total decisions, status breakdown, recent activity
+- Uses `LoadingSpinner` and `Skeleton` for loading states
+
+#### DecisionsPage
+- **FilterBar**: search by title, filter by status (enum dropdown), filter by category
+- **Table**: sortable columns (title, status, category, created_at), click to select
+- **Pagination**: page navigation with page size selector
+- **Create/Edit Modal**: form with title, problem_statement, category fields
+- **Status Change**: dropdown to PATCH status (Draft/Under Review/Approved/Rejected/Archived)
+- Toast notifications on create/update/status-change success/error
+
+#### ComponentShowcasePage
+- Demo page displaying all common components (Button variants, Badge variants, Alert types, Modal, Table, etc.)
+
+### 8. Component Library
+
+| Component | Props | Notes |
+| --- | --- | --- |
+| **Button** | `variant` (primary/secondary/dark/pearl/danger/ghost/icon), `size` (small/medium/large), `loading`, `disabled`, `icon` | Pill-radius for primary/secondary/danger; spinner on loading |
+| **Badge** | `variant` (draft/review/approved/rejected/archived/low/medium/high/critical/role/default), `size` (small/medium) | Auto-detects color from children text |
+| **Alert** | `type` (info/success/warning/error), `title`, `onClose` | Dismissable with X button |
+| **Modal** | `isOpen`, `onClose`, `title`, `subtitle`, `footer`, `size` (small/medium/large) | ESC key + click-outside close; body scroll lock; backdrop blur |
+| **Table** | `columns`, `data`, `loading`, `onRowClick`, `sortColumn`, `sortDirection`, `onSort` | Skeleton rows when loading; EmptyState when no data |
+| **FilterBar** | `searchValue`, `filters[]`, `onReset`, `actionButton` | Composes SearchInput + Select + Button |
+| **Pagination** | `currentPage`, `totalPages`, `totalItems`, `pageSize`, `onPageChange`, `onPageSizeChange` | Shows "Showing X to Y of Z" text |
+| **SearchInput** | `value`, `onChange`, `onClear`, `placeholder` | Pill-radius, search icon, clear button |
+| **Select** | `options`, `value`, `onChange`, `placeholder`, `error` | Custom chevron, focus ring |
+| **Input** | `type`, `placeholder`, `value`, `onChange`, `error`, `icon` | Optional left icon, focus ring |
+| **Textarea** | `placeholder`, `value`, `onChange`, `rows`, `error` | Vertical resize |
+| **FormField** | `label`, `required`, `error`, `hint` | Wraps label + children + error/hint text |
+| **Skeleton** | `width`, `height`, `borderRadius` | Shimmer animation pulse |
+| **LoadingSpinner** | `size` (small/medium/large), `color`, `text` | Spinning Loader2 icon |
+| **EmptyState** | `icon`, `title`, `description`, `actionText`, `onAction` | Centered placeholder with optional CTA |
+| **ProtectedRoute** | `children`, `allowedRoles` | Loading spinner → auth check → role check → render or redirect |
+| **RoleGate** | `allowedRoles`, `fallback`, `children` | Conditional render (no redirect) |
+
+### 9. Layout
+
+**AppLayout** (shell):
+- **Navbar** (44px, black): app name, user avatar + name + role badge, logout button
+- **Sub-nav** (52px, frosted glass): page title derived from pathname
+- **Sidebar** (260px, collapsible): role-based nav sections (Workspace, Management, Administration & Security), current role card at bottom
+- **Main area**: `<Outlet />` with max-width 1440px
+
+**Sidebar nav sections**:
+- Workspace (all roles): Dashboard, Decisions, UI Components
+- Management (Manager + Admin): Manager Stats, Reports & Exports
+- Administration (Admin only): User Management, Audit Trail, Security & Access Logs
+
+### 10. State Management
+
+- **Auth**: React Context (`AuthContext`) + localStorage persistence
+- **Toasts**: React Context (`ToastContext`) — ephemeral notifications (auto-dismiss 4s)
+- **Page state**: Local `useState` in each page component (no Redux/Zustand)
+- **Form state**: Local `useState` per form field
+
+### 11. How to Run
+
+```bash
+cd frontend
+npm install
+npm run dev    # → http://localhost:5173
+npm run build  # → dist/ output
+```
+
+Backend must be running at `http://localhost:8000` for API calls.
+
+### 12. Known Limitations
+
+| Item | Notes |
+| --- | --- |
+| No Tailwind CSS | All inline styles with CSS custom properties |
+| No unit tests | Frontend has no test files |
+| No TypeScript | Plain JavaScript (JSX) |
+| No state management library | Local state only |
+| Limited pages | Dashboard, Decisions, and ComponentShowcase only — no dedicated pages for alternatives, comments, threads, meeting notes, reports, admin, etc. |
+| No mobile nav | Sidebar backdrop only shown on `window.innerWidth <= 768` (checked once, not reactive) |
+| No dark mode | Apple light theme only |
+| API base URL hardcoded | `http://localhost:8000` in `api/client.js` |
+
+### 13. Sprint 14 Final Status
+
+**Sprint Status**: **COMPLETED** — React SPA built with 17 reusable components, 6 pages, JWT-authenticated API integration, role-based routing and navigation, Apple-inspired design system, and working login → dashboard → decisions flow. Frontend builds cleanly (`npm run build` — 556ms, 0 errors). Backend test suite unaffected (**853 passed, 4 pre-existing date-filter flaky tests**). Ready for incremental feature development on top of the established architecture.
+
