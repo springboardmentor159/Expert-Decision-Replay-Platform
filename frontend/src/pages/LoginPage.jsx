@@ -262,7 +262,7 @@ export const LoginPage = () => {
       </div>
 
       <div style={{ marginTop: '24px', fontSize: '13px', color: 'var(--color-ink-muted-48)' }}>
-        Apple Design System · SF Pro & Inter Typography · JWT Token Authorization
+        JWT Token Authorization
       </div>
     </div>
   );
