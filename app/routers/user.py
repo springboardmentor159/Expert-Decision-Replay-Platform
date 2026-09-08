@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.security import hash_password
 from app.db.database import get_db
+from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.user import (
     UserCreate,
@@ -48,7 +49,7 @@ def create_user(
     new_user = User(
         full_name=user.full_name,
         email=user.email,
-        role=user.role,
+        role=UserRole.EMPLOYEE,
         password=hash_password(user.password),
         employee_id=user.employee_id,
         department=user.department,
@@ -115,6 +116,12 @@ def update_user(
             detail="User not found"
         )
 
+    if current_user.id != user_id and current_user.role != UserRole.ADMINISTRATOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this user"
+        )
+
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
 
@@ -172,6 +179,12 @@ def delete_user(
         raise HTTPException(
             status_code=404,
             detail="User not found"
+        )
+
+    if current_user.id != user_id and current_user.role != UserRole.ADMINISTRATOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this user"
         )
 
     db.delete(user)

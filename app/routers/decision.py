@@ -44,7 +44,7 @@ def create_decision(
         title=decision_data.title,
         problem_statement=decision_data.problem_statement,
         category=decision_data.category,
-        status="Draft",
+        status=DecisionStatus.DRAFT.value,
         created_by=current_user.id
     )
 
@@ -148,6 +148,12 @@ def update_decision(
             detail="Decision not found"
         )
 
+    if decision.created_by != current_user.id and current_user.role != UserRole.ADMINISTRATOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this decision"
+        )
+
     old_values = {
         "title": decision.title,
         "problem_statement": decision.problem_statement,
@@ -232,6 +238,15 @@ def update_decision_status(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
+        )
+
+    if (decision.created_by != current_user.id
+            and current_user.role != UserRole.ADMINISTRATOR
+            and current_user.role != UserRole.MANAGER
+            and current_user.role != UserRole.REVIEWER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to change status of this decision"
         )
 
     old_status = decision.status.value if isinstance(decision.status, DecisionStatus) else decision.status

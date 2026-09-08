@@ -20,30 +20,40 @@ def test_registration_default_role(client):
     assert body["employee_id"] == "EMP_DEFAULT"
 
 
-def test_registration_valid_roles(client):
-    roles = ["Reviewer", "Manager", "Administrator"]
-    for idx, role in enumerate(roles):
+def test_registration_valid_roles(client, db_session):
+    """After security fix C-3, registration always creates Employee.
+    Non-Employee roles can only be set via admin action."""
+    from app.models.user import User
+    from app.models.enums import UserRole
+
+    # All registrations should result in Employee role
+    roles_to_try = ["Reviewer", "Manager", "Administrator"]
+    for idx, role in enumerate(roles_to_try):
         response = client.post("/users", json={
             "full_name": f"{role} User",
             "email": f"{role.lower()}@example.com",
-            "password": "password123",
+            "password": "password1234",
             "employee_id": f"EMP_{role.upper()}",
-            "role": role
         })
         assert response.status_code == 201
         body = response.json()
-        assert body["role"] == role
+        # Security fix: registration always creates Employee regardless of intent
+        assert body["role"] == "Employee"
 
 
 def test_registration_invalid_role(client):
+    """Role field is no longer accepted in registration schema."""
     response = client.post("/users", json={
         "full_name": "Invalid Role User",
         "email": "invalid_role@example.com",
-        "password": "password123",
+        "password": "password1234",
         "employee_id": "EMP_INVALID",
-        "role": "Developer"  # Invalid role
+        "role": "Developer"  # Field not in schema → ignored or 422
     })
-    assert response.status_code == 422
+    # The role field is no longer in UserCreate schema, so it's ignored
+    # User is created as Employee (default)
+    assert response.status_code == 201
+    assert response.json()["role"] == "Employee"
 
 
 def test_protected_routes_without_token(client):

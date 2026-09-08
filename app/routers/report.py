@@ -519,6 +519,8 @@ def _make_excel(title: str, sheet_name: str, headers: list[str], rows: list[list
     # Data rows
     for row_data in rows:
         for col_idx, value in enumerate(row_data, 1):
+            if isinstance(value, datetime) and value.tzinfo is not None:
+                value = value.replace(tzinfo=None)
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.alignment = _CELL_ALIGN
             cell.border = _THIN_BORDER

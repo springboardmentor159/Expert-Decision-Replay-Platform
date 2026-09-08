@@ -2,13 +2,16 @@
 venv/
 __pycache__/
 *.pyc
-
+.pytest_cache/
 
 # Environment
 .env
 
 # Node
 node_modules/
+
+# Exports (generated PDF/Excel files)
+exports/
 
 # AI Agent files/config
 .agents/
