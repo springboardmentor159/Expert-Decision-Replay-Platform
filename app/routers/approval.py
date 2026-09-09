@@ -12,6 +12,20 @@ from app.utils.audit_logger import log_audit
 
 router = APIRouter(prefix="/approvals", tags=["Approvals"])
 
+
+@router.get("", response_model=list[ApprovalResponse])
+def list_approvals(
+    decision_id: int | None = None,
+    db: Session = Depends(get_db),
+    user=Depends(require_roles("Employee", "Reviewer", "Manager", "Administrator")),
+):
+    query = db.query(Approval)
+    if decision_id is not None:
+        query = query.filter(Approval.decision_id == decision_id)
+    if user.get("role") == "Reviewer":
+        query = query.filter(Approval.reviewer_id == int(user["sub"]))
+    return query.order_by(Approval.created_at.desc()).all()
+
 @router.post("", response_model=ApprovalResponse, status_code=status.HTTP_201_CREATED)
 def assign_approval(data: ApprovalCreate, db: Session = Depends(get_db), user=Depends(require_roles("Manager", "Administrator"))):
     if not db.query(Decision).filter(Decision.id == data.decision_id).first() or not db.query(User).filter(User.id == data.reviewer_id).first():

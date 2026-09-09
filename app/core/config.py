@@ -13,3 +13,8 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+
+# Keep local development usable when a dotenv editor accidentally joins the
+# database URL and the following SECRET_KEY assignment onto one line.
+if "SECRET_KEY=" in settings.DATABASE_URL:
+    settings.DATABASE_URL = settings.DATABASE_URL.split("SECRET_KEY=", 1)[0].rstrip()

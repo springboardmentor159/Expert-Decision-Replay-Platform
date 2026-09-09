@@ -115,9 +115,7 @@ def get_user(
 
     is_admin = current_user.get("role") == "Administrator"
     if int(current_user["sub"]) != user_id and not is_admin:
-        raise HTTPException(status_code=403, detail="Users can only update their own profile")
-    if user_data.role is not None and not is_admin:
-        raise HTTPException(status_code=403, detail="Only administrators can change roles")
+        raise HTTPException(status_code=403, detail="Users can only view their own profile")
 
     return user
 
@@ -140,6 +138,12 @@ def update_user(
             status_code=404,
             detail="User not found"
         )
+
+    is_admin = current_user.get("role") == "Administrator"
+    if int(current_user["sub"]) != user_id and not is_admin:
+        raise HTTPException(status_code=403, detail="Users can only update their own profile")
+    if user_data.role is not None and not is_admin:
+        raise HTTPException(status_code=403, detail="Only administrators can change roles")
 
     if user_data.full_name is not None:
         user.full_name = user_data.full_name
