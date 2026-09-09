@@ -2,6 +2,8 @@ from datetime import timedelta
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -37,6 +39,22 @@ from routers.reports import router as reports_router
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "*",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers
@@ -96,6 +114,12 @@ def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@app.get("/auth/me", response_model=UserResponse)
+@app.get("/users/me", response_model=UserResponse)
+def get_current_user_profile(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
 @app.get("/users", response_model=list[UserResponse])
 def get_users(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     users = db.query(User).all()
@@ -122,3 +146,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

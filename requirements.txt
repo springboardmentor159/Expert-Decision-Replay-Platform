@@ -1,2 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic-settings
+python-jose[cryptography]
+bcrypt
+python-multipart
+email-validator
 reportlab==5.0.1
 openpyxl==3.1.5

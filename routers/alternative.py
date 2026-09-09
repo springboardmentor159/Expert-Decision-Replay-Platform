@@ -143,8 +143,57 @@ def update_alternative(
     return alternative
 
 
+@router.delete(
+    "/{alternative_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an alternative",
+    description="Delete an existing alternative.",
+)
+def delete_alternative(
+    alternative_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete an alternative.
+    - Returns 404 if alternative not found
+    - Only decision creator or manager/admin can delete
+    """
+    alternative = db.query(Alternative).filter(Alternative.id == alternative_id).first()
+    if not alternative:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alternative not found",
+        )
+    decision = db.query(Decision).filter(Decision.id == alternative.decision_id).first()
+    if decision and decision.status == "Archived":
+        raise HTTPException(status_code=409, detail="Archived decisions cannot be modified")
+    if decision and decision.created_by != current_user.id and str(current_user.role).lower() not in {"manager", "admin", "administrator"}:
+        raise HTTPException(status_code=403, detail="Insufficient permission")
+    record_activity(db, current_user.id, "alternative_deleted", "Alternative", f"Alternative '{alternative.name}' deleted", alternative.id)
+    record_audit(db, current_user.id, "DELETE", "Alternative", f"Alternative '{alternative.name}' deleted", alternative.id)
+    db.delete(alternative)
+    db.commit()
+    return None
+
+
 # Decision-specific endpoints
 decision_router = APIRouter(prefix="/decisions", tags=["Alternatives"])
+
+
+@decision_router.delete(
+    "/{decision_id}/alternatives/{alternative_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an alternative from a decision",
+)
+def delete_decision_alternative(
+    decision_id: int,
+    alternative_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return delete_alternative(alternative_id=alternative_id, current_user=current_user, db=db)
+
 
 
 @decision_router.post(
