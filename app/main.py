@@ -30,6 +30,7 @@ from app.routers.audit import router as audit_router
 from app.routers import tags
 from app.routers.approvals import router as approval_router
 from app.routers.reports import router as reports_router
+from fastapi.middleware.cors import CORSMiddleware
 # =========================================================
 # DATABASE
 # =========================================================
@@ -45,7 +46,20 @@ app = FastAPI(
     title="Expert Decision Replay Platform"
 )
 
+# =========================================================
+# CORS
+# =========================================================
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # =========================================================
 # ROUTERS
 # =========================================================

@@ -32,7 +32,6 @@ from app.services.activity import log_activity
 from app.services.audit import log_audit
 from app.services.access import log_access
 
-
 # =========================================================
 # ROUTER
 # =========================================================
@@ -238,6 +237,7 @@ def create_decision(
 
     db.add(new_decision)
 
+    # Get generated decision ID
     db.flush()
 
     # -----------------------------------------------------
@@ -372,6 +372,10 @@ def search_decisions(
 
     query = db.query(Decision)
 
+    # -----------------------------------------------------
+    # SEARCH
+    # -----------------------------------------------------
+
     if q:
         search_value = f"%{q}%"
 
@@ -383,6 +387,10 @@ def search_decisions(
             )
         )
 
+    # -----------------------------------------------------
+    # CATEGORY
+    # -----------------------------------------------------
+
     if category:
         query = query.filter(
             Decision.category.ilike(
@@ -390,10 +398,18 @@ def search_decisions(
             )
         )
 
+    # -----------------------------------------------------
+    # STATUS
+    # -----------------------------------------------------
+
     if decision_status:
         query = query.filter(
             Decision.status == decision_status
         )
+
+    # -----------------------------------------------------
+    # TAG
+    # -----------------------------------------------------
 
     if tag:
         query = query.join(
@@ -405,6 +421,10 @@ def search_decisions(
         ).distinct()
 
     total = query.count()
+
+    # -----------------------------------------------------
+    # SORT
+    # -----------------------------------------------------
 
     if sort_by == "title":
         sort_column = Decision.title
@@ -423,6 +443,10 @@ def search_decisions(
         query = query.order_by(
             desc(sort_column)
         )
+
+    # -----------------------------------------------------
+    # PAGINATION
+    # -----------------------------------------------------
 
     offset = (page - 1) * page_size
 
@@ -464,13 +488,21 @@ def search_decisions(
 @router.get("/")
 def get_all_decisions(
 
-    search: Optional[str] = Query(None),
+    search: Optional[str] = Query(
+        None
+    ),
 
-    category: Optional[str] = Query(None),
+    category: Optional[str] = Query(
+        None
+    ),
 
-    decision_status: Optional[DecisionStatus] = Query(None),
+    decision_status: Optional[DecisionStatus] = Query(
+        None
+    ),
 
-    tag: Optional[str] = Query(None),
+    tag: Optional[str] = Query(
+        None
+    ),
 
     page: int = Query(
         1,
@@ -500,6 +532,10 @@ def get_all_decisions(
 
     query = db.query(Decision)
 
+    # -----------------------------------------------------
+    # SEARCH
+    # -----------------------------------------------------
+
     if search:
 
         search_value = f"%{search}%"
@@ -512,6 +548,10 @@ def get_all_decisions(
             )
         )
 
+    # -----------------------------------------------------
+    # CATEGORY
+    # -----------------------------------------------------
+
     if category:
 
         query = query.filter(
@@ -520,11 +560,19 @@ def get_all_decisions(
             )
         )
 
+    # -----------------------------------------------------
+    # STATUS
+    # -----------------------------------------------------
+
     if decision_status:
 
         query = query.filter(
             Decision.status == decision_status
         )
+
+    # -----------------------------------------------------
+    # TAG
+    # -----------------------------------------------------
 
     if tag:
 
@@ -537,6 +585,10 @@ def get_all_decisions(
         ).distinct()
 
     total = query.count()
+
+    # -----------------------------------------------------
+    # SORT
+    # -----------------------------------------------------
 
     if sort_by == "title":
         sort_column = Decision.title
@@ -555,6 +607,10 @@ def get_all_decisions(
         query = query.order_by(
             desc(sort_column)
         )
+
+    # -----------------------------------------------------
+    # PAGINATION
+    # -----------------------------------------------------
 
     offset = (page - 1) * page_size
 
@@ -579,21 +635,17 @@ def get_all_decisions(
 
 @router.get("/{decision_id}")
 def get_decision(
-
     decision_id: int,
-
     db: Session = Depends(get_db),
-
     current_user: User = Depends(get_current_user)
 ):
-
     decision = get_decision_or_404(
         decision_id,
         db
     )
 
     # -----------------------------------------------------
-    # AUDIT LOG
+    # ACCESS AUDIT
     # -----------------------------------------------------
 
     log_audit(
@@ -610,21 +662,23 @@ def get_decision(
         endpoint=f"/decisions/{decision.id}"
     )
 
-    # -----------------------------------------------------
-    # ACCESS LOG
-    # -----------------------------------------------------
-
-    log_access(
-        db=db,
-        user_id=current_user.id,
-        resource_type="Decision",
-        resource_id=decision.id,
-        action="VIEW"
-    )
-
     db.commit()
 
-    return decision
+    # -----------------------------------------------------
+    # RETURN COMPLETE DECISION DATA
+    # -----------------------------------------------------
+
+    return {
+        "id": decision.id,
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "rationale": decision.rationale,
+        "category": decision.category,
+        "status": decision.status,
+        "created_by": decision.created_by,
+        "created_at": decision.created_at,
+        "updated_at": decision.updated_at
+    }
 
 
 # =========================================================
@@ -648,9 +702,17 @@ def update_decision(
         db
     )
 
+    # -----------------------------------------------------
+    # SAVE OLD STATE
+    # -----------------------------------------------------
+
     old_state = decision_snapshot(decision)
 
     old_status = decision.status
+
+    # -----------------------------------------------------
+    # VALIDATE UPDATE
+    # -----------------------------------------------------
 
     update_data = decision_data.model_dump(
         exclude_unset=True
@@ -663,6 +725,10 @@ def update_decision(
             detail="No fields provided for update"
         )
 
+    # -----------------------------------------------------
+    # APPLY CHANGES
+    # -----------------------------------------------------
+
     for field, value in update_data.items():
 
         setattr(
@@ -673,7 +739,15 @@ def update_decision(
 
     db.flush()
 
+    # -----------------------------------------------------
+    # NEW STATE
+    # -----------------------------------------------------
+
     new_state = decision_snapshot(decision)
+
+    # -----------------------------------------------------
+    # CREATE NEW VERSION
+    # -----------------------------------------------------
 
     version = create_decision_version(
         db=db,
@@ -683,25 +757,38 @@ def update_decision(
 
     db.flush()
 
+    # -----------------------------------------------------
+    # AUDIT ACTION
+    # -----------------------------------------------------
+
     if (
         "status" in update_data
         and old_status != decision.status
     ):
 
         if decision.status == DecisionStatus.APPROVED:
+
             audit_action = "APPROVE"
 
         elif decision.status == DecisionStatus.REJECTED:
+
             audit_action = "REJECT"
 
         elif decision.status == DecisionStatus.UNDER_REVIEW:
+
             audit_action = "SUBMIT"
 
         else:
+
             audit_action = "UPDATE"
 
     else:
+
         audit_action = "UPDATE"
+
+    # -----------------------------------------------------
+    # AUDIT LOG
+    # -----------------------------------------------------
 
     log_audit(
         db=db,
@@ -719,6 +806,10 @@ def update_decision(
         endpoint=f"/decisions/{decision.id}"
     )
 
+    # -----------------------------------------------------
+    # ACTIVITY LOG
+    # -----------------------------------------------------
+
     log_activity(
         db=db,
         user_id=current_user.id,
@@ -730,6 +821,10 @@ def update_decision(
             f"Decision {decision.id}"
         )
     )
+
+    # -----------------------------------------------------
+    # STATUS ACTIVITY
+    # -----------------------------------------------------
 
     if (
         "status" in update_data
@@ -803,6 +898,10 @@ def delete_decision(
 
     decision_title = decision.title
 
+    # -----------------------------------------------------
+    # AUDIT BEFORE DELETE
+    # -----------------------------------------------------
+
     log_audit(
         db=db,
         user_id=current_user.id,
@@ -818,6 +917,10 @@ def delete_decision(
         request_method="DELETE",
         endpoint=f"/decisions/{decision.id}"
     )
+
+    # -----------------------------------------------------
+    # ACTIVITY
+    # -----------------------------------------------------
 
     log_activity(
         db=db,
@@ -838,92 +941,6 @@ def delete_decision(
 
     return {
         "message": "Decision deleted successfully"
-    }
-
-
-# =========================================================
-# COMPARE DECISION ALTERNATIVES
-# =========================================================
-
-@router.get("/{decision_id}/alternatives/compare")
-def compare_decision_alternatives(
-
-    decision_id: int,
-
-    db: Session = Depends(get_db),
-
-    current_user: User = Depends(get_current_user)
-):
-
-    decision = get_decision_or_404(
-        decision_id,
-        db
-    )
-
-    alternatives = db.query(
-        Alternative
-    ).filter(
-        Alternative.decision_id == decision.id
-    ).order_by(
-        Alternative.id.asc()
-    ).all()
-
-    # -----------------------------------------------------
-    # AUDIT LOG
-    # -----------------------------------------------------
-
-    log_audit(
-        db=db,
-        user_id=current_user.id,
-        action="ACCESS",
-        entity_type="Decision",
-        entity_id=decision.id,
-        description=(
-            f"User {current_user.id} compared "
-            f"alternatives for Decision {decision.id}"
-        ),
-        request_method="GET",
-        endpoint=(
-            f"/decisions/{decision.id}/"
-            f"alternatives/compare"
-        )
-    )
-
-    # -----------------------------------------------------
-    # ACCESS LOG
-    # -----------------------------------------------------
-
-    log_access(
-        db=db,
-        user_id=current_user.id,
-        resource_type="Decision",
-        resource_id=decision.id,
-        action="VIEW"
-    )
-
-    db.commit()
-
-    # -----------------------------------------------------
-    # RESPONSE
-    # -----------------------------------------------------
-
-    return {
-        "decision_id": decision.id,
-        "decision_title": decision.title,
-        "alternative_count": len(alternatives),
-        "alternatives": [
-            {
-                "id": alternative.id,
-                "name": alternative.name,
-                "description": alternative.description,
-                "pros": alternative.pros,
-                "cons": alternative.cons,
-                "estimated_cost": alternative.estimated_cost,
-                "feasibility_score": alternative.feasibility_score,
-                "risk_level": alternative.risk_level
-            }
-            for alternative in alternatives
-        ]
     }
 
 
@@ -955,7 +972,7 @@ def get_decision_versions(
     ).all()
 
     # -----------------------------------------------------
-    # AUDIT LOG
+    # ACCESS AUDIT
     # -----------------------------------------------------
 
     log_audit(
@@ -970,18 +987,6 @@ def get_decision_versions(
         ),
         request_method="GET",
         endpoint=f"/decisions/{decision.id}/versions"
-    )
-
-    # -----------------------------------------------------
-    # ACCESS LOG
-    # -----------------------------------------------------
-
-    log_access(
-        db=db,
-        user_id=current_user.id,
-        resource_type="Decision",
-        resource_id=decision.id,
-        action="VIEW"
     )
 
     db.commit()
@@ -1040,6 +1045,10 @@ def get_specific_decision_version(
             )
         )
 
+    # -----------------------------------------------------
+    # ACCESS AUDIT
+    # -----------------------------------------------------
+
     log_audit(
         db=db,
         user_id=current_user.id,
@@ -1056,18 +1065,6 @@ def get_specific_decision_version(
             f"/decisions/{decision.id}/"
             f"versions/{version_number}"
         )
-    )
-
-    # -----------------------------------------------------
-    # ACCESS LOG
-    # -----------------------------------------------------
-
-    log_access(
-        db=db,
-        user_id=current_user.id,
-        resource_type="DecisionVersion",
-        resource_id=version.id,
-        action="VIEW"
     )
 
     db.commit()
@@ -1096,6 +1093,13 @@ def get_decision_history(
 
     history = []
 
+    # -----------------------------------------------------
+    # AUDIT LOG HISTORY
+    #
+    # Audit logs provide the authoritative historical
+    # record for the decision.
+    # -----------------------------------------------------
+
     audit_logs = db.query(
         AuditLog
     ).filter(
@@ -1121,6 +1125,13 @@ def get_decision_history(
             "created_at": audit.created_at
         })
 
+    # -----------------------------------------------------
+    # FALLBACK CREATED EVENT
+    #
+    # This helps older decisions that existed before
+    # Sprint 11 audit logging was introduced.
+    # -----------------------------------------------------
+
     if not audit_logs:
 
         history.append({
@@ -1142,8 +1153,8 @@ def get_decision_history(
     # -----------------------------------------------------
     # ACCESS AUDIT
     #
-    # Log after retrieving history so that this request
-    # does not appear inside its own response.
+    # Do this after retrieving the history so the current
+    # request does not appear inside its own response.
     # -----------------------------------------------------
 
     log_audit(
@@ -1160,19 +1171,11 @@ def get_decision_history(
         endpoint=f"/decisions/{decision.id}/history"
     )
 
-    # -----------------------------------------------------
-    # ACCESS LOG
-    # -----------------------------------------------------
-
-    log_access(
-        db=db,
-        user_id=current_user.id,
-        resource_type="Decision",
-        resource_id=decision.id,
-        action="VIEW"
-    )
-
     db.commit()
+
+    # -----------------------------------------------------
+    # SORT
+    # -----------------------------------------------------
 
     history.sort(
         key=lambda item: (
@@ -1333,38 +1336,6 @@ def get_decision_tags(
         decision_id,
         db
     )
-
-    # -----------------------------------------------------
-    # ACCESS AUDIT
-    # -----------------------------------------------------
-
-    log_audit(
-        db=db,
-        user_id=current_user.id,
-        action="ACCESS",
-        entity_type="Decision",
-        entity_id=decision.id,
-        description=(
-            f"User {current_user.id} accessed "
-            f"tags of Decision {decision.id}"
-        ),
-        request_method="GET",
-        endpoint=f"/decisions/{decision.id}/tags"
-    )
-
-    # -----------------------------------------------------
-    # ACCESS LOG
-    # -----------------------------------------------------
-
-    log_access(
-        db=db,
-        user_id=current_user.id,
-        resource_type="Decision",
-        resource_id=decision.id,
-        action="VIEW"
-    )
-
-    db.commit()
 
     return {
         "decision_id": decision.id,
@@ -1659,38 +1630,6 @@ def get_decision_timeline(
                     ),
                     "timestamp": thread.updated_at
                 })
-
-    # -----------------------------------------------------
-    # ACCESS AUDIT
-    # -----------------------------------------------------
-
-    log_audit(
-        db=db,
-        user_id=current_user.id,
-        action="ACCESS",
-        entity_type="Decision",
-        entity_id=decision.id,
-        description=(
-            f"User {current_user.id} accessed "
-            f"timeline of Decision {decision.id}"
-        ),
-        request_method="GET",
-        endpoint=f"/decisions/{decision.id}/timeline"
-    )
-
-    # -----------------------------------------------------
-    # ACCESS LOG
-    # -----------------------------------------------------
-
-    log_access(
-        db=db,
-        user_id=current_user.id,
-        resource_type="Decision",
-        resource_id=decision.id,
-        action="VIEW"
-    )
-
-    db.commit()
 
     # -----------------------------------------------------
     # SORT
