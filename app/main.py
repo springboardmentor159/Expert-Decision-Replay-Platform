@@ -18,6 +18,7 @@
 
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.users import router as user_router
 from app.routers.decision import router as decision_router
@@ -34,6 +35,20 @@ from app.routers.report import router as report_router
 
 app = FastAPI(
     title="Expert Decision Replay Platform"
+)
+
+# Part 23 (Backend Compatibility Check): allow the separately-hosted
+# frontend (Vite dev server / static build) to call this API from the
+# browser. Restrict allow_origins to your real frontend URL(s) in production.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
