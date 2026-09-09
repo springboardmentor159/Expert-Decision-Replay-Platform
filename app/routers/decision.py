@@ -871,6 +871,33 @@ def update_decision_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+    # Ownership check
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this decision status",
+        )
+
+    # Validate status transition
+    allowed_transitions = {
+        "Draft": ["Under Review"],
+        "Under Review": ["Approved", "Rejected"],
+        "Approved": ["Archived"],
+        "Rejected": ["Draft"],
+        "Archived": [],
+    }
+
+    current_status = decision.status
+    new_status = status_data.status
+
+    if new_status not in allowed_transitions.get(current_status, []):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid status transition: "
+                f"{current_status} -> {new_status}"
+            ),
+        )
 
     old_status = decision.status
     new_status = status_data.status
@@ -1011,6 +1038,17 @@ def update_decision(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+
+    # ========================================================
+    # OWNERSHIP CHECK
+    # ========================================================
+
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this decision",
+        )
+
 
     # ========================================================
     # CAPTURE OLD VALUES
