@@ -8,13 +8,21 @@ from app.models.comment import Comment
 from app.models.decision import Decision
 from app.models.discussion_thread import DiscussionThread
 from app.models.user import User
+
 from app.schemas.comment import (
     CommentCreate,
     CommentUpdate,
     CommentResponse,
 )
+
 from app.core.security import get_current_user
+
 from app.services.activity_log import create_activity_log
+from app.services.audit_log import create_audit_log
+from app.services.access_log import create_access_log
+
+from app.models.audit_action import AuditAction
+from app.models.audit_entity import AuditEntityType
 
 
 router = APIRouter(
@@ -66,6 +74,24 @@ def create_comment(
         description=f"Created comment on decision: {decision.title}",
     )
 
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=AuditAction.CREATE,
+        entity_type=AuditEntityType.COMMENT,
+        entity_id=new_comment.id,
+        description=f"Created comment on decision: {decision.title}",
+        new_value={
+            "decision_id": decision_id,
+            "user_id": current_user.id,
+            "content": new_comment.content,
+            "thread_id": None,
+        },
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/comments",
+    )
+
     db.commit()
     db.refresh(new_comment)
 
@@ -94,10 +120,23 @@ def get_comments(
             detail="Decision not found",
         )
 
-    return db.query(Comment).filter(
+    comments = db.query(Comment).filter(
         Comment.decision_id == decision_id,
         Comment.thread_id.is_(None),
     ).all()
+
+    # Access log
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Comment",
+        resource_id=decision_id,
+        action="LIST",
+    )
+
+    db.commit()
+
+    return comments
 
 
 # ==========================================
@@ -144,6 +183,24 @@ def create_thread_comment(
         description=f"Created reply in discussion thread: {thread.id}",
     )
 
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=AuditAction.CREATE,
+        entity_type=AuditEntityType.COMMENT,
+        entity_id=new_comment.id,
+        description=f"Created reply in discussion thread: {thread.id}",
+        new_value={
+            "decision_id": thread.decision_id,
+            "thread_id": thread.id,
+            "user_id": current_user.id,
+            "content": new_comment.content,
+        },
+        request_method="POST",
+        endpoint=f"/threads/{thread_id}/comments",
+    )
+
     db.commit()
     db.refresh(new_comment)
 
@@ -172,9 +229,22 @@ def get_thread_comments(
             detail="Discussion thread not found",
         )
 
-    return db.query(Comment).filter(
+    comments = db.query(Comment).filter(
         Comment.thread_id == thread_id
     ).all()
+
+    # Access log
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Comment",
+        resource_id=thread_id,
+        action="LIST",
+    )
+
+    db.commit()
+
+    return comments
 
 
 # ==========================================
@@ -198,6 +268,17 @@ def get_comment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comment not found",
         )
+
+    # Access log
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Comment",
+        resource_id=comment.id,
+        action="VIEW",
+    )
+
+    db.commit()
 
     return comment
 
@@ -232,6 +313,11 @@ def update_comment(
             detail="You do not have permission to update this comment",
         )
 
+    # Save old value for audit
+    old_value = {
+        "content": comment.content,
+    }
+
     comment.content = comment_data.content
 
     db.flush()
@@ -244,6 +330,31 @@ def update_comment(
         entity_type="comment",
         entity_id=comment.id,
         description=f"Updated comment {comment.id}",
+    )
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type=AuditEntityType.COMMENT,
+        entity_id=comment.id,
+        description=f"Updated comment {comment.id}",
+        old_value=old_value,
+        new_value={
+            "content": comment.content,
+        },
+        request_method="PUT",
+        endpoint=f"/comments/{comment_id}",
+    )
+
+    # Access log
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Comment",
+        resource_id=comment.id,
+        action="UPDATE",
     )
 
     db.commit()
@@ -280,6 +391,46 @@ def delete_comment(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this comment",
         )
+
+    # Save values before delete
+    old_value = {
+        "decision_id": comment.decision_id,
+        "thread_id": comment.thread_id,
+        "user_id": comment.user_id,
+        "content": comment.content,
+    }
+
+    # Activity log
+    create_activity_log(
+        db=db,
+        user_id=current_user.id,
+        action="deleted",
+        entity_type="comment",
+        entity_id=comment.id,
+        description=f"Deleted comment {comment.id}",
+    )
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=AuditAction.DELETE,
+        entity_type=AuditEntityType.COMMENT,
+        entity_id=comment.id,
+        description=f"Deleted comment {comment.id}",
+        old_value=old_value,
+        request_method="DELETE",
+        endpoint=f"/comments/{comment_id}",
+    )
+
+    # Access log
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Comment",
+        resource_id=comment.id,
+        action="DELETE",
+    )
 
     db.delete(comment)
     db.commit()

@@ -19,6 +19,11 @@ from app.schemas.alternative import (
 from app.core.security import get_current_user
 
 from app.services.activity_log import create_activity_log
+from app.services.audit_log import create_audit_log
+from app.services.access_log import create_access_log
+
+from app.models.audit_action import AuditAction
+from app.models.audit_entity import AuditEntityType
 
 
 router = APIRouter(
@@ -82,6 +87,34 @@ def create_alternative(
         )
     )
 
+    # ==========================================
+    # CREATE AUDIT LOG
+    # ==========================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=AuditAction.CREATE,
+        entity_type=AuditEntityType.ALTERNATIVE,
+        entity_id=new_alternative.id,
+        description=(
+            f"Created alternative: {new_alternative.name} "
+            f"for decision: {decision.title}"
+        ),
+        new_value={
+            "name": new_alternative.name,
+            "description": new_alternative.description,
+            "pros": new_alternative.pros,
+            "cons": new_alternative.cons,
+            "estimated_cost": new_alternative.estimated_cost,
+            "feasibility_score": new_alternative.feasibility_score,
+            "risk_level": new_alternative.risk_level,
+            "decision_id": decision_id
+        },
+        request_method="POST",
+        endpoint=f"/decisions/{decision_id}/alternatives"
+    )
+
     db.commit()
     db.refresh(new_alternative)
 
@@ -112,13 +145,29 @@ def get_alternatives_for_decision(
             detail="Decision not found"
         )
 
-    return (
+    alternatives = (
         db.query(Alternative)
         .filter(
             Alternative.decision_id == decision_id
         )
         .all()
     )
+
+    # ==========================================
+    # CREATE ACCESS LOG
+    # ==========================================
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Alternative",
+        resource_id=decision_id,
+        action="LIST"
+    )
+
+    db.commit()
+
+    return alternatives
 
 
 # ==========================================
@@ -153,6 +202,20 @@ def compare_alternatives(
         .all()
     )
 
+    # ==========================================
+    # CREATE ACCESS LOG
+    # ==========================================
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Alternative",
+        resource_id=decision_id,
+        action="COMPARE"
+    )
+
+    db.commit()
+
     return {
         "decision_id": decision_id,
         "alternatives": alternatives
@@ -183,6 +246,20 @@ def get_alternative(
             detail="Alternative not found"
         )
 
+    # ==========================================
+    # CREATE ACCESS LOG
+    # ==========================================
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Alternative",
+        resource_id=alternative.id,
+        action="VIEW"
+    )
+
+    db.commit()
+
     return alternative
 
 
@@ -211,6 +288,20 @@ def update_alternative(
             detail="Alternative not found"
         )
 
+    # ==========================================
+    # SAVE OLD VALUES FOR AUDIT
+    # ==========================================
+
+    old_value = {
+        "name": alternative.name,
+        "description": alternative.description,
+        "pros": alternative.pros,
+        "cons": alternative.cons,
+        "estimated_cost": alternative.estimated_cost,
+        "feasibility_score": alternative.feasibility_score,
+        "risk_level": alternative.risk_level
+    }
+
     alternative.name = alternative_data.name
     alternative.description = alternative_data.description
     alternative.pros = alternative_data.pros
@@ -234,7 +325,46 @@ def update_alternative(
         )
     )
 
+    # ==========================================
+    # CREATE AUDIT LOG
+    # ==========================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type=AuditEntityType.ALTERNATIVE,
+        entity_id=alternative.id,
+        description=(
+            f"Updated alternative: {alternative.name}"
+        ),
+        old_value=old_value,
+        new_value={
+            "name": alternative.name,
+            "description": alternative.description,
+            "pros": alternative.pros,
+            "cons": alternative.cons,
+            "estimated_cost": alternative.estimated_cost,
+            "feasibility_score": alternative.feasibility_score,
+            "risk_level": alternative.risk_level
+        },
+        request_method="PUT",
+        endpoint=f"/alternatives/{alternative_id}"
+    )
+
+    # ==========================================
+    # CREATE ACCESS LOG
+    # ==========================================
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Alternative",
+        resource_id=alternative.id,
+        action="UPDATE"
+    )
+
     db.commit()
     db.refresh(alternative)
 
-    return alternative  
+    return alternative

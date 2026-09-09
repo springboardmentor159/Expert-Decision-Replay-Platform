@@ -19,6 +19,10 @@ import app.models.meeting_note
 import app.models.tag
 import app.models.decision_timeline
 import app.models.activity_log
+import app.models.audit_log
+import app.models.decision_version
+import app.models.security_log
+import app.models.access_log
 
 
 # ==========================================

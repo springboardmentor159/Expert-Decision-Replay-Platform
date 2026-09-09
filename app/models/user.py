@@ -3,23 +3,38 @@ from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 from app.models.role import UserRole
+from app.models.audit_log import AuditLog
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
-    full_name = Column(String, nullable=False)
+    full_name = Column(
+        String,
+        nullable=False
+    )
 
-    email = Column(String, unique=True, nullable=False)
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
 
     role = Column(
         SQLAlchemyEnum(UserRole),
         nullable=False
     )
 
-    hashed_password = Column(String, nullable=False)
+    hashed_password = Column(
+        String,
+        nullable=False
+    )
 
     employee_id = Column(
         String,
@@ -55,6 +70,12 @@ class User(Base):
 
     activities = relationship(
         "ActivityLog",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    audit_logs = relationship(
+        "AuditLog",
         back_populates="user",
         cascade="all, delete-orphan"
     )

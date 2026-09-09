@@ -17,13 +17,26 @@ from app.models.decision_status import DecisionStatus
 class Decision(Base):
     __tablename__ = "decisions"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
-    title = Column(String, nullable=False)
+    title = Column(
+        String,
+        nullable=False
+    )
 
-    problem_statement = Column(Text, nullable=False)
+    problem_statement = Column(
+        Text,
+        nullable=False
+    )
 
-    category = Column(String, nullable=False)
+    category = Column(
+        String,
+        nullable=False
+    )
 
     # Decision rationale
     rationale = Column(
@@ -86,9 +99,16 @@ class Decision(Base):
         cascade="all, delete-orphan"
     )
 
+    versions = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+
     # ==========================================
     # MANY-TO-MANY RELATIONSHIP WITH TAGS
     # ==========================================
+
     tags = relationship(
         "Tag",
         secondary="decision_tags",
@@ -98,6 +118,7 @@ class Decision(Base):
     # ==========================================
     # DECISION TIMELINE EVENTS
     # ==========================================
+
     timeline_events = relationship(
         "DecisionTimeline",
         back_populates="decision",

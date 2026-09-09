@@ -16,6 +16,11 @@ from app.schemas.approval import (
 )
 
 from app.services.activity_log import create_activity_log
+from app.services.audit_log import create_audit_log
+from app.services.access_log import create_access_log
+
+from app.models.audit_action import AuditAction
+from app.models.audit_entity import AuditEntityType
 
 
 router = APIRouter(
@@ -75,7 +80,10 @@ def create_approval(
     db.add(approval)
     db.flush()
 
-    # Create activity log automatically
+    # ==========================================
+    # ACTIVITY LOG
+    # ==========================================
+
     create_activity_log(
         db=db,
         user_id=current_user.id,
@@ -86,6 +94,30 @@ def create_approval(
             f"Assigned approval for decision: {decision.title} "
             f"to user ID {reviewer.id}"
         )
+    )
+
+    # ==========================================
+    # AUDIT LOG
+    # ==========================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=AuditAction.CREATE,
+        entity_type=AuditEntityType.APPROVAL,
+        entity_id=approval.id,
+        description=(
+            f"Assigned approval for decision: {decision.title} "
+            f"to user ID {reviewer.id}"
+        ),
+        new_value={
+            "decision_id": decision_id,
+            "reviewer_id": reviewer.id,
+            "approval_level": approval.approval_level,
+            "status": approval.status.value
+        },
+        request_method="POST",
+        endpoint=f"/approvals/decisions/{decision_id}"
     )
 
     db.commit()
@@ -114,6 +146,20 @@ def get_pending_approvals(
         .order_by(Approval.created_at.desc())
         .all()
     )
+
+    # ==========================================
+    # ACCESS LOG
+    # ==========================================
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Approval",
+        resource_id=current_user.id,
+        action="LIST"
+    )
+
+    db.commit()
 
     return approvals
 
@@ -167,6 +213,14 @@ def update_approval(
             detail="Approval status must be APPROVED or REJECTED"
         )
 
+    # ==========================================
+    # SAVE OLD VALUE
+    # ==========================================
+
+    old_value = {
+        "status": approval.status.value
+    }
+
     approval.status = approval_data.status
 
     db.flush()
@@ -178,20 +232,38 @@ def update_approval(
         .first()
     )
 
+    # ==========================================
+    # APPROVED
+    # ==========================================
+
     if approval_data.status == ApprovalStatus.APPROVED:
         action = "approved"
+
         description = (
             f"Approved decision: "
             f"{decision.title if decision else approval.decision_id}"
         )
+
+        audit_action = AuditAction.APPROVE
+
+    # ==========================================
+    # REJECTED
+    # ==========================================
+
     else:
         action = "rejected"
+
         description = (
             f"Rejected decision: "
             f"{decision.title if decision else approval.decision_id}"
         )
 
-    # Automatic activity logging
+        audit_action = AuditAction.REJECT
+
+    # ==========================================
+    # ACTIVITY LOG
+    # ==========================================
+
     create_activity_log(
         db=db,
         user_id=current_user.id,
@@ -199,6 +271,41 @@ def update_approval(
         entity_type="approval",
         entity_id=approval.id,
         description=description
+    )
+
+    # ==========================================
+    # AUDIT LOG
+    # ==========================================
+
+    create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action=audit_action,
+        entity_type=AuditEntityType.APPROVAL,
+        entity_id=approval.id,
+        description=description,
+        old_value=old_value,
+        new_value={
+            "status": approval.status.value
+        },
+        request_method="PATCH",
+        endpoint=f"/approvals/{approval_id}"
+    )
+
+    # ==========================================
+    # ACCESS LOG
+    # ==========================================
+
+    create_access_log(
+        db=db,
+        user_id=current_user.id,
+        resource_type="Approval",
+        resource_id=approval.id,
+        action=(
+            "APPROVE"
+            if approval_data.status == ApprovalStatus.APPROVED
+            else "REJECT"
+        )
     )
 
     db.commit()

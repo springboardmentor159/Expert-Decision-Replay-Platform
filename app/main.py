@@ -11,6 +11,9 @@ from app.routers.tag import router as tag_router
 from app.routers.activity_log import router as activity_log_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.approval import router as approval_router
+from app.routers.audit_logs import router as audit_logs_router
+from app.routers.access_logs import router as access_logs_router
+from app.routers.security_logs import router as security_logs_router
 
 
 app = FastAPI(
@@ -29,3 +32,6 @@ app.include_router(tag_router)
 app.include_router(activity_log_router)
 app.include_router(dashboard_router)
 app.include_router(approval_router)
+app.include_router(audit_logs_router)
+app.include_router(access_logs_router)
+app.include_router(security_logs_router)
