@@ -1,0 +1,1038 @@
+.register-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(37, 99, 235, 0.08),
+      transparent 30%
+    ),
+    #f4f7fb;
+}
+
+.register-shell {
+  width: min(1160px, 100%);
+  height: min(760px, calc(100vh - 48px));
+  min-height: 620px;
+
+  display: grid;
+  grid-template-columns: 38% 62%;
+
+  overflow: hidden;
+
+  border: 1px solid #dfe6ef;
+  border-radius: 26px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 28px 70px rgba(15, 23, 42, 0.12),
+    0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+/* =========================================================
+   LEFT BRAND PANEL
+   ========================================================= */
+
+.register-brand-panel {
+  position: relative;
+  overflow: hidden;
+
+  color: #ffffff;
+
+  background:
+    radial-gradient(
+      circle at 90% 8%,
+      rgba(59, 130, 246, 0.2),
+      transparent 36%
+    ),
+    linear-gradient(
+      145deg,
+      #07152f 0%,
+      #0c2147 55%,
+      #102c5b 100%
+    );
+}
+
+.register-brand-panel::before,
+.register-brand-panel::after {
+  content: "";
+
+  position: absolute;
+
+  border: 1px solid rgba(147, 197, 253, 0.09);
+  border-radius: 50%;
+
+  pointer-events: none;
+}
+
+.register-brand-panel::before {
+  width: 540px;
+  height: 540px;
+
+  top: -215px;
+  right: -285px;
+}
+
+.register-brand-panel::after {
+  width: 430px;
+  height: 430px;
+
+  bottom: -260px;
+  left: -250px;
+}
+
+.register-brand-content {
+  position: relative;
+  z-index: 1;
+
+  height: 100%;
+  min-height: 620px;
+
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 42px 42px 30px;
+}
+
+.register-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+
+  width: fit-content;
+
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.register-brand-mark {
+  width: 46px;
+  height: 46px;
+
+  flex: 0 0 46px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 12px;
+
+  background: rgba(255, 255, 255, 0.07);
+
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: -0.04em;
+}
+
+.register-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.register-brand-copy strong {
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  letter-spacing: -0.025em;
+}
+
+.register-brand-copy span {
+  color: #8eafd9;
+
+  font-size: 9px;
+}
+
+.register-brand-main {
+  max-width: 340px;
+
+  margin: auto 0;
+
+  padding: 38px 0;
+}
+
+.register-eyebrow {
+  margin: 0;
+
+  color: #63a7ff;
+
+  font-size: 9px;
+  font-weight: 800;
+
+  letter-spacing: 0.17em;
+}
+
+.register-brand-main h1 {
+  margin: 16px 0 0;
+
+  color: #ffffff;
+
+  font-size: clamp(39px, 4vw, 54px);
+  font-weight: 850;
+
+  line-height: 0.98;
+  letter-spacing: -0.065em;
+}
+
+.register-description {
+  max-width: 330px;
+
+  margin: 20px 0 0;
+
+  color: #b9cbe5;
+
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.register-points {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+
+  margin-top: 28px;
+}
+
+.register-point {
+  display: grid;
+  grid-template-columns: 29px 1fr;
+
+  gap: 10px;
+}
+
+.register-point-icon {
+  width: 29px;
+  height: 29px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 8px;
+
+  background: rgba(59, 130, 246, 0.1);
+
+  color: #6db0ff;
+}
+
+.register-point strong {
+  display: block;
+
+  color: #f7fbff;
+
+  font-size: 10px;
+  font-weight: 750;
+
+  line-height: 1.4;
+}
+
+.register-point div span {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #829fc4;
+
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+.register-brand-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #7895ba;
+
+  font-size: 8px;
+}
+
+.register-footer-line {
+  width: 30px;
+  height: 1px;
+
+  background: #41648e;
+}
+
+/* =========================================================
+   RIGHT FORM PANEL
+   ========================================================= */
+
+.register-form-panel {
+  min-width: 0;
+  overflow-y: auto;
+
+  background: #ffffff;
+}
+
+.register-form-wrapper {
+  width: min(570px, calc(100% - 76px));
+
+  margin: 0 auto;
+
+  box-sizing: border-box;
+
+  padding: 40px 0 34px;
+}
+
+.register-form-header {
+  margin-bottom: 22px;
+}
+
+.register-form-kicker {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #64748b;
+
+  font-size: 8px;
+  font-weight: 850;
+
+  letter-spacing: 0.18em;
+}
+
+.register-form-header h2 {
+  margin: 0;
+
+  color: #0b1830;
+
+  font-size: 31px;
+  font-weight: 850;
+
+  line-height: 1.05;
+  letter-spacing: -0.055em;
+}
+
+.register-form-header p {
+  max-width: 440px;
+
+  margin: 8px 0 0;
+
+  color: #71829a;
+
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* =========================================================
+   ALERTS
+   ========================================================= */
+
+.register-alert,
+.register-success {
+  padding: 9px 11px;
+
+  border-radius: 8px;
+
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.register-alert {
+  border: 1px solid #fecaca;
+
+  background: #fff5f5;
+
+  color: #b91c1c;
+}
+
+.register-success {
+  border: 1px solid #bbf7d0;
+
+  background: #f0fdf4;
+
+  color: #166534;
+}
+
+/* =========================================================
+   FORM STRUCTURE
+   ========================================================= */
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+}
+
+.register-section-label {
+  margin-top: 3px;
+  margin-bottom: -1px;
+
+  color: #64748b;
+
+  font-size: 7.5px;
+  font-weight: 850;
+
+  letter-spacing: 0.18em;
+}
+
+.register-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  gap: 11px 13px;
+}
+
+.register-field {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+}
+
+.register-field-full {
+  grid-column: 1 / -1;
+}
+
+.register-field label {
+  color: #1e293b;
+
+  font-size: 9px;
+  font-weight: 750;
+
+  line-height: 1.25;
+}
+
+.register-input-wrapper {
+  position: relative;
+
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+}
+
+.register-input-icon {
+  position: absolute;
+  left: 12px;
+
+  color: #8da0b8;
+
+  pointer-events: none;
+}
+
+.register-input-wrapper input,
+.register-input-wrapper select {
+  width: 100%;
+  height: 40px;
+
+  box-sizing: border-box;
+
+  padding: 0 12px 0 37px;
+
+  border: 1px solid #d5dfeb;
+  border-radius: 8px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  color: #17233a;
+
+  font-family: inherit;
+  font-size: 10px;
+
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.register-input-wrapper input::placeholder {
+  color: #a3b1c3;
+}
+
+.register-input-wrapper input:hover:not(:disabled),
+.register-input-wrapper select:hover:not(:disabled) {
+  border-color: #b9c8d9;
+}
+
+.register-input-wrapper input:focus,
+.register-input-wrapper select:focus {
+  border-color: #3978eb;
+
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+.register-input-wrapper select {
+  cursor: pointer;
+}
+
+.register-input-wrapper input:disabled,
+.register-input-wrapper select:disabled {
+  cursor: not-allowed;
+
+  background: #f8fafc;
+}
+
+/* =========================================================
+   ROLE DESCRIPTION
+   ========================================================= */
+
+.register-role-description {
+  margin-top: -4px;
+
+  color: #8492a5;
+
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   PASSWORD TOGGLE
+   ========================================================= */
+
+.register-password-toggle {
+  position: absolute;
+  right: 5px;
+
+  width: 30px;
+  height: 30px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 6px;
+
+  background: transparent;
+
+  color: #8293aa;
+
+  cursor: pointer;
+}
+
+.register-password-toggle:hover:not(:disabled) {
+  background: #f1f5f9;
+
+  color: #405773;
+}
+
+.register-password-toggle:focus-visible {
+  outline: 2px solid #3978eb;
+  outline-offset: 1px;
+}
+
+/* =========================================================
+   SUBMIT BUTTON
+   ========================================================= */
+
+.register-submit {
+  width: 100%;
+  height: 43px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  margin-top: 5px;
+
+  padding: 0 15px;
+
+  border: 0;
+  border-radius: 8px;
+
+  background: #2864df;
+
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 750;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 7px 18px rgba(40, 100, 223, 0.2);
+
+  transition:
+    background 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.register-submit:hover:not(:disabled) {
+  background: #2158c9;
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 10px 22px rgba(40, 100, 223, 0.24);
+}
+
+.register-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.register-submit:focus-visible {
+  outline: 3px solid rgba(40, 100, 223, 0.16);
+  outline-offset: 3px;
+}
+
+.register-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* =========================================================
+   SECURITY / FOOTER
+   ========================================================= */
+
+.register-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  margin-top: 13px;
+
+  color: #8795a8;
+
+  font-size: 7.5px;
+  line-height: 1.4;
+
+  text-align: center;
+}
+
+.register-security svg {
+  flex: 0 0 auto;
+
+  color: #64748b;
+}
+
+.register-login {
+  margin: 15px 0 0;
+
+  color: #73839a;
+
+  font-size: 9px;
+
+  text-align: center;
+}
+
+.register-login a {
+  color: #2563d8;
+
+  font-weight: 750;
+
+  text-decoration: none;
+}
+
+.register-login a:hover {
+  text-decoration: underline;
+}
+
+.register-copyright {
+  margin: 11px 0 0;
+
+  color: #a8b3c2;
+
+  font-size: 7.5px;
+
+  text-align: center;
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1000px) {
+  .register-page {
+    padding: 16px;
+  }
+
+  .register-shell {
+    grid-template-columns: 36% 64%;
+  }
+
+  .register-brand-content {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+
+  .register-form-wrapper {
+    width: calc(100% - 54px);
+  }
+}
+
+/* =========================================================
+   MOBILE / STACKED
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .register-page {
+    align-items: flex-start;
+
+    padding: 0;
+  }
+
+  .register-shell {
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+
+    grid-template-columns: 1fr;
+
+    border: 0;
+    border-radius: 0;
+
+    box-shadow: none;
+  }
+
+  .register-brand-panel {
+    min-height: 365px;
+  }
+
+  .register-brand-content {
+    min-height: 365px;
+
+    padding: 30px 26px 25px;
+  }
+
+  .register-brand-main {
+    margin-top: 35px;
+    margin-bottom: 20px;
+
+    padding: 0;
+  }
+
+  .register-brand-main h1 {
+    font-size: 42px;
+  }
+
+  .register-form-panel {
+    overflow: visible;
+  }
+
+  .register-form-wrapper {
+    width: calc(100% - 48px);
+
+    padding: 38px 0 32px;
+  }
+}
+
+@media (max-width: 520px) {
+  .register-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .register-field-full {
+    grid-column: auto;
+  }
+
+  .register-brand-panel {
+    min-height: 340px;
+  }
+
+  .register-brand-content {
+    min-height: 340px;
+  }
+
+  .register-brand-main h1 {
+    font-size: 39px;
+  }
+}
+
+/* =========================================================
+   SHORT DESKTOP SCREENS
+   ========================================================= */
+
+@media (max-height: 720px) and (min-width: 761px) {
+  .register-shell {
+    height: calc(100vh - 30px);
+    min-height: 590px;
+  }
+
+  .register-brand-content {
+    min-height: 590px;
+
+    padding-top: 30px;
+    padding-bottom: 24px;
+  }
+
+  .register-brand-main {
+    padding-top: 25px;
+    padding-bottom: 20px;
+  }
+
+  .register-brand-main h1 {
+    font-size: 44px;
+  }
+
+  .register-description {
+    margin-top: 15px;
+  }
+
+  .register-points {
+    margin-top: 20px;
+    gap: 10px;
+  }
+
+  .register-form-wrapper {
+    padding-top: 28px;
+    padding-bottom: 24px;
+  }
+
+  .register-form-header {
+    margin-bottom: 15px;
+  }
+
+  .register-form {
+    gap: 9px;
+  }
+
+  .register-input-wrapper input,
+  .register-input-wrapper select {
+    height: 37px;
+  }
+
+  .register-submit {
+    height: 40px;
+  }
+}
+/* =========================================================
+   REGISTRATION HEADER — FINAL TYPOGRAPHY
+   ========================================================= */
+
+.register-form-kicker {
+  margin-bottom: 9px;
+
+  color: #52627a;
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  line-height: 1.2;
+  letter-spacing: 0.16em;
+
+  text-transform: uppercase;
+}
+
+.register-form-header h2 {
+  margin: 0;
+
+  color: #0b1830;
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  font-size: 27px;
+  font-weight: 800;
+
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+}
+
+.register-form-header p {
+  max-width: 470px;
+
+  margin: 9px 0 0;
+
+  color: #718096;
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  font-size: 11px;
+  font-weight: 450;
+
+  line-height: 1.55;
+}
+
+/* Keep the header compact on shorter screens */
+@media (max-height: 720px) and (min-width: 761px) {
+  .register-form-kicker {
+    margin-bottom: 7px;
+    font-size: 9px;
+  }
+
+  .register-form-header h2 {
+    font-size: 25px;
+  }
+
+  .register-form-header p {
+    margin-top: 7px;
+    font-size: 10px;
+  }
+}
+/* =========================================================
+   LOGIN PROMPT — SUBTLE FOOTER
+   ========================================================= */
+
+.register-login {
+  margin: 13px 0 0;
+
+  color: #a0acbb;
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  font-size: 8.5px;
+  font-weight: 450;
+
+  line-height: 1.4;
+
+  text-align: center;
+}
+
+.register-login a {
+  margin-left: 2px;
+
+  color: #526b8b;
+
+  font-size: 8.5px;
+  font-weight: 700;
+
+  text-decoration: none;
+
+  transition: color 150ms ease;
+}
+
+.register-login a:hover {
+  color: #2563d8;
+  text-decoration: underline;
+}
+
+.register-login a:focus-visible {
+  outline: 2px solid rgba(37, 99, 216, 0.25);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Make the platform copyright even quieter */
+.register-copyright {
+  margin: 9px 0 0;
+
+  color: #b7c0cc;
+
+  font-size: 7px;
+  font-weight: 450;
+
+  text-align: center;
+}
+/* =========================================================
+   FINAL REGISTRATION TYPOGRAPHY
+   ========================================================= */
+
+/* Create Account — clear and professional */
+.register-form-kicker {
+  margin-bottom: 8px;
+
+  color: #34445c;
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+
+  text-transform: uppercase;
+}
+
+/* Main heading — strong, but not oversized */
+.register-form-header h2 {
+  margin: 0;
+
+  color: #0b1830;
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  font-size: 27px;
+  font-weight: 800;
+
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+}
+
+/* Supporting text */
+.register-form-header p {
+  margin: 9px 0 0;
+
+  color: #64748b;
+
+  font-size: 11px;
+  font-weight: 450;
+
+  line-height: 1.55;
+}
+
+/* =========================================================
+   ALREADY HAVE AN ACCOUNT
+   ========================================================= */
+
+.register-login {
+  margin: 14px 0 0;
+
+  color: #596a80;
+
+  font-size: 9px;
+  font-weight: 500;
+
+  line-height: 1.4;
+
+  text-align: center;
+}
+
+.register-login a {
+  margin-left: 3px;
+
+  color: #234d86;
+
+  font-size: 9px;
+  font-weight: 750;
+
+  text-decoration: none;
+}
+
+.register-login a:hover {
+  color: #1857b7;
+  text-decoration: underline;
+}
+
+.register-login a:focus-visible {
+  outline: 2px solid rgba(37, 99, 216, 0.25);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   COPYRIGHT
+   ========================================================= */
+
+.register-copyright {
+  margin: 9px 0 0;
+
+  color: #94a0b0;
+
+  font-size: 7px;
+  font-weight: 450;
+
+  text-align: center;
+}

@@ -35,3 +35,23 @@ class DecisionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DecisionSearchResponse(BaseModel):
+    id: int
+    title: str
+    category: str
+    status: str
+    tags: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PaginatedDecisionResponse(BaseModel):
+    items: list[DecisionSearchResponse]
+    page: int
+    page_size: int
+    total: int

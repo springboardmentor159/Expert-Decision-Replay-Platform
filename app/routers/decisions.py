@@ -13,8 +13,10 @@ from app.schemas.audit_log import AuditAction, AuditEntityType
 from app.schemas.decision import (
     DecisionCreate,
     DecisionResponse,
+    DecisionSearchResponse,
     DecisionStatusUpdate,
     DecisionUpdate,
+    PaginatedDecisionResponse,
 )
 from app.services.audit_service import log_audit
 
@@ -23,6 +25,21 @@ router = APIRouter(
     prefix="/decisions",
     tags=["Decisions"]
 )
+
+
+ALLOWED_STATUSES = {
+    "Draft",
+    "Under Review",
+    "Approved",
+    "Rejected",
+    "Archived",
+}
+
+ALLOWED_SORT_FIELDS = {
+    "created_at": Decision.created_at,
+    "updated_at": Decision.updated_at,
+    "title": Decision.title,
+}
 
 
 # CREATE DECISION
@@ -65,7 +82,129 @@ def create_decision(
     return decision
 
 
-# GET ALL / SEARCH / FILTER DECISIONS
+# KNOWLEDGE REPOSITORY / SEARCH
+@router.get(
+    "/search",
+    response_model=PaginatedDecisionResponse
+)
+def search_decisions(
+    q: Optional[str] = Query(
+        default=None,
+        min_length=1
+    ),
+    category: Optional[str] = None,
+    status_filter: Optional[str] = Query(
+        default=None,
+        alias="status"
+    ),
+    tag: Optional[str] = Query(
+        default=None,
+        min_length=1
+    ),
+    page: int = Query(
+        default=1,
+        ge=1
+    ),
+    page_size: int = Query(
+        default=10,
+        ge=1,
+        le=100
+    ),
+    sort: str = Query(
+        default="created_at"
+    ),
+    order: str = Query(
+        default="desc"
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if status_filter and status_filter not in ALLOWED_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid decision status"
+        )
+
+    if sort not in ALLOWED_SORT_FIELDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Invalid sort field. Allowed values: "
+                "created_at, updated_at, title"
+            )
+        )
+
+    normalized_order = order.lower()
+
+    if normalized_order not in {"asc", "desc"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid sort order. Use 'asc' or 'desc'"
+        )
+
+    query = db.query(Decision)
+
+    if status_filter:
+        query = query.filter(
+            Decision.status == status_filter
+        )
+
+    if category:
+        query = query.filter(
+            Decision.category == category
+        )
+
+    if q:
+        search_pattern = f"%{q}%"
+
+        query = query.filter(
+            or_(
+                Decision.title.ilike(search_pattern),
+                Decision.problem_statement.ilike(search_pattern),
+                Decision.category.ilike(search_pattern),
+                Decision.tags.ilike(search_pattern),
+            )
+        )
+
+    if tag:
+        tag_pattern = f"%{tag}%"
+
+        query = query.filter(
+            Decision.tags.ilike(tag_pattern)
+        )
+
+    total = query.count()
+
+    sort_column = ALLOWED_SORT_FIELDS[sort]
+
+    if normalized_order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    offset = (page - 1) * page_size
+
+    decisions = (
+        query
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    items = [
+        DecisionSearchResponse.model_validate(decision)
+        for decision in decisions
+    ]
+
+    return PaginatedDecisionResponse(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
+
+
+# GET ALL / FILTER DECISIONS
 @router.get(
     "",
     response_model=List[DecisionResponse]
@@ -97,6 +236,7 @@ def get_decisions(
 
     if search:
         search_pattern = f"%{search}%"
+
         query = query.filter(
             or_(
                 Decision.title.ilike(search_pattern),
