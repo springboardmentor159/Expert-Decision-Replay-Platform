@@ -14,6 +14,7 @@ from app.routers.approval import router as approval_router
 from app.routers.audit_logs import router as audit_logs_router
 from app.routers.access_logs import router as access_logs_router
 from app.routers.security_logs import router as security_logs_router
+from app.routers.reports import router as reports_router
 
 
 app = FastAPI(
@@ -35,3 +36,4 @@ app.include_router(approval_router)
 app.include_router(audit_logs_router)
 app.include_router(access_logs_router)
 app.include_router(security_logs_router)
+app.include_router(reports_router)
