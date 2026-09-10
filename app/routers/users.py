@@ -187,7 +187,58 @@ def get_my_statistics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decisions_query = db.query(Decision).filter(Decision.created_by == current_user.id)
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.organization_id:
+            decisions_query = db.query(Decision).filter(Decision.organization_id == current_user.organization_id)
+            alternatives_query = (
+                db.query(Alternative)
+                .join(Decision, Alternative.decision_id == Decision.id)
+                .filter(Decision.organization_id == current_user.organization_id)
+            )
+        else:
+            decisions_query = db.query(Decision)
+            alternatives_query = db.query(Alternative)
+
+    elif current_user.role == UserRole.MANAGER:
+        decisions_query = db.query(Decision).filter(Decision.organization_id == current_user.organization_id)
+        alternatives_query = (
+            db.query(Alternative)
+            .join(Decision, Alternative.decision_id == Decision.id)
+            .filter(Decision.organization_id == current_user.organization_id)
+        )
+
+    elif current_user.role == UserRole.REVIEWER:
+        # Decisions assigned to or evaluated by this reviewer
+        reviewer_decision_ids = [
+            appr.decision_id
+            for appr in db.query(Approval.decision_id).filter(Approval.reviewer_id == current_user.id).all()
+        ]
+        if reviewer_decision_ids:
+            decisions_query = db.query(Decision).filter(Decision.id.in_(reviewer_decision_ids))
+            alternatives_query = (
+                db.query(Alternative)
+                .filter(Alternative.decision_id.in_(reviewer_decision_ids))
+            )
+        else:
+            # Fallback to organizational decisions under review or finalized
+            decisions_query = db.query(Decision).filter(
+                Decision.organization_id == current_user.organization_id,
+                Decision.status.in_([DecisionStatus.UNDER_REVIEW, DecisionStatus.APPROVED, DecisionStatus.REJECTED, DecisionStatus.ARCHIVED])
+            )
+            alternatives_query = (
+                db.query(Alternative)
+                .join(Decision, Alternative.decision_id == Decision.id)
+                .filter(Decision.organization_id == current_user.organization_id)
+            )
+
+    else:  # Employee
+        decisions_query = db.query(Decision).filter(Decision.created_by == current_user.id)
+        alternatives_query = (
+            db.query(Alternative)
+            .join(Decision, Alternative.decision_id == Decision.id)
+            .filter(Decision.created_by == current_user.id)
+        )
+
     total_decisions = decisions_query.count()
     draft_decisions = decisions_query.filter(Decision.status == DecisionStatus.DRAFT).count()
     under_review_decisions = decisions_query.filter(Decision.status == DecisionStatus.UNDER_REVIEW).count()
@@ -198,13 +249,7 @@ def get_my_statistics(
     decided = approved_decisions + rejected_decisions
     approval_rate = round((approved_decisions / decided * 100), 1) if decided > 0 else 0.0
 
-    total_alternatives = (
-        db.query(Alternative)
-        .join(Decision, Alternative.decision_id == Decision.id)
-        .filter(Decision.created_by == current_user.id)
-        .count()
-    )
-
+    total_alternatives = alternatives_query.count()
     total_comments = db.query(Comment).filter(Comment.user_id == current_user.id).count()
 
     assigned_reviews = db.query(Approval).filter(Approval.reviewer_id == current_user.id).count()

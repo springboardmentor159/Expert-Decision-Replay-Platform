@@ -321,15 +321,15 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                   </div>
                 </div>
 
-                {/* Completed Reviews */}
+                {/* Approved Decisions */}
                 <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        Completed Reviews
+                        Approved Decisions
                       </div>
                       <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--success)', marginTop: '4px' }}>
-                        {statistics?.completed_reviews ?? 0}
+                        {statistics?.approved_decisions ?? 0}
                       </div>
                     </div>
                     <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)' }}>
@@ -337,7 +337,7 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                     </div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Evaluations cast and finalized
+                    Decisions approved & ratified
                   </div>
                 </div>
 
@@ -363,12 +363,12 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
               </>
             ) : (
               <>
-                {/* Total Authored */}
+                {/* Total Decisions */}
                 <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        Authored Decisions
+                        {isAdmin || isManager ? 'Organization Decisions' : 'Authored Decisions'}
                       </div>
                       <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--text-primary)', marginTop: '4px' }}>
                         {statistics?.total_decisions ?? 0}
@@ -379,7 +379,7 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                     </div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Total architectural records created
+                    {isAdmin || isManager ? 'Decisions across your organization' : 'Total architectural records created'}
                   </div>
                 </div>
 
@@ -461,18 +461,18 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
           {/* Secondary Metrics */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isReviewer ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '1.25rem',
           }}>
-            {!isReviewer && (
-              /* Decision Lifecycle Breakdown */
-              <div className="card" style={{ padding: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Layers size={18} style={{ color: 'var(--primary)' }} />
-                  Decision Status Distribution
-                </h3>
+            {/* Decision Lifecycle Breakdown */}
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Layers size={18} style={{ color: 'var(--primary)' }} />
+                {isReviewer ? 'Evaluated Decisions Status' : 'Decision Status Distribution'}
+              </h3>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                {!isReviewer && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-muted)' }} />
@@ -480,6 +480,7 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                     </span>
                     <span style={{ fontWeight: 600 }}>{statistics?.draft_decisions ?? 0}</span>
                   </div>
+                )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -514,7 +515,6 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                   </div>
                 </div>
               </div>
-            )}
 
             {/* Collaboration & Review Workload */}
             <div className="card" style={{ padding: '1.5rem' }}>
