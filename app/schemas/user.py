@@ -71,3 +71,19 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True
     )
+
+
+class UserStatisticsResponse(BaseModel):
+    total_decisions: int
+    draft_decisions: int
+    under_review_decisions: int
+    approved_decisions: int
+    rejected_decisions: int
+    archived_decisions: int
+    approval_rate: float
+    total_alternatives_created: int
+    total_comments_posted: int
+    assigned_reviews: int
+    pending_reviews: int
+    completed_reviews: int
+

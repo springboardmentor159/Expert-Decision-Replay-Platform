@@ -6,10 +6,15 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.organization import Organization
 from app.models.user import User, UserRole
+from app.models.decision import Decision, DecisionStatus
+from app.models.alternative import Alternative
+from app.models.approval import Approval, ApprovalStatus
+from app.models.comment import Comment
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
-    UserResponse
+    UserResponse,
+    UserStatisticsResponse,
 )
 from app.services.auth import get_current_user
 from app.services.authorization import require_roles
@@ -157,6 +162,79 @@ def get_eligible_reviewers(
             User.role.in_([UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR]),
         )
         .all()
+    )
+
+
+# GET CURRENT USER PROFILE
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get current user profile",
+)
+def get_my_profile(
+    current_user: User = Depends(get_current_user),
+):
+    return current_user
+
+
+# GET CURRENT USER PERSONAL STATISTICS (FOR ALL ROLES)
+@router.get(
+    "/me/statistics",
+    response_model=UserStatisticsResponse,
+    summary="Get current user statistics across all roles",
+)
+def get_my_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decisions_query = db.query(Decision).filter(Decision.created_by == current_user.id)
+    total_decisions = decisions_query.count()
+    draft_decisions = decisions_query.filter(Decision.status == DecisionStatus.DRAFT).count()
+    under_review_decisions = decisions_query.filter(Decision.status == DecisionStatus.UNDER_REVIEW).count()
+    approved_decisions = decisions_query.filter(Decision.status == DecisionStatus.APPROVED).count()
+    rejected_decisions = decisions_query.filter(Decision.status == DecisionStatus.REJECTED).count()
+    archived_decisions = decisions_query.filter(Decision.status == DecisionStatus.ARCHIVED).count()
+
+    decided = approved_decisions + rejected_decisions
+    approval_rate = round((approved_decisions / decided * 100), 1) if decided > 0 else 0.0
+
+    total_alternatives = (
+        db.query(Alternative)
+        .join(Decision, Alternative.decision_id == Decision.id)
+        .filter(Decision.created_by == current_user.id)
+        .count()
+    )
+
+    total_comments = db.query(Comment).filter(Comment.user_id == current_user.id).count()
+
+    assigned_reviews = db.query(Approval).filter(Approval.reviewer_id == current_user.id).count()
+    pending_reviews = (
+        db.query(Approval)
+        .filter(Approval.reviewer_id == current_user.id, Approval.status == ApprovalStatus.PENDING)
+        .count()
+    )
+    completed_reviews = (
+        db.query(Approval)
+        .filter(
+            Approval.reviewer_id == current_user.id,
+            Approval.status.in_([ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]),
+        )
+        .count()
+    )
+
+    return UserStatisticsResponse(
+        total_decisions=total_decisions,
+        draft_decisions=draft_decisions,
+        under_review_decisions=under_review_decisions,
+        approved_decisions=approved_decisions,
+        rejected_decisions=rejected_decisions,
+        archived_decisions=archived_decisions,
+        approval_rate=approval_rate,
+        total_alternatives_created=total_alternatives,
+        total_comments_posted=total_comments,
+        assigned_reviews=assigned_reviews,
+        pending_reviews=pending_reviews,
+        completed_reviews=completed_reviews,
     )
 
 

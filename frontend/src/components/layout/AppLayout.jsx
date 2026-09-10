@@ -9,7 +9,10 @@ export function AppLayout({ currentView, setCurrentView, children }) {
     <div className="app-container">
       {sidebarOpen && <Sidebar currentView={currentView} setCurrentView={setCurrentView} />}
       <div className="main-content">
-        <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+        <Navbar
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onNavigateProfile={() => setCurrentView('profile')}
+        />
         <main className="page-wrapper">{children}</main>
       </div>
     </div>

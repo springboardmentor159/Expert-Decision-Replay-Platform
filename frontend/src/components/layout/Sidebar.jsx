@@ -11,6 +11,7 @@ import {
   GitPullRequest,
   BarChart3,
   Layers,
+  User,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -99,6 +100,14 @@ export function Sidebar({ currentView, setCurrentView }) {
       ],
     });
   }
+
+  // Account & Profile Section for ALL users
+  sections.push({
+    title: 'Account',
+    items: [
+      { id: 'profile', label: 'My Profile & Stats', icon: User },
+    ],
+  });
 
   return (
     <aside style={{

@@ -32,4 +32,12 @@ export const usersApi = {
       method: 'DELETE',
     });
   },
+
+  getMyProfile: async () => {
+    return await request('/users/me');
+  },
+
+  getMyStatistics: async () => {
+    return await request('/users/me/statistics');
+  },
 };

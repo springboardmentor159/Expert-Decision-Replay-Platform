@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 import { RoleBadge } from '../common/StatusBadge';
 
-export function Navbar({ onToggleSidebar }) {
+export function Navbar({ onToggleSidebar, onNavigateProfile }) {
   const { user, role, logout } = useAuth();
 
   return (
@@ -64,30 +64,44 @@ export function Navbar({ onToggleSidebar }) {
         {/* User Info & Profile */}
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: '0.5rem' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: 'var(--primary-light)',
-              color: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              border: '1px solid var(--border-color)',
-            }}>
-              {user.full_name?.charAt(0) || <UserIcon size={18} />}
-            </div>
-            <div style={{ lineHeight: 1.2 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{user.full_name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '2px' }}>
-                <RoleBadge role={user.role} />
-                {user.department && (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    • {user.department}
-                  </span>
-                )}
+            <div
+              onClick={onNavigateProfile}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                cursor: onNavigateProfile ? 'pointer' : 'default',
+                padding: '4px 8px',
+                borderRadius: '8px',
+                transition: 'background 0.2s',
+              }}
+              title="Click to view My Profile & Personal Statistics"
+            >
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: 'var(--primary-light)',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                border: '1px solid var(--border-color)',
+              }}>
+                {user.full_name?.charAt(0) || <UserIcon size={18} />}
+              </div>
+              <div style={{ lineHeight: 1.2 }}>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{user.full_name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '2px' }}>
+                  <RoleBadge role={user.role} />
+                  {user.department && (
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      • {user.department}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

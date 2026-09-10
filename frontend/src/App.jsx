@@ -14,6 +14,7 @@ import { KnowledgeRepositoryPage } from './pages/repository/KnowledgeRepositoryP
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import { UserManagementPage } from './pages/admin/UserManagementPage';
+import { ProfilePage } from './pages/profile/ProfilePage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 
 function MainApp() {
@@ -116,6 +117,13 @@ function MainApp() {
       {currentView === 'reports' && <ReportsPage />}
 
       {currentView === 'user-management' && <UserManagementPage />}
+
+      {currentView === 'profile' && (
+        <ProfilePage
+          onNavigateCreate={() => setCurrentView('create-decision')}
+          onNavigateMyDecisions={() => setCurrentView('my-decisions')}
+        />
+      )}
     </AppLayout>
   );
 }

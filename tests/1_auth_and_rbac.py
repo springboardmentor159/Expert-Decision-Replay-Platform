@@ -116,3 +116,31 @@ def test_rbac_permission_matrix(
 
     res_admin_dash = client.get("/dashboard/admin", headers=admin_headers)
     assert res_admin_dash.status_code == 200
+
+
+def test_user_profile_and_statistics(client: TestClient, employee_headers: dict, employee_user):
+    """
+    Verify /users/me and /users/me/statistics:
+    - Current authenticated user can access their own profile and stats
+    - Statistics response contains all required platform metrics
+    """
+    # 1. Get profile
+    res_profile = client.get("/users/me", headers=employee_headers)
+    assert res_profile.status_code == 200
+    profile_data = res_profile.json()
+    assert profile_data["email"] == employee_user.email
+    assert profile_data["id"] == employee_user.id
+
+    # 2. Get personal statistics
+    res_stats = client.get("/users/me/statistics", headers=employee_headers)
+    assert res_stats.status_code == 200
+    stats_data = res_stats.json()
+    assert "total_decisions" in stats_data
+    assert "draft_decisions" in stats_data
+    assert "under_review_decisions" in stats_data
+    assert "approved_decisions" in stats_data
+    assert "approval_rate" in stats_data
+    assert "total_alternatives_created" in stats_data
+    assert "total_comments_posted" in stats_data
+    assert "assigned_reviews" in stats_data
+
