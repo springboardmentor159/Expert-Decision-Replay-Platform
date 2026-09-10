@@ -79,10 +79,21 @@ function MainApp() {
         />
       )}
 
-      {(currentView === 'my-decisions' ||
-        currentView === 'team-decisions' ||
-        currentView === 'all-decisions') && (
+      {currentView === 'my-decisions' && (
         <DecisionsListPage
+          title="My Decisions"
+          subtitle="Decisions authored by you"
+          onlyMine={true}
+          onSelectDecision={navigateToDecisionDetail}
+          onNavigateCreate={() => setCurrentView('create-decision')}
+        />
+      )}
+
+      {(currentView === 'team-decisions' || currentView === 'all-decisions') && (
+        <DecisionsListPage
+          title={currentView === 'team-decisions' ? "Team Decisions" : "Decision Management"}
+          subtitle={currentView === 'team-decisions' ? "Decisions created across your team and organization" : "Browse and manage organizational decisions"}
+          onlyMine={false}
           onSelectDecision={navigateToDecisionDetail}
           onNavigateCreate={() => setCurrentView('create-decision')}
         />

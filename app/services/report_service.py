@@ -114,6 +114,12 @@ def get_decisions_report_data(
                 detail=f"Invalid decision status '{decision_status}'",
             )
 
+    # Role-based & self-scoping:
+    # Managers and Administrators can view all decisions across the organization (or filter by specific creator).
+    # Employees and Reviewers are strictly scoped to their own authored decisions.
+    if current_user.role not in (UserRole.MANAGER, UserRole.ADMINISTRATOR):
+        created_by = current_user.id
+
     if created_by is not None:
         base_query = base_query.filter(Decision.created_by == created_by)
 
@@ -262,6 +268,15 @@ def get_approvals_report_data(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid approval status '{approval_status}'",
             )
+
+    # Role-based & self-scoping:
+    # Reviewers: strictly scoped to reviews assigned to them.
+    # Employees: strictly scoped to approvals of decisions created by them.
+    # Managers & Administrators: can view all organization approvals (or filter by reviewer).
+    if current_user.role == UserRole.REVIEWER:
+        reviewer_id = current_user.id
+    elif current_user.role == UserRole.EMPLOYEE:
+        base_query = base_query.filter(Decision.created_by == current_user.id)
 
     if reviewer_id is not None:
         base_query = base_query.filter(Approval.reviewer_id == reviewer_id)

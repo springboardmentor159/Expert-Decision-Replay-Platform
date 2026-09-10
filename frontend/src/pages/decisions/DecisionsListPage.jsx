@@ -20,7 +20,14 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { Pagination } from '../../components/common/Pagination';
 import { Modal } from '../../components/common/Modal';
 
-export function DecisionsListPage({ onSelectDecision, onNavigateCreate, initialFilter = {} }) {
+export function DecisionsListPage({
+  onSelectDecision,
+  onNavigateCreate,
+  initialFilter = {},
+  title = 'Decisions Directory',
+  subtitle,
+  onlyMine = false,
+}) {
   const { user, isEmployee, isManager, isAdmin } = useAuth();
   const { success, error } = useNotification();
 
@@ -49,6 +56,7 @@ export function DecisionsListPage({ onSelectDecision, onNavigateCreate, initialF
         category: category || undefined,
         status: status || undefined,
         tag: tag.trim() || undefined,
+        created_by: onlyMine ? user?.id : (initialFilter.created_by || undefined),
         page,
         page_size: 10,
       });
@@ -61,7 +69,7 @@ export function DecisionsListPage({ onSelectDecision, onNavigateCreate, initialF
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, category, status, tag, page, error]);
+  }, [searchQuery, category, status, tag, page, onlyMine, user?.id, initialFilter.created_by, error]);
 
   useEffect(() => {
     fetchDecisions();
@@ -119,9 +127,18 @@ export function DecisionsListPage({ onSelectDecision, onNavigateCreate, initialF
         gap: '1rem',
       }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>Decisions Directory</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.25rem' }}>
+            <h1 style={{ fontSize: '1.75rem', margin: 0 }}>{title}</h1>
+            {onlyMine && (
+              <span className="badge badge-role" style={{ fontSize: '0.78rem' }}>
+                👤 Authored by You
+              </span>
+            )}
+          </div>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Manage, review, and track organizational decision artifacts ({total} total)
+            {subtitle || (onlyMine
+              ? `Showing your personal architectural and engineering decisions (${total} total)`
+              : `Manage, review, and track organizational decision artifacts (${total} total)`)}
           </p>
         </div>
         {(isEmployee || isManager || isAdmin) && (
@@ -220,12 +237,18 @@ export function DecisionsListPage({ onSelectDecision, onNavigateCreate, initialF
         <LoadingSpinner message="Loading decisions..." />
       ) : decisions.length === 0 ? (
         <EmptyState
-          title="No decisions match your filter criteria"
-          description="Try clearing search filters or create a new decision."
+          title={onlyMine ? "You haven't created any decisions yet" : "No decisions match your filter criteria"}
+          description={
+            onlyMine
+              ? "You have not authored any decision records. Click below to draft your first decision."
+              : (searchQuery || category || status || tag
+                ? "Try clearing search filters or create a new decision."
+                : "No decisions found in your organization. Get started by creating one.")
+          }
           action={
             (isEmployee || isManager || isAdmin) && (
               <button onClick={onNavigateCreate} className="btn btn-primary btn-sm">
-                <Plus size={16} /> Create Decision
+                <Plus size={16} /> {onlyMine ? "Create Your First Decision" : "Create Decision"}
               </button>
             )
           }

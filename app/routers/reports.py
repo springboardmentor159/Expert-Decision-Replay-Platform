@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.report import (
     ApprovalReportResponse,
     AuditReportResponse,
@@ -110,10 +110,12 @@ def export_decisions_pdf(
         sort_order=sort_order,
         paginate=False,
     )
+    is_self_scoped = current_user.role not in (UserRole.MANAGER, UserRole.ADMINISTRATOR)
     filters = {
         "Category": category,
         "Status": status,
-        "Created By (User ID)": created_by,
+        "Created By (User)": f"My Decisions ({current_user.full_name})" if is_self_scoped else (str(created_by) if created_by else "All"),
+        "Report Scope": "Personal (My Decisions)" if is_self_scoped else "Organization-Wide",
         "Start Date": start_date.strftime("%Y-%m-%d") if start_date else None,
         "End Date": end_date.strftime("%Y-%m-%d") if end_date else None,
         "Tag": tag,
@@ -163,10 +165,12 @@ def export_decisions_excel(
         sort_order=sort_order,
         paginate=False,
     )
+    is_self_scoped = current_user.role not in (UserRole.MANAGER, UserRole.ADMINISTRATOR)
     filters = {
         "Category": category,
         "Status": status,
-        "Created By (User ID)": created_by,
+        "Created By (User)": f"My Decisions ({current_user.full_name})" if is_self_scoped else (str(created_by) if created_by else "All"),
+        "Report Scope": "Personal (My Decisions)" if is_self_scoped else "Organization-Wide",
         "Start Date": start_date.strftime("%Y-%m-%d") if start_date else None,
         "End Date": end_date.strftime("%Y-%m-%d") if end_date else None,
         "Tag": tag,

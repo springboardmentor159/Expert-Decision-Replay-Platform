@@ -8,6 +8,7 @@ export const decisionsApi = {
     if (params.category) query.append('category', params.category);
     if (params.status) query.append('status', params.status);
     if (params.tag) query.append('tag', params.tag);
+    if (params.created_by) query.append('created_by', params.created_by);
     if (params.page) query.append('page', params.page);
     if (params.page_size) query.append('page_size', params.page_size);
 
@@ -22,6 +23,7 @@ export const decisionsApi = {
     if (params.category) query.append('category', params.category);
     if (params.status) query.append('status', params.status);
     if (params.tag) query.append('tag', params.tag);
+    if (params.created_by) query.append('created_by', params.created_by);
     if (params.page) query.append('page', params.page);
     if (params.page_size) query.append('page_size', params.page_size);
 

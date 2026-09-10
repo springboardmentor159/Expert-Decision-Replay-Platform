@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import { reportsApi, downloadBlob } from '../../api/reports';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Pagination } from '../../components/common/Pagination';
 
 export function ReportsPage() {
+  const { user, role, isEmployee, isReviewer, isManager, isAdmin } = useAuth();
   const { success, error } = useNotification();
 
   const [activeReport, setActiveReport] = useState('decisions'); // 'decisions' | 'approvals' | 'teams' | 'audit'
@@ -29,6 +31,7 @@ export function ReportsPage() {
   // Common Filters
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
+  const [createdBy, setCreatedBy] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
@@ -39,6 +42,7 @@ export function ReportsPage() {
       const filterParams = {
         category: category || undefined,
         status: status || undefined,
+        created_by: (isAdmin || isManager) ? (createdBy.trim() ? Number(createdBy) : undefined) : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
         page,
@@ -62,7 +66,7 @@ export function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeReport, category, status, startDate, endDate, page, error]);
+  }, [activeReport, category, status, createdBy, startDate, endDate, page, isAdmin, isManager, error]);
 
   useEffect(() => {
     fetchReportData();
@@ -75,6 +79,7 @@ export function ReportsPage() {
       const filterParams = {
         category: category || undefined,
         status: status || undefined,
+        created_by: (isAdmin || isManager) ? (createdBy.trim() ? Number(createdBy) : undefined) : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       };
@@ -108,6 +113,7 @@ export function ReportsPage() {
       const filterParams = {
         category: category || undefined,
         status: status || undefined,
+        created_by: (isAdmin || isManager) ? (createdBy.trim() ? Number(createdBy) : undefined) : undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       };
@@ -174,6 +180,47 @@ export function ReportsPage() {
         </div>
       </div>
 
+      {/* Scope Banner based on user role */}
+      {isEmployee || isReviewer ? (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '0.85rem 1.25rem',
+          background: 'var(--bg-hover)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)',
+        }}>
+          <Shield size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+          <div>
+            <strong style={{ color: 'var(--text-primary)' }}>Personal / Self-Scoped Reports:</strong>{' '}
+            {isEmployee
+              ? 'As an Employee, your reports and exported files (PDF & Excel) are filtered strictly to decisions authored by you.'
+              : 'As a Reviewer, your reports and exported files are filtered to decisions authored by you and reviews assigned to you.'}
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '0.85rem 1.25rem',
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: '8px',
+          fontSize: '0.875rem',
+          color: 'var(--text-secondary)',
+        }}>
+          <Shield size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
+          <div>
+            <strong style={{ color: 'var(--text-primary)' }}>Executive Governance View:</strong>{' '}
+            Viewing organization-wide decisions and compliance reports. You can view all records or filter by specific creator below.
+          </div>
+        </div>
+      )}
+
       {/* Report Module Navigation Tabs */}
       <div style={{
         display: 'flex',
@@ -181,10 +228,12 @@ export function ReportsPage() {
         gap: '0.5rem',
       }}>
         {[
-          { id: 'decisions', label: 'Decision Reports', icon: Layers },
-          { id: 'approvals', label: 'Approval Reports', icon: CheckCircle2 },
-          { id: 'teams', label: 'Team Reports', icon: Users },
-          { id: 'audit', label: 'Audit Reports', icon: Shield },
+          { id: 'decisions', label: isEmployee || isReviewer ? 'My Decisions Report' : 'Decision Reports', icon: Layers },
+          { id: 'approvals', label: isReviewer ? 'My Assigned Reviews' : (isEmployee ? 'My Decision Approvals' : 'Approval Reports'), icon: CheckCircle2 },
+          ...(isManager || isAdmin ? [
+            { id: 'teams', label: 'Team Reports', icon: Users },
+            { id: 'audit', label: 'Audit Reports', icon: Shield },
+          ] : []),
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeReport === tab.id;
@@ -272,12 +321,26 @@ export function ReportsPage() {
             />
           </div>
 
-          {(category || status || startDate || endDate) && (
+          {/* Creator Filter for Managers and Admins */}
+          {(isAdmin || isManager) && activeReport === 'decisions' && (
+            <input
+              type="number"
+              className="form-input"
+              style={{ width: '150px' }}
+              placeholder="Creator ID"
+              value={createdBy}
+              onChange={(e) => { setCreatedBy(e.target.value); setPage(1); }}
+              title="Filter by Creator User ID (Leave blank for all users)"
+            />
+          )}
+
+          {(category || status || createdBy || startDate || endDate) && (
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => {
                 setCategory('');
                 setStatus('');
+                setCreatedBy('');
                 setStartDate('');
                 setEndDate('');
                 setPage(1);

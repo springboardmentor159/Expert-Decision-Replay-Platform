@@ -215,6 +215,10 @@ def search_decisions(
         default=None,
         description="Filter by tag name",
     ),
+    created_by: int | None = Query(
+        default=None,
+        description="Filter by creator user ID",
+    ),
     page: int = Query(
         default=1,
         ge=1,
@@ -280,6 +284,9 @@ def search_decisions(
                 == current_user.organization_id,
             )
         )
+
+    if created_by is not None:
+        query = query.filter(Decision.created_by == created_by)
 
     total = query.count()
 
@@ -365,6 +372,10 @@ def get_decisions(
         default=None,
         description="Filter by tag name",
     ),
+    created_by: int | None = Query(
+        default=None,
+        description="Filter by creator user ID",
+    ),
     page: int = Query(
         default=1,
         ge=1,
@@ -443,6 +454,9 @@ def get_decisions(
                 == current_user.organization_id,
             )
         )
+
+    if created_by is not None:
+        query = query.filter(Decision.created_by == created_by)
 
     # Total results
     total = query.count()
