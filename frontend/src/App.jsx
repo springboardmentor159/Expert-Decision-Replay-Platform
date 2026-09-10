@@ -102,9 +102,22 @@ function MainApp() {
 
       {currentView === 'assigned-reviews' && (
         <DecisionsListPage
+          title="Assigned Reviews"
+          subtitle="Decisions assigned to you for architectural evaluation"
           onSelectDecision={navigateToDecisionDetail}
           onNavigateCreate={() => setCurrentView('create-decision')}
           initialFilter={{ status: 'Under Review' }}
+        />
+      )}
+
+      {currentView === 'pending-approvals' && (
+        <DecisionsListPage
+          title="Pending Approvals"
+          subtitle="Decisions awaiting review and approval across your organization"
+          initialFilter={{ status: 'Under Review' }}
+          onlyMine={false}
+          onSelectDecision={navigateToDecisionDetail}
+          onNavigateCreate={() => setCurrentView('create-decision')}
         />
       )}
 

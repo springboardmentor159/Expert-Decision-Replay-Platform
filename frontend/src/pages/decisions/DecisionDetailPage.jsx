@@ -543,12 +543,17 @@ export function DecisionDetailPage({ decisionId, onBack }) {
               <Send size={15} /> Submit for Review
             </button>
           )}
-          {(isManager || isAdmin || decision.created_by === user?.id) && (
+          {(isManager || isAdmin || decision.created_by === user?.id) &&
+            decision.status !== 'Approved' &&
+            decision.status !== 'Archived' &&
+            (!approvals || approvals.length === 0) && (
             <button className="btn btn-secondary btn-sm" onClick={() => setShowAssignModal(true)}>
               <User size={15} /> Assign Reviewer
             </button>
           )}
-          {(isAdmin || isManager || decision.created_by === user?.id) && decision.status !== 'Archived' && (
+          {(isAdmin || isManager || decision.created_by === user?.id) &&
+            decision.status !== 'Archived' &&
+            decision.status !== 'Approved' && (
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => setShowArchiveModal(true)}
@@ -557,7 +562,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
               <Archive size={15} /> Archive
             </button>
           )}
-          {(isAdmin || (decision.created_by === user?.id && decision.status === 'Draft')) && (
+          {((isAdmin && decision.status !== 'Approved') || (decision.created_by === user?.id && decision.status === 'Draft')) && (
             <button
               className="btn btn-secondary btn-sm"
               style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)' }}

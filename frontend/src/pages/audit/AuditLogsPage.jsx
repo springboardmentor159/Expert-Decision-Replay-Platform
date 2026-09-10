@@ -64,7 +64,7 @@ export function AuditLogsPage() {
 
   const getActionColor = (act) => {
     if (!act) return 'var(--text-muted)';
-    const a = act.toUpperCase();
+    const a = String(act).toUpperCase();
     if (a.includes('APPROVE')) return 'var(--success)';
     if (a.includes('REJECT') || a.includes('DELETE')) return 'var(--danger)';
     if (a.includes('SUBMIT') || a.includes('CREATE')) return 'var(--primary)';
@@ -72,53 +72,58 @@ export function AuditLogsPage() {
   };
 
   const renderAuditValue = (val) => {
-    if (val === null || val === undefined) {
-      return <span style={{ color: 'var(--text-muted)' }}>None</span>;
-    }
-    let parsed = val;
-    if (typeof val === 'string') {
-      try {
-        parsed = JSON.parse(val);
-        if (typeof parsed === 'string') {
-          try { parsed = JSON.parse(parsed); } catch { /* no-op */ }
+    try {
+      if (val === null || val === undefined) {
+        return <span style={{ color: 'var(--text-muted)' }}>None</span>;
+      }
+      let parsed = val;
+      if (typeof val === 'string') {
+        try {
+          parsed = JSON.parse(val);
+          if (typeof parsed === 'string') {
+            try { parsed = JSON.parse(parsed); } catch { /* no-op */ }
+          }
+        } catch {
+          return <span style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{val}</span>;
         }
-      } catch {
-        return <span style={{ fontFamily: 'monospace' }}>{val}</span>;
       }
-    }
 
-    if (typeof parsed === 'object' && parsed !== null) {
-      const entries = Object.entries(parsed);
-      if (entries.length === 0) {
-        return <span style={{ color: 'var(--text-muted)' }}>Empty</span>;
+      if (typeof parsed === 'object' && parsed !== null) {
+        const entries = Object.entries(parsed);
+        if (entries.length === 0) {
+          return <span style={{ color: 'var(--text-muted)' }}>Empty</span>;
+        }
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {entries.map(([key, value]) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, textTransform: 'capitalize', fontSize: '0.8rem' }}>
+                  {String(key).replace(/_/g, ' ')}:
+                </span>
+                <span
+                  className="badge"
+                  style={{
+                    background: 'var(--bg-hover)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)',
+                    fontSize: '0.8rem',
+                    padding: '2px 8px',
+                    fontFamily: 'monospace',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
       }
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {entries.map(([key, value]) => (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 600, textTransform: 'capitalize', fontSize: '0.8rem' }}>
-                {key.replace(/_/g, ' ')}:
-              </span>
-              <span
-                className="badge"
-                style={{
-                  background: 'var(--bg-hover)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                  fontSize: '0.8rem',
-                  padding: '2px 8px',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
 
-    return <span style={{ fontFamily: 'monospace' }}>{String(parsed)}</span>;
+      return <span style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{String(parsed)}</span>;
+    } catch {
+      return <span style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{String(val)}</span>;
+    }
   };
 
   return (
@@ -214,23 +219,23 @@ export function AuditLogsPage() {
         />
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
-            <table className="table">
+          <div className="table-container" style={{ border: 'none', borderRadius: 0, overflowX: 'auto', width: '100%' }}>
+            <table className="table" style={{ minWidth: '750px' }}>
               <thead>
                 <tr>
                   <th>Timestamp</th>
                   <th>Action</th>
                   <th>Entity</th>
-                  <th>User ID</th>
+                  <th>User</th>
                   <th>Description</th>
                   <th style={{ textAlign: 'right' }}>Details</th>
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id}>
+                {logs.map((log, index) => (
+                  <tr key={log.id || index}>
                     <td style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {new Date(log.created_at).toLocaleString()}
+                      {log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}
                     </td>
                     <td>
                       <span
@@ -241,21 +246,21 @@ export function AuditLogsPage() {
                           background: 'var(--bg-hover)',
                         }}
                       >
-                        {log.action}
+                        {String(log.action || 'EVENT')}
                       </span>
                     </td>
                     <td>
                       <span className="badge badge-role">
-                        {log.entity_type} #{log.entity_id}
+                        {log.entity_type || 'Entity'} #{log.entity_id || '—'}
                       </span>
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <User size={13} style={{ color: 'var(--text-muted)' }} />
-                        User #{log.user_id}
+                        User #{log.user_id || 'System'}
                       </div>
                     </td>
-                    <td style={{ maxWidth: '400px', fontSize: '0.85rem' }}>
+                    <td style={{ maxWidth: '350px', fontSize: '0.85rem', wordBreak: 'break-word' }}>
                       {log.description || 'System state change'}
                     </td>
                     <td style={{ textAlign: 'right' }}>

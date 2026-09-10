@@ -112,6 +112,13 @@ def create_approval(
             detail="You do not have permission to assign reviewers to this decision",
         )
 
+    # An approved decision cannot be assigned to anyone
+    if decision.status == DecisionStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot assign reviewer to an approved decision. The decision is already approved and ratified.",
+        )
+
     # Reviewer must belong to the same organization.
     reviewer = (
         db.query(User)
@@ -142,8 +149,7 @@ def create_approval(
             detail="Decision creator cannot be assigned as reviewer",
         )
 
-
-    # Prevent duplicate pending approvals.
+    # Prevent duplicate pending approvals for the same reviewer.
     existing_approval = (
         db.query(Approval)
         .filter(
@@ -158,6 +164,22 @@ def create_approval(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A pending approval already exists for this reviewer",
+        )
+
+    # Decisions cannot be assigned to another person for the same review level
+    existing_role_approval = (
+        db.query(Approval)
+        .join(User, Approval.reviewer_id == User.id)
+        .filter(
+            Approval.decision_id == decision.id,
+            User.role == reviewer.role,
+        )
+        .first()
+    )
+    if existing_role_approval is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A {reviewer.role.value.lower()} is already assigned to this decision. Decisions cannot be assigned to another reviewer for the same review level.",
         )
 
     approval = Approval(

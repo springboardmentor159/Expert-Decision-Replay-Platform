@@ -77,11 +77,14 @@ def get_audit_logs(
             detail="start_date cannot be after end_date",
         )
 
-    query = (
-        db.query(AuditLog)
-        .join(User, AuditLog.user_id == User.id)
-        .filter(User.organization_id == current_user.organization_id)
-    )
+    if current_user.organization_id is not None:
+        query = (
+            db.query(AuditLog)
+            .join(User, AuditLog.user_id == User.id)
+            .filter(User.organization_id == current_user.organization_id)
+        )
+    else:
+        query = db.query(AuditLog)
 
     if user_id is not None:
         query = query.filter(AuditLog.user_id == user_id)
@@ -151,7 +154,14 @@ def get_security_logs(
             detail="start_date cannot be after end_date",
         )
 
-    query = db.query(SecurityLog)
+    if current_user.organization_id is not None:
+        query = (
+            db.query(SecurityLog)
+            .join(User, SecurityLog.user_id == User.id)
+            .filter(User.organization_id == current_user.organization_id)
+        )
+    else:
+        query = db.query(SecurityLog)
 
     if user_id is not None:
         query = query.filter(SecurityLog.user_id == user_id)
@@ -190,7 +200,7 @@ def get_security_logs(
 
 
 # ACCESS LOGS
-# Administrator only
+# Administrator and Manager
 @router.get(
     "/access-logs",
     response_model=AccessLogListResponse,
@@ -216,11 +226,14 @@ def get_access_logs(
             detail="start_date cannot be after end_date",
         )
 
-    query = (
-        db.query(AccessLog)
-        .join(User, AccessLog.user_id == User.id)
-        .filter(User.organization_id == current_user.organization_id)
-    )
+    if current_user.organization_id is not None:
+        query = (
+            db.query(AccessLog)
+            .join(User, AccessLog.user_id == User.id)
+            .filter(User.organization_id == current_user.organization_id)
+        )
+    else:
+        query = db.query(AccessLog)
 
     if user_id is not None:
         query = query.filter(AccessLog.user_id == user_id)

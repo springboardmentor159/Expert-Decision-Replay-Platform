@@ -1138,7 +1138,7 @@ VALID_DECISION_STATUS_TRANSITIONS = {
         DecisionStatus.DRAFT,
         DecisionStatus.ARCHIVED,
     },
-    DecisionStatus.APPROVED: {DecisionStatus.ARCHIVED},
+    DecisionStatus.APPROVED: set(),  # Approved decisions are permanent baselines and cannot be archived or transitioned out
     DecisionStatus.REJECTED: {DecisionStatus.DRAFT, DecisionStatus.ARCHIVED},
     DecisionStatus.ARCHIVED: set(),  # Terminal state: cannot transition out
 }
@@ -1244,6 +1244,12 @@ def update_decision_status(
             detail="Cannot modify an archived decision",
         )
 
+    if old_status == DecisionStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An approved decision cannot be archived or transitioned to any other status. It represents an immutable architectural baseline.",
+        )
+
     if target_status != old_status:
         allowed_transitions = VALID_DECISION_STATUS_TRANSITIONS.get(old_status, set())
         if target_status not in allowed_transitions:
@@ -1314,6 +1320,13 @@ def delete_decision(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to delete this decision. Only Administrators, Managers, and the author can delete it.",
+        )
+
+    # An approved decision cannot be deleted
+    if decision.status == DecisionStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An approved decision cannot be deleted as it represents an immutable architectural baseline.",
         )
 
     # Clean up dependent records in order to respect FK constraints

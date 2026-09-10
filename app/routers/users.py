@@ -128,11 +128,11 @@ def get_users(
 ):
     query = db.query(User)
 
-    # Administrator can view all users
-    if current_user.role == UserRole.ADMINISTRATOR:
+    # System-level Administrator with no organization can view all users
+    if current_user.role == UserRole.ADMINISTRATOR and current_user.organization_id is None:
         return query.all()
 
-    # Manager can only view users
+    # Organization Administrators and Managers can only view users
     # belonging to their organization
     return (
         query
