@@ -14,6 +14,7 @@ import {
   Search,
   Filter,
   Eye,
+  Edit,
   Trash2,
   Send,
   SlidersHorizontal,
@@ -273,6 +274,16 @@ export const DecisionListPage = ({ onNavigate }) => {
                         >
                           View
                         </Button>
+                        {(user?.role === 'Administrator' || dec.created_by === user?.id) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            icon={Edit}
+                            onClick={() => onNavigate('decision-detail', { id: dec.id, openEdit: true })}
+                          >
+                            Edit
+                          </Button>
+                        )}
                         {(user?.role === 'Administrator' || dec.created_by === user?.id) && (
                           <Button
                             variant="danger"

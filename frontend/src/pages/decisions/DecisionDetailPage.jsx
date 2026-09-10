@@ -34,7 +34,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overview' }) => {
+export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overview', initialOpenEdit = false }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [decision, setDecision] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,6 +83,27 @@ export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overv
   const [showRationaleModal, setShowRationaleModal] = useState(false);
   const [editRationale, setEditRationale] = useState('');
 
+  // Edit decision modal
+  const [showEditDecisionModal, setShowEditDecisionModal] = useState(false);
+  const [editDecisionForm, setEditDecisionForm] = useState({
+    title: '',
+    category: 'Architecture',
+    problem_statement: '',
+  });
+
+  // Edit alternative modal
+  const [showEditAltModal, setShowEditAltModal] = useState(false);
+  const [editingAlt, setEditingAlt] = useState(null);
+  const [editAltForm, setEditAltForm] = useState({
+    name: '',
+    description: '',
+    pros: '',
+    cons: '',
+    estimated_cost: '',
+    feasibility_score: 3,
+    risk_level: 'Medium',
+  });
+
   const { success, error } = useToast();
   const { user } = useAuth();
 
@@ -92,6 +113,14 @@ export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overv
       const dec = await decisionService.getDecision(decisionId);
       setDecision(dec);
       setEditRationale(dec.rationale || '');
+      if (initialOpenEdit && dec) {
+        setEditDecisionForm({
+          title: dec.title || '',
+          category: dec.category || 'Architecture',
+          problem_statement: dec.problem_statement || '',
+        });
+        setShowEditDecisionModal(true);
+      }
 
       // Load supporting data concurrently
       const [alts, apprList, threadList, commentList, notesList, versionList, timelineData] =
@@ -122,6 +151,91 @@ export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overv
   useEffect(() => {
     fetchAllData();
   }, [decisionId]);
+
+  // Open Edit Decision Modal
+  const handleOpenEditDecision = () => {
+    if (!decision) return;
+    setEditDecisionForm({
+      title: decision.title,
+      category: decision.category,
+      problem_statement: decision.problem_statement,
+    });
+    setShowEditDecisionModal(true);
+  };
+
+  // Save Edit Decision
+  const handleSaveEditDecision = async (e) => {
+    e.preventDefault();
+    if (!editDecisionForm.title.trim() || !editDecisionForm.problem_statement.trim()) {
+      error('Title and problem statement are required.');
+      return;
+    }
+    try {
+      setProcessingAction(true);
+      const updated = await decisionService.updateDecision(decisionId, {
+        title: editDecisionForm.title.trim(),
+        category: editDecisionForm.category.trim(),
+        problem_statement: editDecisionForm.problem_statement.trim(),
+      });
+      setDecision(updated);
+      setShowEditDecisionModal(false);
+      success('Decision updated successfully! Version history incremented.');
+      fetchAllData();
+    } catch (err) {
+      error(err.message || 'Failed to update decision');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Open Edit Alternative Modal
+  const handleOpenEditAlt = (alt) => {
+    setEditingAlt(alt);
+    setEditAltForm({
+      name: alt.name || '',
+      description: alt.description || '',
+      pros: alt.pros || '',
+      cons: alt.cons || '',
+      estimated_cost: alt.estimated_cost ?? '',
+      feasibility_score: alt.feasibility_score || 3,
+      risk_level: alt.risk_level || 'Medium',
+    });
+    setShowEditAltModal(true);
+  };
+
+  // Save Edit Alternative
+  const handleSaveEditAlt = async (e) => {
+    e.preventDefault();
+    if (!editAltForm.name.trim()) {
+      error('Alternative name is required.');
+      return;
+    }
+    const score = Number(editAltForm.feasibility_score);
+    if (isNaN(score) || score < 1 || score > 5) {
+      error('Feasibility score must be between 1 and 5');
+      return;
+    }
+    try {
+      setProcessingAction(true);
+      await alternativeService.updateAlternative(editingAlt.id, {
+        name: editAltForm.name.trim(),
+        description: editAltForm.description.trim(),
+        pros: editAltForm.pros.trim(),
+        cons: editAltForm.cons.trim(),
+        estimated_cost: editAltForm.estimated_cost ? Number(editAltForm.estimated_cost) : 0,
+        feasibility_score: score,
+        risk_level: editAltForm.risk_level,
+      });
+      success(`Alternative "${editAltForm.name}" updated!`);
+      setShowEditAltModal(false);
+      const updatedAlts = await alternativeService.getAlternatives(decisionId);
+      setAlternatives(updatedAlts);
+    } catch (err) {
+      error(err.message || 'Failed to update alternative');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
 
   // Load potential reviewers for approval submission
   const loadReviewers = async () => {
@@ -345,6 +459,18 @@ export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overv
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <StatusBadge status={decision.status} />
+
+          {/* Edit Decision button (if isCreator or Admin) */}
+          {(isCreator || isAdmin) && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={Edit}
+              onClick={handleOpenEditDecision}
+            >
+              Edit Decision
+            </Button>
+          )}
 
           {/* Submit for review button (if Draft and isCreator or Admin) */}
           {(decision.status === 'Draft' || decision.status === 'Rejected') && (isCreator || isAdmin) && (
@@ -599,7 +725,15 @@ export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overv
                   </div>
 
                   {(isCreator || isAdmin) && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        icon={Edit}
+                        onClick={() => handleOpenEditAlt(alt)}
+                      >
+                        Edit
+                      </Button>
                       <Button
                         variant="danger"
                         size="sm"
@@ -1280,6 +1414,117 @@ export const DecisionDetailPage = ({ decisionId, onNavigate, initialTab = 'overv
             </Button>
             <Button type="submit" variant="primary">
               Save Meeting Note
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: EDIT DECISION */}
+      <Modal
+        isOpen={showEditDecisionModal}
+        onClose={() => setShowEditDecisionModal(false)}
+        title="Edit Decision Details"
+      >
+        <form onSubmit={handleSaveEditDecision}>
+          <Input
+            label="Decision Title"
+            value={editDecisionForm.title}
+            onChange={(e) => setEditDecisionForm({ ...editDecisionForm, title: e.target.value })}
+            required
+          />
+          <Input
+            label="Category"
+            value={editDecisionForm.category}
+            onChange={(e) => setEditDecisionForm({ ...editDecisionForm, category: e.target.value })}
+          />
+          <TextArea
+            label="Problem Statement"
+            rows={5}
+            value={editDecisionForm.problem_statement}
+            onChange={(e) => setEditDecisionForm({ ...editDecisionForm, problem_statement: e.target.value })}
+            required
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+            <Button variant="secondary" onClick={() => setShowEditDecisionModal(false)} disabled={processingAction}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={processingAction}>
+              {processingAction ? 'Saving...' : 'Update Decision'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: EDIT ALTERNATIVE */}
+      <Modal
+        isOpen={showEditAltModal}
+        onClose={() => setShowEditAltModal(false)}
+        title={`Edit Alternative: ${editingAlt?.name || ''}`}
+      >
+        <form onSubmit={handleSaveEditAlt}>
+          <Input
+            label="Alternative Name"
+            value={editAltForm.name}
+            onChange={(e) => setEditAltForm({ ...editAltForm, name: e.target.value })}
+            required
+          />
+          <TextArea
+            label="Description / Architecture Specs"
+            rows={3}
+            value={editAltForm.description}
+            onChange={(e) => setEditAltForm({ ...editAltForm, description: e.target.value })}
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <TextArea
+              label="Pros / Advantages"
+              rows={2}
+              value={editAltForm.pros}
+              onChange={(e) => setEditAltForm({ ...editAltForm, pros: e.target.value })}
+            />
+            <TextArea
+              label="Cons / Trade-offs"
+              rows={2}
+              value={editAltForm.cons}
+              onChange={(e) => setEditAltForm({ ...editAltForm, cons: e.target.value })}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '0.75rem' }}>
+            <Input
+              label="Estimated Cost ($)"
+              type="number"
+              min="0"
+              value={editAltForm.estimated_cost}
+              onChange={(e) => setEditAltForm({ ...editAltForm, estimated_cost: e.target.value })}
+            />
+            <Select
+              label="Feasibility (1-5)"
+              value={editAltForm.feasibility_score}
+              onChange={(e) => setEditAltForm({ ...editAltForm, feasibility_score: e.target.value })}
+              options={[
+                { value: 1, label: '1 - Very Low' },
+                { value: 2, label: '2 - Low' },
+                { value: 3, label: '3 - Moderate' },
+                { value: 4, label: '4 - High' },
+                { value: 5, label: '5 - Exceptional' },
+              ]}
+            />
+            <Select
+              label="Risk Level"
+              value={editAltForm.risk_level}
+              onChange={(e) => setEditAltForm({ ...editAltForm, risk_level: e.target.value })}
+              options={[
+                { value: 'Low', label: 'Low' },
+                { value: 'Medium', label: 'Medium' },
+                { value: 'High', label: 'High' },
+              ]}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
+            <Button variant="secondary" onClick={() => setShowEditAltModal(false)} disabled={processingAction}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={processingAction}>
+              {processingAction ? 'Saving...' : 'Update Alternative'}
             </Button>
           </div>
         </form>

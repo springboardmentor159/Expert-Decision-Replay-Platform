@@ -84,6 +84,7 @@ const AppContent = () => {
           <DecisionDetailPage
             decisionId={routeParams.id}
             initialTab={routeParams.activeTab || 'overview'}
+            initialOpenEdit={routeParams.openEdit || false}
             onNavigate={handleNavigate}
           />
         );
