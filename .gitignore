@@ -5,3 +5,5 @@ __pycache__/
 .idea/
 .vscode/
 .pytest_cache/
+frontend/node_modules/
+frontend/dist/

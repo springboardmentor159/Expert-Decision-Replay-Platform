@@ -17,6 +17,15 @@ class EmployeeDashboardResponse(BaseModel):
     recent_activities: List[ActivityLogResponse] = []
 
 
+class ReviewerDashboardResponse(BaseModel):
+    assigned_decisions: int
+    pending_reviews: int
+    completed_reviews: int
+    approved_reviews: int
+    rejected_reviews: int
+    recent_activities: List[ActivityLogResponse] = []
+
+
 class ManagerDashboardResponse(BaseModel):
     team_decisions: int
     pending_approvals: int

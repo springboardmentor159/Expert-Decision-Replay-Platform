@@ -20,6 +20,7 @@ from app.schemas.dashboard import (
     ApprovalStats,
     DecisionStats,
     EmployeeDashboardResponse,
+    ReviewerDashboardResponse,
     ManagerDashboardResponse,
     ManagerStatisticsResponse,
     SystemAnalyticsResponse,
@@ -183,7 +184,102 @@ def get_employee_recent_activities(
 
 
 # ==========================================
-# 2. MANAGER DASHBOARD
+# 2. REVIEWER DASHBOARD
+# ==========================================
+
+def _ensure_reviewer(user: User):
+    if user.role not in ["Reviewer", "Manager", "Administrator"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Reviewer, Manager, or Administrator privileges required"
+        )
+
+
+@router.get(
+    "/reviewer",
+    response_model=ReviewerDashboardResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get Reviewer Dashboard overview"
+)
+def get_reviewer_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _ensure_reviewer(current_user)
+
+    assigned_count = db.query(func.count(func.distinct(Approval.decision_id))).filter(
+        Approval.reviewer_id == current_user.id
+    ).scalar() or 0
+
+    pending_count = db.query(func.count(Approval.id)).filter(
+        Approval.reviewer_id == current_user.id,
+        Approval.status == "Pending"
+    ).scalar() or 0
+
+    approved_count = db.query(func.count(Approval.id)).filter(
+        Approval.reviewer_id == current_user.id,
+        Approval.status == "Approved"
+    ).scalar() or 0
+
+    rejected_count = db.query(func.count(Approval.id)).filter(
+        Approval.reviewer_id == current_user.id,
+        Approval.status == "Rejected"
+    ).scalar() or 0
+
+    completed_count = approved_count + rejected_count
+
+    recent_acts = db.query(ActivityLog).filter(
+        ActivityLog.user_id == current_user.id
+    ).order_by(ActivityLog.created_at.desc()).limit(15).all()
+
+    return ReviewerDashboardResponse(
+        assigned_decisions=assigned_count,
+        pending_reviews=pending_count,
+        completed_reviews=completed_count,
+        approved_reviews=approved_count,
+        rejected_reviews=rejected_count,
+        recent_activities=[_format_activity(a) for a in recent_acts]
+    )
+
+
+@router.get(
+    "/reviewer/pending-reviews",
+    response_model=List[ApprovalResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get pending reviews assigned to the reviewer"
+)
+def get_reviewer_pending_reviews(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _ensure_reviewer(current_user)
+    approvals = db.query(Approval).filter(
+        Approval.reviewer_id == current_user.id,
+        Approval.status == "Pending"
+    ).order_by(Approval.created_at.desc()).all()
+    return [_format_approval(a) for a in approvals]
+
+
+@router.get(
+    "/reviewer/recent-reviews",
+    response_model=List[ApprovalResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get completed reviews by the reviewer"
+)
+def get_reviewer_recent_reviews(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    _ensure_reviewer(current_user)
+    approvals = db.query(Approval).filter(
+        Approval.reviewer_id == current_user.id,
+        Approval.status.in_(["Approved", "Rejected"])
+    ).order_by(Approval.completed_at.desc().nullslast()).limit(20).all()
+    return [_format_approval(a) for a in approvals]
+
+
+# ==========================================
+# 3. MANAGER DASHBOARD
 # ==========================================
 
 def _ensure_manager(user: User):
