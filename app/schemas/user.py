@@ -16,7 +16,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: UserRole
     password: str
-    employee_id: str
+    employee_id: Optional[str] = None
     department: Optional[str] = None
     designation: Optional[str] = None
     phone_number: Optional[str] = None

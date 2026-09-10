@@ -21,6 +21,7 @@ from app.schemas.dashboard import (
     ApprovalStats,
     DecisionStats,
     EmployeeDashboardResponse,
+    ReviewerDashboardResponse,
     ManagerDashboardResponse,
     ManagerStatisticsResponse,
     UserActivityResponse,
@@ -138,6 +139,80 @@ def get_employee_recent_activities(
         .limit(20)
         .all()
     )
+
+
+# =============================================================================
+# 1.5 REVIEWER DASHBOARD
+# =============================================================================
+
+@router.get(
+    "/reviewer",
+    response_model=ReviewerDashboardResponse,
+    summary="Get reviewer dashboard metrics"
+)
+def get_reviewer_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    user_id = current_user.id
+    total_assigned = db.query(func.count(Approval.id)).filter(Approval.reviewer_id == user_id).scalar() or 0
+    pending_reviews = db.query(func.count(Approval.id)).filter(Approval.reviewer_id == user_id, Approval.status == "Pending").scalar() or 0
+    approved_reviews = db.query(func.count(Approval.id)).filter(Approval.reviewer_id == user_id, Approval.status == "Approved").scalar() or 0
+    rejected_reviews = db.query(func.count(Approval.id)).filter(Approval.reviewer_id == user_id, Approval.status == "Rejected").scalar() or 0
+
+    recent_activities = (
+        db.query(ActivityLog)
+        .filter(ActivityLog.user_id == user_id)
+        .order_by(ActivityLog.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return ReviewerDashboardResponse(
+        total_assigned=total_assigned,
+        pending_reviews=pending_reviews,
+        approved_reviews=approved_reviews,
+        rejected_reviews=rejected_reviews,
+        recent_activities=recent_activities
+    )
+
+
+@router.get(
+    "/reviewer/assigned",
+    response_model=List[DecisionResponse],
+    summary="Get decisions assigned to current reviewer"
+)
+def get_reviewer_assigned_decisions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decisions = (
+        db.query(Decision)
+        .join(Approval, Approval.decision_id == Decision.id)
+        .filter(Approval.reviewer_id == current_user.id, Approval.status == "Pending")
+        .order_by(Approval.created_at.desc())
+        .all()
+    )
+    return decisions
+
+
+@router.get(
+    "/reviewer/reviewed",
+    response_model=List[DecisionResponse],
+    summary="Get decisions reviewed by current reviewer"
+)
+def get_reviewer_reviewed_decisions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decisions = (
+        db.query(Decision)
+        .join(Approval, Approval.decision_id == Decision.id)
+        .filter(Approval.reviewer_id == current_user.id, Approval.status.in_(["Approved", "Rejected"]))
+        .order_by(Approval.completed_at.desc())
+        .all()
+    )
+    return decisions
 
 
 # =============================================================================
