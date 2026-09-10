@@ -22,7 +22,7 @@ export function ReportsPage() {
   const { user, role, isEmployee, isReviewer, isManager, isAdmin } = useAuth();
   const { success, error } = useNotification();
 
-  const [activeReport, setActiveReport] = useState('decisions'); // 'decisions' | 'approvals' | 'teams' | 'audit'
+  const [activeReport, setActiveReport] = useState(isReviewer ? 'approvals' : 'decisions'); // 'decisions' | 'approvals' | 'teams' | 'audit'
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -198,7 +198,7 @@ export function ReportsPage() {
             <strong style={{ color: 'var(--text-primary)' }}>Personal / Self-Scoped Reports:</strong>{' '}
             {isEmployee
               ? 'As an Employee, your reports and exported files (PDF & Excel) are filtered strictly to decisions authored by you.'
-              : 'As a Reviewer, your reports and exported files are filtered to decisions authored by you and reviews assigned to you.'}
+              : 'As a Reviewer, your reports and exported files are filtered to reviews and evaluation tasks assigned to you.'}
           </div>
         </div>
       ) : (
@@ -228,7 +228,9 @@ export function ReportsPage() {
         gap: '0.5rem',
       }}>
         {[
-          { id: 'decisions', label: isEmployee || isReviewer ? 'My Decisions Report' : 'Decision Reports', icon: Layers },
+          ...(!isReviewer ? [
+            { id: 'decisions', label: isEmployee ? 'My Decisions Report' : 'Decision Reports', icon: Layers }
+          ] : []),
           { id: 'approvals', label: isReviewer ? 'My Assigned Reviews' : (isEmployee ? 'My Decision Approvals' : 'Approval Reports'), icon: CheckCircle2 },
           ...(isManager || isAdmin ? [
             { id: 'teams', label: 'Team Reports', icon: Users },

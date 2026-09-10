@@ -258,13 +258,15 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
             <div>
               <h2 style={{ fontSize: '1.25rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <TrendingUp size={20} style={{ color: 'var(--primary)' }} />
-                Personal Activity & Platform Statistics
+                {isReviewer ? 'Reviewer Governance & Workload Statistics' : 'Personal Activity & Platform Statistics'}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '2px' }}>
-                Comprehensive metric breakdown of your architectural decisions, approvals, and collaboration impact.
+                {isReviewer
+                  ? 'Overview of assigned decisions, pending evaluations, review completion, and audit discussions.'
+                  : 'Comprehensive metric breakdown of your architectural decisions, approvals, and collaboration impact.'}
               </p>
             </div>
-            {onNavigateCreate && (
+            {!isReviewer && onNavigateCreate && (
               <button onClick={onNavigateCreate} className="btn btn-primary btn-sm">
                 <Plus size={15} /> New Decision
               </button>
@@ -277,170 +279,260 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: '1.15rem',
           }}>
-            {/* Total Authored */}
-            <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    Authored Decisions
+            {isReviewer ? (
+              <>
+                {/* Assigned Decisions for Review */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Assigned Reviews
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--text-primary)', marginTop: '4px' }}>
+                        {statistics?.assigned_reviews ?? 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)' }}>
+                      <Shield size={22} />
+                    </div>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {statistics?.total_decisions ?? 0}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Decisions assigned for your evaluation
                   </div>
                 </div>
-                <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                  <FileText size={22} />
-                </div>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Total architectural records created
-              </div>
-            </div>
 
-            {/* Approved Decisions */}
-            <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    Approved Decisions
+                {/* Pending Reviews */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Pending Reviews
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: '#f59e0b', marginTop: '4px' }}>
+                        {statistics?.pending_reviews ?? 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
+                      <Clock size={22} />
+                    </div>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--success)', marginTop: '4px' }}>
-                    {statistics?.approved_decisions ?? 0}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Awaiting your vote or review feedback
                   </div>
                 </div>
-                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)' }}>
-                  <CheckCircle2 size={22} />
-                </div>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Approved & ratified ADRs
-              </div>
-            </div>
 
-            {/* In Review */}
-            <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    Under Review
+                {/* Completed Reviews */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Completed Reviews
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--success)', marginTop: '4px' }}>
+                        {statistics?.completed_reviews ?? 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)' }}>
+                      <CheckCircle2 size={22} />
+                    </div>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: '#f59e0b', marginTop: '4px' }}>
-                    {statistics?.under_review_decisions ?? 0}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Evaluations cast and finalized
                   </div>
                 </div>
-                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
-                  <Clock size={22} />
-                </div>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                Awaiting reviewer deliberation
-              </div>
-            </div>
 
-            {/* Approval Success Rate */}
-            <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    Approval Rate
+                {/* Discussion Comments */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Discussion Notes
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--primary)', marginTop: '4px' }}>
+                        {statistics?.total_comments_posted ?? 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)' }}>
+                      <MessageSquare size={22} />
+                    </div>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--primary)', marginTop: '4px' }}>
-                    {statistics?.approval_rate ?? 0}%
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Comments contributed to discussions
                   </div>
                 </div>
-                <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                  <Award size={22} />
+              </>
+            ) : (
+              <>
+                {/* Total Authored */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Authored Decisions
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--text-primary)', marginTop: '4px' }}>
+                        {statistics?.total_decisions ?? 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)' }}>
+                      <FileText size={22} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Total architectural records created
+                  </div>
                 </div>
-              </div>
-              <div style={{
-                height: '4px',
-                width: '100%',
-                background: 'var(--bg-hover)',
-                borderRadius: '2px',
-                marginTop: '0.75rem',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${Math.min(statistics?.approval_rate || 0, 100)}%`,
-                  background: 'var(--primary)',
-                  borderRadius: '2px',
-                }} />
-              </div>
-            </div>
+
+                {/* Approved Decisions */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Approved Decisions
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--success)', marginTop: '4px' }}>
+                        {statistics?.approved_decisions ?? 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)' }}>
+                      <CheckCircle2 size={22} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Approved & ratified ADRs
+                  </div>
+                </div>
+
+                {/* In Review */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Under Review
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: '#f59e0b', marginTop: '4px' }}>
+                        {statistics?.under_review_decisions ?? 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
+                      <Clock size={22} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Awaiting reviewer deliberation
+                  </div>
+                </div>
+
+                {/* Approval Success Rate */}
+                <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        Approval Rate
+                      </div>
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--primary)', marginTop: '4px' }}>
+                        {statistics?.approval_rate ?? 0}%
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)' }}>
+                      <Award size={22} />
+                    </div>
+                  </div>
+                  <div style={{
+                    height: '4px',
+                    width: '100%',
+                    background: 'var(--bg-hover)',
+                    borderRadius: '2px',
+                    marginTop: '0.75rem',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.min(statistics?.approval_rate || 0, 100)}%`,
+                      background: 'var(--primary)',
+                      borderRadius: '2px',
+                    }} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Secondary Metrics: Alternatives & Deliberations */}
+          {/* Secondary Metrics */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: isReviewer ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '1.25rem',
           }}>
-            {/* Decision Lifecycle Breakdown */}
-            <div className="card" style={{ padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Layers size={18} style={{ color: 'var(--primary)' }} />
-                Decision Status Distribution
-              </h3>
+            {!isReviewer && (
+              /* Decision Lifecycle Breakdown */
+              <div className="card" style={{ padding: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Layers size={18} style={{ color: 'var(--primary)' }} />
+                  Decision Status Distribution
+                </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-muted)' }} />
-                    Draft Records
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{statistics?.draft_decisions ?? 0}</span>
-                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+                      Draft Records
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{statistics?.draft_decisions ?? 0}</span>
+                  </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
-                    Under Active Review
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{statistics?.under_review_decisions ?? 0}</span>
-                </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
+                      Under Active Review
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{statistics?.under_review_decisions ?? 0}</span>
+                  </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }} />
-                    Approved & Enacted
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{statistics?.approved_decisions ?? 0}</span>
-                </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }} />
+                      Approved & Enacted
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{statistics?.approved_decisions ?? 0}</span>
+                  </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)' }} />
-                    Rejected / Needs Revision
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{statistics?.rejected_decisions ?? 0}</span>
-                </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)' }} />
+                      Rejected / Needs Revision
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{statistics?.rejected_decisions ?? 0}</span>
+                  </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-secondary)' }} />
-                    Archived ADRs
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{statistics?.archived_decisions ?? 0}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--text-secondary)' }} />
+                      Archived ADRs
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{statistics?.archived_decisions ?? 0}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Collaboration & Review Workload */}
             <div className="card" style={{ padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Shield size={18} style={{ color: 'var(--primary)' }} />
-                Collaboration & Governance
+                {isReviewer ? 'Reviewer Workload & Compliance Breakdown' : 'Collaboration & Governance'}
               </h3>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Layers size={15} style={{ color: 'var(--primary)' }} />
-                    Alternative Options Evaluated
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{statistics?.total_alternatives_created ?? 0}</span>
-                </div>
+                {!isReviewer && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Layers size={15} style={{ color: 'var(--primary)' }} />
+                      Alternative Options Evaluated
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{statistics?.total_alternatives_created ?? 0}</span>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
