@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { ArrowLeft, FileText, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 import api from "../services/api";
 
@@ -65,8 +66,10 @@ export default function CreateDecision() {
       const decisionId = response.data.id;
 
       navigate(`/decisions/${decisionId}`);
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      const status = axios.isAxiosError(err)
+        ? err.response?.status
+        : undefined;
 
       if (status === 401) {
         setError(
@@ -80,11 +83,17 @@ export default function CreateDecision() {
         setError(
           "Please check the entered information.",
         );
-      } else if (status >= 500) {
+      } else if (
+        status !== undefined &&
+        status >= 500
+      ) {
         setError(
           "Server error. Please try again later.",
         );
-      } else if (err?.request) {
+      } else if (
+        axios.isAxiosError(err) &&
+        err.request
+      ) {
         setError(
           "Unable to connect to the server. Make sure FastAPI is running.",
         );
@@ -94,6 +103,25 @@ export default function CreateDecision() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const createButtonStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    minWidth: "165px",
+    minHeight: "42px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: isSubmitting ? "not-allowed" : "pointer",
+    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
+    opacity: isSubmitting ? 0.7 : 1,
   };
 
   return (
@@ -129,6 +157,7 @@ export default function CreateDecision() {
 
           <div>
             <h2>Decision Information</h2>
+
             <p>
               Enter the basic information for your decision.
             </p>
@@ -211,6 +240,7 @@ export default function CreateDecision() {
             <button
               type="submit"
               className="primary-button"
+              style={createButtonStyle}
               disabled={isSubmitting}
             >
               <Save size={18} />

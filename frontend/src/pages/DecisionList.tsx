@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 import api from "../services/api";
 
@@ -86,8 +87,10 @@ export default function DecisionList() {
       });
 
       setDecisions(response.data);
-    } catch (err: any) {
-      const responseStatus = err?.response?.status;
+    } catch (err: unknown) {
+      const responseStatus = axios.isAxiosError(err)
+        ? err.response?.status
+        : undefined;
 
       if (responseStatus === 401) {
         setError("Your session has expired. Please sign in again.");
@@ -95,9 +98,15 @@ export default function DecisionList() {
         setError("You do not have permission to view decisions.");
       } else if (responseStatus === 404) {
         setError("Decision service was not found.");
-      } else if (responseStatus >= 500) {
+      } else if (
+        responseStatus !== undefined &&
+        responseStatus >= 500
+      ) {
         setError("Server error. Please try again later.");
-      } else if (err?.request) {
+      } else if (
+        axios.isAxiosError(err) &&
+        err.request
+      ) {
         setError(
           "Unable to connect to the server. Make sure FastAPI is running.",
         );
@@ -110,12 +119,21 @@ export default function DecisionList() {
   };
 
   useEffect(() => {
-    loadDecisions();
+    const timer = window.setTimeout(() => {
+      void loadDecisions();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [page, status]);
 
   const handleSearch = () => {
     setPage(1);
-    loadDecisions();
+
+    window.setTimeout(() => {
+      void loadDecisions();
+    }, 0);
   };
 
   const handleReset = () => {
@@ -123,6 +141,24 @@ export default function DecisionList() {
     setStatus("All");
     setCategory("");
     setPage(1);
+  };
+
+  const createDecisionButtonStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    minWidth: "165px",
+    minHeight: "42px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
   };
 
   return (
@@ -143,6 +179,7 @@ export default function DecisionList() {
         <button
           className="primary-button"
           onClick={() => navigate("/decisions/create")}
+          style={createDecisionButtonStyle}
         >
           <Plus size={18} />
           Create Decision
@@ -235,6 +272,7 @@ export default function DecisionList() {
           <button
             className="primary-button"
             onClick={() => navigate("/decisions/create")}
+            style={createDecisionButtonStyle}
           >
             <Plus size={18} />
             Create Your First Decision
@@ -330,7 +368,9 @@ export default function DecisionList() {
 
             <button
               disabled={decisions.length < pageSize}
-              onClick={() => setPage((current) => current + 1)}
+              onClick={() =>
+                setPage((current) => current + 1)
+              }
             >
               Next
               <ChevronRight size={17} />

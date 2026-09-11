@@ -1,4 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from "react";
 import {
   ArrowLeft,
   CheckCircle,
@@ -8,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import { isAxiosError } from "axios";
 
 import api from "../services/api";
 
@@ -49,7 +55,6 @@ export default function Approval() {
 
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-
   const [form, setForm] = useState(emptyForm);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -58,6 +63,108 @@ export default function Approval() {
 
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
+
+  const backButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 18px",
+    minWidth: "165px",
+    minHeight: "42px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    backgroundColor: "#ffffff",
+    color: "#1e293b",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+  };
+
+  const primaryButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    minWidth: "165px",
+    minHeight: "42px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: isSubmitting ? "not-allowed" : "pointer",
+    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
+    opacity: isSubmitting ? 0.7 : 1,
+  };
+
+  const refreshButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 18px",
+    minWidth: "110px",
+    minHeight: "40px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    backgroundColor: "#ffffff",
+    color: "#1e293b",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+  };
+
+  const retryButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    minWidth: "120px",
+    minHeight: "42px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+  };
+
+  const approveButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "9px 16px",
+    minHeight: "40px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#16a34a",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+  };
+
+  const rejectButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "9px 16px",
+    minHeight: "40px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#dc2626",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+  };
 
   const loadApprovals = async () => {
     try {
@@ -78,27 +185,31 @@ export default function Approval() {
       } else {
         setApprovals(response.data);
       }
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        const status = err.response?.status;
 
-      if (status === 401) {
-        setError(
-          "Your session has expired. Please sign in again.",
-        );
-      } else if (status === 403) {
-        setError(
-          "Only Reviewers and Managers can view pending approvals.",
-        );
-      } else if (status === 404) {
-        setError("Approval information not found.");
-      } else if (status >= 500) {
-        setError(
-          "Server error. Please try again later.",
-        );
-      } else if (err?.request) {
-        setError(
-          "Unable to connect to the server. Make sure FastAPI is running.",
-        );
+        if (status === 401) {
+          setError(
+            "Your session has expired. Please sign in again.",
+          );
+        } else if (status === 403) {
+          setError(
+            "Only Reviewers and Managers can view pending approvals.",
+          );
+        } else if (status === 404) {
+          setError("Approval information not found.");
+        } else if (status && status >= 500) {
+          setError(
+            "Server error. Please try again later.",
+          );
+        } else if (err.request) {
+          setError(
+            "Unable to connect to the server. Make sure FastAPI is running.",
+          );
+        } else {
+          setError("Unable to load approvals.");
+        }
       } else {
         setError("Unable to load approvals.");
       }
@@ -118,8 +229,8 @@ export default function Approval() {
   };
 
   useEffect(() => {
-    loadApprovals();
-    loadUsers();
+    void loadApprovals();
+    void loadUsers();
   }, [id]);
 
   const handleAssign = async (
@@ -155,39 +266,47 @@ export default function Approval() {
       setForm(emptyForm);
 
       await loadApprovals();
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const detail = err?.response?.data?.detail;
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        const status = err.response?.status;
+        const detail = err.response?.data?.detail;
 
-      if (status === 400) {
-        setFormError(
-          detail ||
-            "The approval assignment is not valid.",
-        );
-      } else if (status === 403) {
-        setFormError(
-          "Only Managers or Administrators can assign approvals.",
-        );
-      } else if (status === 404) {
-        setFormError(
-          detail || "Decision or assigned user not found.",
-        );
-      } else if (status === 409) {
-        setFormError(
-          "A pending approval already exists at this level.",
-        );
-      } else if (status === 422) {
-        setFormError(
-          detail || "Please check the approval details.",
-        );
-      } else if (status >= 500) {
-        setFormError(
-          "Server error. Please try again later.",
-        );
-      } else if (err?.request) {
-        setFormError(
-          "Unable to connect to the server.",
-        );
+        if (status === 400) {
+          setFormError(
+            detail ||
+              "The approval assignment is not valid.",
+          );
+        } else if (status === 403) {
+          setFormError(
+            "Only Managers or Administrators can assign approvals.",
+          );
+        } else if (status === 404) {
+          setFormError(
+            detail ||
+              "Decision or assigned user not found.",
+          );
+        } else if (status === 409) {
+          setFormError(
+            "A pending approval already exists at this level.",
+          );
+        } else if (status === 422) {
+          setFormError(
+            detail ||
+              "Please check the approval details.",
+          );
+        } else if (status && status >= 500) {
+          setFormError(
+            "Server error. Please try again later.",
+          );
+        } else if (err.request) {
+          setFormError(
+            "Unable to connect to the server.",
+          );
+        } else {
+          setFormError(
+            "Unable to assign the approval.",
+          );
+        }
       } else {
         setFormError(
           "Unable to assign the approval.",
@@ -220,34 +339,41 @@ export default function Approval() {
       });
 
       await loadApprovals();
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const detail = err?.response?.data?.detail;
+    } catch (err: unknown) {
+      if (isAxiosError(err)) {
+        const status = err.response?.status;
+        const detail = err.response?.data?.detail;
 
-      if (status === 400) {
-        setError(
-          detail || "This approval cannot be completed.",
-        );
-      } else if (status === 403) {
-        setError(
-          detail ||
-            "You are not authorized to complete this approval.",
-        );
-      } else if (status === 404) {
-        setError("Approval not found.");
-      } else if (status === 409) {
-        setError(
-          detail ||
-            "This approval cannot be completed because the required workflow step is not finished.",
-        );
-      } else if (status >= 500) {
-        setError(
-          "Server error. Please try again later.",
-        );
-      } else if (err?.request) {
-        setError(
-          "Unable to connect to the server.",
-        );
+        if (status === 400) {
+          setError(
+            detail ||
+              "This approval cannot be completed.",
+          );
+        } else if (status === 403) {
+          setError(
+            detail ||
+              "You are not authorized to complete this approval.",
+          );
+        } else if (status === 404) {
+          setError("Approval not found.");
+        } else if (status === 409) {
+          setError(
+            detail ||
+              "This approval cannot be completed because the required workflow step is not finished.",
+          );
+        } else if (status && status >= 500) {
+          setError(
+            "Server error. Please try again later.",
+          );
+        } else if (err.request) {
+          setError(
+            "Unable to connect to the server.",
+          );
+        } else {
+          setError(
+            "Unable to complete the approval.",
+          );
+        }
       } else {
         setError(
           "Unable to complete the approval.",
@@ -288,7 +414,9 @@ export default function Approval() {
         </div>
 
         <button
+          type="button"
           className="secondary-button"
+          style={backButtonStyle}
           onClick={() =>
             navigate(`/decisions/${id}`)
           }
@@ -304,9 +432,16 @@ export default function Approval() {
           role="alert"
         >
           <strong>Approval Error</strong>
+
           <p>{error}</p>
 
-          <button onClick={loadApprovals}>
+          <button
+            type="button"
+            style={retryButtonStyle}
+            onClick={() => {
+              void loadApprovals();
+            }}
+          >
             <RefreshCw size={17} />
             Try Again
           </button>
@@ -385,6 +520,7 @@ export default function Approval() {
                 setForm((current) => ({
                   ...current,
                   approval_level: event.target.value,
+                  assigned_reviewer_id: "",
                 }))
               }
               disabled={isSubmitting}
@@ -456,6 +592,7 @@ export default function Approval() {
             <button
               type="submit"
               className="primary-button"
+              style={primaryButtonStyle}
               disabled={isSubmitting}
             >
               <Save size={18} />
@@ -482,8 +619,12 @@ export default function Approval() {
           </div>
 
           <button
+            type="button"
             className="secondary-button"
-            onClick={loadApprovals}
+            style={refreshButtonStyle}
+            onClick={() => {
+              void loadApprovals();
+            }}
           >
             <RefreshCw size={17} />
             Refresh
@@ -573,9 +714,11 @@ export default function Approval() {
 
                 <div className="form-actions">
                   <button
+                    type="button"
                     className="primary-button"
+                    style={approveButtonStyle}
                     onClick={() =>
-                      handleAction(
+                      void handleAction(
                         approval.id,
                         "Approved",
                       )
@@ -592,9 +735,11 @@ export default function Approval() {
                   </button>
 
                   <button
+                    type="button"
                     className="danger-button"
+                    style={rejectButtonStyle}
                     onClick={() =>
-                      handleAction(
+                      void handleAction(
                         approval.id,
                         "Rejected",
                       )

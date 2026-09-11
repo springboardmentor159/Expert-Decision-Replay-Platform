@@ -649,6 +649,16 @@ export default function Dashboard() {
             />
 
             <StatCard
+              icon={<Activity size={22} />}
+              title="Active Users"
+              value={
+                dashboard
+                  .system_analytics
+                  .active_users ?? 0
+              }
+            />
+
+            <StatCard
               icon={<FileText size={22} />}
               title="Total Decisions"
               value={

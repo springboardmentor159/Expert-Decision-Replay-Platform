@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -160,9 +162,27 @@ def get_dashboard_data(
     # ADMINISTRATOR DASHBOARD
     # ---------------------------------------------------------
     elif role in {"Administrator", "Admin"}:
-        total_users = db.query(func.count(User.id)).scalar() or 0
-        total_decisions = db.query(func.count(Decision.id)).scalar() or 0
-        total_approvals = db.query(func.count(Approval.id)).scalar() or 0
+        # -----------------------------------------------------
+        # ORGANIZATION TOTALS
+        # -----------------------------------------------------
+        total_users = (
+            db.query(func.count(User.id))
+            .scalar()
+            or 0
+        )
+
+        total_decisions = (
+            db.query(func.count(Decision.id))
+            .scalar()
+            or 0
+        )
+
+        total_approvals = (
+            db.query(func.count(Approval.id))
+            .scalar()
+            or 0
+        )
+
         pending_approvals = (
             db.query(func.count(Approval.id))
             .filter(Approval.status == "Pending")
@@ -170,14 +190,41 @@ def get_dashboard_data(
             or 0
         )
 
+        # -----------------------------------------------------
+        # ACTIVE USERS
+        # -----------------------------------------------------
+        # Active users are users who performed at least one
+        # platform activity during the last 30 days.
+        active_users_since = (
+            datetime.now(timezone.utc)
+            - timedelta(days=30)
+        )
+
+        active_users = (
+            db.query(
+                func.count(
+                    func.distinct(ActivityLog.user_id)
+                )
+            )
+            .filter(
+                ActivityLog.created_at
+                >= active_users_since
+            )
+            .scalar()
+            or 0
+        )
+
         result["system_analytics"] = {
             "total_users": total_users,
+            "active_users": active_users,
             "total_decisions": total_decisions,
             "total_approvals": total_approvals,
             "pending_approvals": pending_approvals,
         }
 
-        # Recent activity across the organization
+        # -----------------------------------------------------
+        # RECENT ACTIVITY ACROSS THE ORGANIZATION
+        # -----------------------------------------------------
         organization_activity = (
             db.query(ActivityLog)
             .order_by(ActivityLog.created_at.desc())
@@ -198,7 +245,9 @@ def get_dashboard_data(
             for activity in organization_activity
         ]
 
-        # Organization-wide decision statistics
+        # -----------------------------------------------------
+        # ORGANIZATION-WIDE DECISION STATISTICS
+        # -----------------------------------------------------
         organization_statistics_query = (
             db.query(
                 Decision.status,

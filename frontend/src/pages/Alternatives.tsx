@@ -7,6 +7,7 @@ import {
 
 import {
   ArrowLeft,
+  Edit3,
   Plus,
   RefreshCw,
   Save,
@@ -134,6 +135,11 @@ export default function Alternatives() {
     setShowComparison,
   ] = useState(false);
 
+  const [
+    editingAlternativeId,
+    setEditingAlternativeId,
+  ] = useState<number | null>(null);
+
   const loadAlternatives =
     useCallback(async () => {
       if (!id) {
@@ -232,6 +238,51 @@ export default function Alternatives() {
     );
   };
 
+  const handleEdit = (
+    alternative: Alternative,
+  ) => {
+    setEditingAlternativeId(
+      alternative.id,
+    );
+
+    setForm({
+      name: alternative.name,
+      description:
+        alternative.description,
+      pros: alternative.pros,
+      cons: alternative.cons,
+      estimated_cost:
+        String(
+          alternative.estimated_cost,
+        ),
+      feasibility_score:
+        String(
+          alternative.feasibility_score,
+        ),
+      risk_level:
+        alternative.risk_level,
+    });
+
+    setFormError("");
+    setError("");
+    setShowComparison(false);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAlternativeId(
+      null,
+    );
+
+    setForm(emptyForm);
+    setFormError("");
+    setError("");
+  };
+
   const handleSubmit = async (
     event: FormEvent<HTMLFormElement>,
   ) => {
@@ -304,6 +355,9 @@ export default function Alternatives() {
       );
 
     if (
+      !Number.isInteger(
+        feasibilityScore,
+      ) ||
       feasibilityScore < 1 ||
       feasibilityScore > 5
     ) {
@@ -320,28 +374,48 @@ export default function Alternatives() {
       return;
     }
 
+    const payload = {
+      name,
+      description,
+      pros,
+      cons,
+      estimated_cost:
+        estimatedCost,
+      feasibility_score:
+        feasibilityScore,
+      risk_level:
+        form.risk_level,
+    };
+
     try {
       setIsSubmitting(true);
 
-      await api.post(
-        `/decisions/${id}/alternatives`,
-        {
-          name,
-          description,
-          pros,
-          cons,
-          estimated_cost:
-            estimatedCost,
-          feasibility_score:
-            feasibilityScore,
-          risk_level:
-            form.risk_level,
-        },
-      );
+      if (
+        editingAlternativeId !==
+        null
+      ) {
+        await api.put(
+          `/alternatives/${editingAlternativeId}`,
+          payload,
+        );
 
-      setForm(emptyForm);
+        setForm(emptyForm);
 
-      await loadAlternatives();
+        setEditingAlternativeId(
+          null,
+        );
+
+        await loadAlternatives();
+      } else {
+        await api.post(
+          `/decisions/${id}/alternatives`,
+          payload,
+        );
+
+        setForm(emptyForm);
+
+        await loadAlternatives();
+      }
     } catch (err: unknown) {
       const status =
         getApiErrorStatus(err);
@@ -352,11 +426,17 @@ export default function Alternatives() {
         );
       } else if (status === 403) {
         setFormError(
-          "You do not have permission to add an alternative.",
+          editingAlternativeId !==
+            null
+            ? "You do not have permission to update this alternative."
+            : "You do not have permission to add an alternative.",
         );
       } else if (status === 404) {
         setFormError(
-          "Decision not found.",
+          editingAlternativeId !==
+            null
+            ? "Alternative not found."
+            : "Decision not found.",
         );
       } else if (status === 422) {
         setFormError(
@@ -377,7 +457,10 @@ export default function Alternatives() {
         );
       } else {
         setFormError(
-          "Unable to create alternative.",
+          editingAlternativeId !==
+            null
+            ? "Unable to update alternative."
+            : "Unable to create alternative.",
         );
       }
     } finally {
@@ -412,6 +495,18 @@ export default function Alternatives() {
               alternativeId,
           ),
       );
+
+      if (
+        editingAlternativeId ===
+        alternativeId
+      ) {
+        setEditingAlternativeId(
+          null,
+        );
+
+        setForm(emptyForm);
+        setFormError("");
+      }
 
       setShowComparison(false);
     } catch (err: unknown) {
@@ -450,6 +545,97 @@ export default function Alternatives() {
       }
     }
   };
+
+  const submitButtonStyle: React.CSSProperties =
+    {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      padding: "10px 18px",
+      border: "none",
+      borderRadius: "8px",
+      backgroundColor: "#2563eb",
+      color: "#ffffff",
+      fontWeight: 600,
+      fontSize: "14px",
+      cursor: isSubmitting
+        ? "not-allowed"
+        : "pointer",
+      opacity: isSubmitting
+        ? 0.7
+        : 1,
+      minWidth: "170px",
+      minHeight: "42px",
+      boxShadow:
+        "0 2px 6px rgba(0, 0, 0, 0.15)",
+    };
+
+  const cancelButtonStyle: React.CSSProperties =
+    {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      padding: "10px 18px",
+      border: "1px solid #cbd5e1",
+      borderRadius: "8px",
+      backgroundColor: "#ffffff",
+      color: "#334155",
+      fontWeight: 600,
+      fontSize: "14px",
+      cursor: isSubmitting
+        ? "not-allowed"
+        : "pointer",
+      opacity: isSubmitting
+        ? 0.7
+        : 1,
+      minWidth: "140px",
+      minHeight: "42px",
+    };
+
+  const editButtonStyle: React.CSSProperties =
+    {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "6px",
+      padding: "8px 12px",
+      border: "1px solid #cbd5e1",
+      borderRadius: "7px",
+      backgroundColor: "#ffffff",
+      color: "#1e40af",
+      fontWeight: 600,
+      fontSize: "13px",
+      cursor: isSubmitting
+        ? "not-allowed"
+        : "pointer",
+    };
+
+  /*
+   * Explicit styling for the comparison button.
+   * This overrides the existing primary-button CSS
+   * that was making the text appear white on white.
+   */
+  const compareButtonStyle: React.CSSProperties =
+    {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      padding: "10px 18px",
+      border: "none",
+      borderRadius: "8px",
+      backgroundColor: "#2563eb",
+      color: "#ffffff",
+      fontWeight: 600,
+      fontSize: "14px",
+      cursor: "pointer",
+      minWidth: "190px",
+      minHeight: "42px",
+      boxShadow:
+        "0 2px 6px rgba(0, 0, 0, 0.15)",
+    };
 
   return (
     <main className="alternatives-page">
@@ -520,18 +706,28 @@ export default function Alternatives() {
         <div className="details-card-header">
 
           <div className="details-icon">
-            <Plus size={22} />
+            {editingAlternativeId !==
+            null ? (
+              <Edit3 size={22} />
+            ) : (
+              <Plus size={22} />
+            )}
           </div>
 
           <div>
 
             <h2>
-              Add Alternative
+              {editingAlternativeId !==
+              null
+                ? "Edit Alternative"
+                : "Add Alternative"}
             </h2>
 
             <p>
-              Add a possible solution
-              for this decision.
+              {editingAlternativeId !==
+              null
+                ? "Update the selected alternative."
+                : "Add a possible solution for this decision."}
             </p>
 
           </div>
@@ -755,23 +951,58 @@ export default function Alternatives() {
             </div>
           )}
 
-          <div className="form-actions">
+          <div
+            className="form-actions"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginTop: "8px",
+              flexWrap: "wrap",
+            }}
+          >
 
             <button
               type="submit"
-              className="primary-button"
-              disabled={
-                isSubmitting
-              }
+              disabled={isSubmitting}
+              style={submitButtonStyle}
             >
 
               <Save size={18} />
 
               {isSubmitting
-                ? "Saving..."
-                : "Add Alternative"}
+                ? editingAlternativeId !==
+                  null
+                  ? "Updating..."
+                  : "Saving..."
+                : editingAlternativeId !==
+                    null
+                  ? "Update Alternative"
+                  : "Add Alternative"}
 
             </button>
+
+            {editingAlternativeId !==
+              null && (
+              <button
+                type="button"
+                onClick={
+                  handleCancelEdit
+                }
+                disabled={
+                  isSubmitting
+                }
+                style={
+                  cancelButtonStyle
+                }
+              >
+
+                <X size={18} />
+
+                Cancel Edit
+
+              </button>
+            )}
 
           </div>
 
@@ -811,6 +1042,9 @@ export default function Alternatives() {
                   (current) =>
                     !current,
                 )
+              }
+              style={
+                compareButtonStyle
               }
             >
 
@@ -1218,21 +1452,58 @@ export default function Alternatives() {
 
                     </div>
 
-                    <button
-                      className="danger-button"
-                      onClick={() =>
-                        handleDelete(
-                          alternative.id,
-                        )
-                      }
-                      title="Delete alternative"
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems:
+                          "center",
+                      }}
                     >
 
-                      <Trash2
-                        size={17}
-                      />
+                      <button
+                        onClick={() =>
+                          handleEdit(
+                            alternative,
+                          )
+                        }
+                        title="Edit alternative"
+                        disabled={
+                          isSubmitting
+                        }
+                        style={
+                          editButtonStyle
+                        }
+                      >
 
-                    </button>
+                        <Edit3
+                          size={17}
+                        />
+
+                        Edit
+
+                      </button>
+
+                      <button
+                        className="danger-button"
+                        onClick={() =>
+                          handleDelete(
+                            alternative.id,
+                          )
+                        }
+                        title="Delete alternative"
+                        disabled={
+                          isSubmitting
+                        }
+                      >
+
+                        <Trash2
+                          size={17}
+                        />
+
+                      </button>
+
+                    </div>
 
                   </div>
 

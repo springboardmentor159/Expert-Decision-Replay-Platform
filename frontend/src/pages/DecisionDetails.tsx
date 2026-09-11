@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -98,8 +103,60 @@ export default function DecisionDetails() {
   useEffect(() => {
     // Intentionally load decision data when the URL ID changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadDecision();
+    void loadDecision();
   }, [loadDecision]);
+
+  const backButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 18px",
+    minWidth: "165px",
+    minHeight: "42px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    backgroundColor: "#ffffff",
+    color: "#1e293b",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+  };
+
+  const editButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    minWidth: "165px",
+    minHeight: "42px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
+  };
+
+  const retryButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    minWidth: "120px",
+    minHeight: "42px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#2563eb",
+    color: "#ffffff",
+    fontWeight: 600,
+    fontSize: "14px",
+    cursor: "pointer",
+  };
 
   if (isLoading) {
     return (
@@ -122,6 +179,7 @@ export default function DecisionDetails() {
             <button
               type="button"
               className="secondary-button"
+              style={backButtonStyle}
               onClick={() => navigate("/decisions")}
             >
               <ArrowLeft size={18} />
@@ -131,6 +189,7 @@ export default function DecisionDetails() {
             <button
               type="button"
               className="primary-button"
+              style={retryButtonStyle}
               onClick={() => {
                 setIsLoading(true);
                 void loadDecision();
@@ -165,6 +224,7 @@ export default function DecisionDetails() {
           <button
             type="button"
             className="secondary-button"
+            style={backButtonStyle}
             onClick={() => navigate("/decisions")}
           >
             <ArrowLeft size={18} />
@@ -174,6 +234,7 @@ export default function DecisionDetails() {
           <button
             type="button"
             className="primary-button"
+            style={editButtonStyle}
             onClick={() =>
               navigate(`/decisions/${decision.id}/edit`)
             }
