@@ -1,25 +1,16 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-
 from app.routers.user import router as user_router
-
 from app.routers.auth import router as auth_router
-
 from app.routers.decision import router as decision_router
-
 from app.routers import alternative
-
 from app.routers import discussion_threads
-
 from app.routers import tag
-
 from app.routers import audit_log
-
 from app.routers import comment
-
 from app.routers import approval
-
 from app.routers import report
 from app.routers import dashboard
 
@@ -30,24 +21,32 @@ app = FastAPI(
 )
 
 
+# Allow the React/Vite frontend to communicate with FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5177",
+        "http://127.0.0.1:5177",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 app.include_router(user_router)
-
 app.include_router(auth_router)
-
 app.include_router(decision_router)
-
 app.include_router(alternative.router)
-
 app.include_router(discussion_threads.router)
-
 app.include_router(tag.router)
-
 app.include_router(audit_log.router)
-
 app.include_router(comment.router)
-
 app.include_router(approval.router)
-
 app.include_router(report.router)
 app.include_router(dashboard.router)
 
