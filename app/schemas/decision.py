@@ -12,16 +12,23 @@ class DecisionStatus(str, Enum):
     ARCHIVED = "Archived"
 
 
+class DecisionCategory(str, Enum):
+    AI_TESTING = "AI Testing"
+    CLOUD = "Cloud"
+    TECHNOLOGY = "Technology"
+    TESTING = "Testing"
+
+
 class DecisionCreate(BaseModel):
     title: str
     problem_statement: str
-    category: str
+    category: DecisionCategory
 
 
 class DecisionUpdate(BaseModel):
     title: str
     problem_statement: str
-    category: str
+    category: DecisionCategory
 
 
 class DecisionStatusUpdate(BaseModel):
@@ -32,7 +39,7 @@ class DecisionResponse(BaseModel):
     id: int
     title: str
     problem_statement: str
-    category: str
+    category: DecisionCategory
     status: str
     created_by: int
     created_at: datetime
@@ -44,7 +51,6 @@ class DecisionResponse(BaseModel):
 
 
 class DecisionVersionResponse(BaseModel):
-    id: int
     decision_id: int
     version_number: int
     title: str
