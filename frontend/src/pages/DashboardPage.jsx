@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Lock,
   PlusCircle,
-  Component,
   Activity,
   History,
   TrendingUp,
@@ -155,11 +154,6 @@ export const DashboardPage = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <Link to="/component-library">
-            <Button variant="pearl" size="medium" icon={Component}>
-              UI Components
-            </Button>
-          </Link>
           <Link to="/decisions">
             <Button variant="primary" size="medium" icon={FileText}>
               View Decisions

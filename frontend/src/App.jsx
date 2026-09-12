@@ -9,7 +9,6 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import DecisionsPage from './pages/DecisionsPage';
 import DecisionDetailPage from './pages/DecisionDetailPage';
-import ComponentShowcasePage from './pages/ComponentShowcasePage';
 import ReportsPage from './pages/ReportsPage';
 import ManagerStatsPage from './pages/ManagerStatsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
@@ -40,7 +39,6 @@ export const App = () => {
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="decisions" element={<DecisionsPage />} />
               <Route path="decisions/:decisionId" element={<DecisionDetailPage />} />
-              <Route path="component-library" element={<ComponentShowcasePage />} />
 
               {/* Manager & Admin Only Areas */}
               <Route

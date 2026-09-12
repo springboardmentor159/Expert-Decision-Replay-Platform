@@ -14,7 +14,6 @@ export const AppLayout = () => {
     const path = location.pathname;
     if (path.includes('/dashboard')) return 'Dashboard';
     if (path.includes('/decisions')) return 'Decisions Overview';
-    if (path.includes('/component-library')) return 'UI Component Showcase';
     if (path.includes('/manager')) return 'Manager Statistics';
     if (path.includes('/admin/users')) return 'User Administration';
     if (path.includes('/admin/audit')) return 'System Audit Trail';

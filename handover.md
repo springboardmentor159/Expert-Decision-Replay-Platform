@@ -19,7 +19,7 @@ The **Expert Decision Replay Platform** is a full-stack enterprise decision gove
   - Adherence to [`DESIGN.md`](file:///c:/Users/Bhargav/Desktop/expert-decision-replay/DESIGN.md) (SF Pro/Inter typography, Action Blue `#0066cc`, Parchment `#f5f5f7`, Dark Tiles `#272729`, Pill CTAs, active scale-down micro-interactions).
   - Full JWT authentication, localStorage token management, 401 redirect intercepts, and role-based route/action gates.
   - Complete shared component library (`Button`, `Badge`, `Alert`, `Modal`, `Table`, `Pagination`, `FilterBar`, `SearchInput`, `FormField`, `LoadingSpinner`, `Skeleton`, `EmptyState`).
-  - Dedicated pages: `LoginPage`, `DashboardPage`, `DecisionsPage`, `ComponentShowcasePage`, `UnauthorizedPage`, `NotFoundPage`.
+  - Dedicated pages: `LoginPage`, `DashboardPage`, `DecisionsPage`, `DecisionDetailPage`, `ReportsPage`, `ManagerStatsPage`, `AdminUsersPage`, `AdminAuditPage`, `AdminSecurityLogsPage`, `UnauthorizedPage`, `NotFoundPage`.
 
 ---
 
@@ -78,7 +78,6 @@ npm run build
 - [`app/main.py`](file:///c:/Users/Bhargav/Desktop/expert-decision-replay/app/main.py) — FastAPI main entry point and CORS configuration.
 - [`frontend/src/App.jsx`](file:///c:/Users/Bhargav/Desktop/expert-decision-replay/frontend/src/App.jsx) — React routing and protected route architecture.
 - [`frontend/src/context/AuthContext.jsx`](file:///c:/Users/Bhargav/Desktop/expert-decision-replay/frontend/src/context/AuthContext.jsx) — Auth state, JWT management, and role helpers.
-- [`frontend/src/pages/ComponentShowcasePage.jsx`](file:///c:/Users/Bhargav/Desktop/expert-decision-replay/frontend/src/pages/ComponentShowcasePage.jsx) — Live playground demonstrating all UI components.
 
 ---
 

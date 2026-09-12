@@ -19,10 +19,14 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@rollup/wasm-node": "^4.63.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.1.0",
+    "@vitejs/plugin-react": "4.3.4",
     "oxlint": "^1.79.0",
-    "vite": "^8.2.2"
+    "vite": "^6.4.3"
+  },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node"
   }
 }
