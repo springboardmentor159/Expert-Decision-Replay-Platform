@@ -2,6 +2,8 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr
+
+
 class UserRole(str, Enum):
     EMPLOYEE = "Employee"
     REVIEWER = "Reviewer"
@@ -13,6 +15,16 @@ class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
     role: UserRole
+    password: str
+    employee_id: str
+    department: str
+    designation: str
+    phone_number: str
+
+
+class UserRegister(BaseModel):
+    full_name: str
+    email: EmailStr
     password: str
     employee_id: str
     department: str
