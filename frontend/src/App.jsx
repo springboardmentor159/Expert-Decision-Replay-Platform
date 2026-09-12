@@ -86,7 +86,6 @@ export const App = () => {
 
               {/* Error Pages */}
               <Route path="unauthorized" element={<UnauthorizedPage />} />
-              <Route path="*" element={<NotFoundPage />} />
             </Route>
 
             {/* Fallback */}

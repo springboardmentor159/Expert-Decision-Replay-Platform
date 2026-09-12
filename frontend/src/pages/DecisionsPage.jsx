@@ -13,7 +13,6 @@ import Select from '../components/common/Select';
 import Textarea from '../components/common/Textarea';
 import Table from '../components/common/Table';
 import FilterBar from '../components/common/FilterBar';
-import RoleGate from '../components/auth/RoleGate';
 
 export const DecisionsPage = () => {
   const { user } = useAuth();

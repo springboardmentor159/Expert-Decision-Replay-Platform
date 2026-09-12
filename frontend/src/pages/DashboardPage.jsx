@@ -44,7 +44,6 @@ export const DashboardPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        await apiClient.get('/');
         setApiStatus('connected');
 
         let endpoint = '/dashboard/employee';

@@ -116,19 +116,6 @@ export const AuthProvider = ({ children }) => {
     return user.role === allowedRoles;
   }, [user]);
 
-  const hasPermission = useCallback((permission) => {
-    const permissions = {
-      view_decisions: [UserRole.EMPLOYEE, UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
-      create_decision: [UserRole.EMPLOYEE, UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
-      review_decision: [UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
-      manager_dashboard: [UserRole.MANAGER, UserRole.ADMINISTRATOR],
-      admin_dashboard: [UserRole.ADMINISTRATOR],
-      security_logs: [UserRole.MANAGER, UserRole.ADMINISTRATOR],
-      reports: [UserRole.EMPLOYEE, UserRole.REVIEWER, UserRole.MANAGER, UserRole.ADMINISTRATOR],
-    };
-    return hasRole(permissions[permission] || []);
-  }, [hasRole]);
-
   const value = useMemo(() => ({
     token,
     user,
@@ -137,7 +124,6 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     hasRole,
-    hasPermission,
     isEmployee: user?.role === UserRole.EMPLOYEE,
     isReviewer: user?.role === UserRole.REVIEWER,
     isManager: user?.role === UserRole.MANAGER,

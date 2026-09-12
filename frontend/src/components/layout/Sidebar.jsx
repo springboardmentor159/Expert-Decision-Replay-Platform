@@ -8,9 +8,6 @@ import {
   BarChart3,
   History,
   FileCheck2,
-  Lock,
-  Activity,
-  Layers,
 } from 'lucide-react';
 import { useAuth, UserRole } from '../../context/AuthContext';
 
