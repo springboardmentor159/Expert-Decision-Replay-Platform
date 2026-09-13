@@ -1,15 +1,36 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createDecision } from '../services/api';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getDecision, updateDecision } from '../services/api';
 import Layout from '../components/Layout';
 
-export default function CreateDecision() {
+export default function EditDecision() {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: '', problem_statement: '', category: '', rationale: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+
+  useEffect(() => { fetchDecision(); }, [id]);
+
+  const fetchDecision = async () => {
+    try {
+      const response = await getDecision(id);
+      const d = response.data;
+      setFormData({
+        title: d.title || '',
+        problem_statement: d.problem_statement || '',
+        category: d.category || '',
+        rationale: d.rationale || '',
+      });
+    } catch (err) {
+      setError('Failed to load decision');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,23 +43,27 @@ export default function CreateDecision() {
       setError('Title, problem statement and category are required');
       return;
     }
-    setLoading(true);
+    setSaving(true);
     try {
-      const response = await createDecision(formData);
-      navigate(`/decisions/${response.data.id}`);
+      await updateDecision(id, formData);
+      alert('Decision updated successfully!');
+      navigate(`/decisions/${id}`);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create decision');
+      setError(err.response?.data?.detail || 'Failed to update decision');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) return <Layout><div style={styles.center}>Loading...</div></Layout>;
 
   return (
     <Layout>
       <div style={styles.card}>
         <div style={styles.cardHeader}>
-          <h2 style={styles.title}>Create New Decision</h2>
-          <button style={styles.backBtn} onClick={() => navigate('/decisions')}>← Back</button>
+          <h2 style={styles.title}>Edit Decision</h2>
+          <button style={styles.backBtn}
+            onClick={() => navigate(`/decisions/${id}`)}>← Back</button>
         </div>
 
         {error && <div style={styles.error}>{error}</div>}
@@ -78,9 +103,9 @@ export default function CreateDecision() {
           </div>
           <div style={styles.buttons}>
             <button type="button" style={styles.cancelBtn}
-              onClick={() => navigate('/decisions')}>Cancel</button>
-            <button type="submit" style={styles.submitBtn} disabled={loading}>
-              {loading ? 'Creating...' : 'Create Decision'}
+              onClick={() => navigate(`/decisions/${id}`)}>Cancel</button>
+            <button type="submit" style={styles.submitBtn} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
@@ -102,4 +127,5 @@ const styles = {
   buttons: { display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' },
   cancelBtn: { padding: '10px 24px', backgroundColor: '#ecf0f1', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
   submitBtn: { padding: '10px 24px', backgroundColor: '#2C3E50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
+  center: { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' },
 };
