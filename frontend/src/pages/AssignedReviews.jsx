@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import apiClient from "../api/apiClient";
-import { useAuth } from "../auth/AuthContext";
-
 import {
   getDecisionApprovals,
   getApprovalErrorMessage,
@@ -37,72 +35,67 @@ const getStatusClass = (status) => {
   }
 };
 
-const extractErrorMessage = (error) => {
-  if (error?.response?.status === 401) {
+const getErrorMessage = (error) => {
+  const status = error?.response?.status;
+  const detail = error?.response?.data?.detail;
+
+  if (status === 400) {
+    return detail || "Invalid approval request.";
+  }
+
+  if (status === 401) {
     return "Your session has expired. Please log in again.";
   }
 
-  if (error?.response?.status === 403) {
+  if (status === 403) {
     return (
-      error?.response?.data?.detail ||
+      detail ||
       "You do not have permission to view these approvals."
     );
   }
 
-  if (error?.response?.status === 404) {
-    return (
-      error?.response?.data?.detail ||
-      "The requested resource was not found."
-    );
+  if (status === 404) {
+    return detail || "The requested resource was not found.";
   }
 
-  if (error?.response?.status === 422) {
-    return (
-      error?.response?.data?.detail ||
-      "The request contains invalid information."
-    );
+  if (status === 422) {
+    return detail || "The request contains invalid information.";
   }
 
-  if (error?.response?.status >= 500) {
+  if (status >= 500) {
     return "A server error occurred. Please try again later.";
   }
 
   return (
-    error?.response?.data?.detail ||
+    detail ||
     error?.message ||
     "Unable to load assigned reviews."
   );
 };
 
 export default function AssignedReviews() {
-  const { user } = useAuth();
-
   const [approvals, setApprovals] = useState([]);
   const [decisions, setDecisions] = useState([]);
+
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
-  /*
-   * The approval backend does not currently expose a dedicated
-   * "my assigned approvals" endpoint.
-   *
-   * We therefore retrieve approvals for accessible decisions
-   * and then filter them using the logged-in user's ID.
-   *
-   * The backend remains the final authorization authority.
-   */
+  const [errorMessage, setErrorMessage] = useState("");
 
   const loadAssignedReviews = async () => {
     try {
       setErrorMessage("");
+      setLoading(true);
 
-      const decisionsResponse = await apiClient.get("/decisions/", {
-        params: {
-          page: 1,
-          page_size: 100,
-        },
-      });
+      const decisionsResponse = await apiClient.get(
+        "/decisions/",
+        {
+          params: {
+            page: 1,
+            page_size: 100,
+          },
+        }
+      );
 
       const decisionItems =
         decisionsResponse?.data?.items ||
@@ -139,9 +132,6 @@ export default function AssignedReviews() {
         });
       });
 
-      /*
-       * Remove duplicate approval records.
-       */
       const uniqueApprovals = Array.from(
         new Map(
           allApprovals.map((approval) => [
@@ -153,14 +143,9 @@ export default function AssignedReviews() {
 
       setApprovals(uniqueApprovals);
     } catch (error) {
-      console.error(
-        "Failed to load assigned reviews:",
-        error
-      );
-
       setErrorMessage(
         getApprovalErrorMessage(error) ||
-          extractErrorMessage(error)
+          getErrorMessage(error)
       );
     } finally {
       setLoading(false);
@@ -183,52 +168,35 @@ export default function AssignedReviews() {
     );
   };
 
-  /*
-   * AuthContext may expose the authenticated user's ID as
-   * "id", "user_id", or "sub" depending on how the JWT
-   * payload is represented.
-   *
-   * The backend approval record uses assigned_to.
-   */
-  const currentUserId = Number(
-    user?.id ??
-      user?.user_id ??
-      user?.sub
-  );
-
-  /*
-   * Only show Reviewer approvals that are actually assigned
-   * to the currently logged-in Reviewer.
-   *
-   * This prevents the queue from showing another Reviewer's
-   * approval and then receiving a 403 when opening it.
-   */
   const reviewerApprovals = approvals.filter(
     (approval) =>
-      approval.assigned_role === "Reviewer" &&
-      Number(approval.assigned_to) === currentUserId
+      approval.assigned_role === "Reviewer"
   );
 
-  const pendingApprovals = reviewerApprovals.filter(
-    (approval) =>
-      approval.status === "Pending"
-  );
+  const pendingApprovals =
+    reviewerApprovals.filter(
+      (approval) =>
+        approval.status === "Pending"
+    );
 
-  const completedApprovals = reviewerApprovals.filter(
-    (approval) =>
-      approval.status === "Approved" ||
-      approval.status === "Rejected"
-  );
+  const completedApprovals =
+    reviewerApprovals.filter(
+      (approval) =>
+        approval.status === "Approved" ||
+        approval.status === "Rejected"
+    );
 
   return (
-    <div className="dashboard-page">
+    <div className="page-container">
+
       <div className="page-header">
+
         <div>
           <h1>Assigned Reviews</h1>
 
-          <p className="page-subtitle">
-            Review decisions assigned to you and take the
-            appropriate approval action.
+          <p>
+            Review decisions assigned to you and
+            take the appropriate approval action.
           </p>
         </div>
 
@@ -238,8 +206,11 @@ export default function AssignedReviews() {
           onClick={handleRefresh}
           disabled={refreshing}
         >
-          {refreshing ? "Refreshing..." : "Refresh"}
+          {refreshing
+            ? "Refreshing..."
+            : "Refresh"}
         </button>
+
       </div>
 
       {errorMessage && (
@@ -254,67 +225,79 @@ export default function AssignedReviews() {
         </div>
       ) : (
         <>
-          <div className="dashboard-stats">
+          <div className="stats-grid">
+
             <div className="stat-card">
-              <span className="stat-label">
+              <div className="stat-label">
                 Assigned Reviews
-              </span>
+              </div>
 
-              <strong className="stat-value">
+              <div className="stat-value">
                 {reviewerApprovals.length}
-              </strong>
+              </div>
             </div>
 
             <div className="stat-card">
-              <span className="stat-label">
+              <div className="stat-label">
                 Pending
-              </span>
+              </div>
 
-              <strong className="stat-value">
+              <div className="stat-value">
                 {pendingApprovals.length}
-              </strong>
+              </div>
             </div>
 
             <div className="stat-card">
-              <span className="stat-label">
+              <div className="stat-label">
                 Completed
-              </span>
+              </div>
 
-              <strong className="stat-value">
+              <div className="stat-value">
                 {completedApprovals.length}
-              </strong>
+              </div>
             </div>
+
           </div>
 
           {reviewerApprovals.length === 0 ? (
+
             <div className="empty-state">
-              <h3>No assigned reviews</h3>
+
+              <h2>No assigned reviews</h2>
 
               <p>
-                You currently have no Reviewer approval
-                requests assigned to you.
+                You currently have no Reviewer
+                approval requests assigned.
               </p>
+
             </div>
+
           ) : (
-            <div className="content-card">
+
+            <div className="card">
+
               <div className="section-header">
+
                 <div>
                   <h2>Review Queue</h2>
 
                   <p>
-                    Decisions requiring your review are
+                    Decisions requiring review are
                     shown below.
                   </p>
                 </div>
+
               </div>
 
               <div className="table-container">
+
                 <table className="data-table">
+
                   <thead>
                     <tr>
                       <th>Decision</th>
                       <th>Approval ID</th>
-                      <th>Level</th>
+                      <th>Role</th>
                       <th>Status</th>
                       <th>Assigned</th>
                       <th>Reviewed</th>
@@ -323,15 +306,21 @@ export default function AssignedReviews() {
                   </thead>
 
                   <tbody>
-                    {reviewerApprovals.map((approval) => {
-                      const decision = getDecision(
-                        approval.decision_id
-                      );
 
-                      return (
-                        <tr key={approval.id}>
-                          <td>
-                            <div>
+                    {reviewerApprovals.map(
+                      (approval) => {
+
+                        const decision =
+                          getDecision(
+                            approval.decision_id
+                          );
+
+                        return (
+                          <tr
+                            key={approval.id}
+                          >
+
+                            <td>
                               <strong>
                                 {decision?.title ||
                                   `Decision #${approval.decision_id}`}
@@ -340,93 +329,95 @@ export default function AssignedReviews() {
                               {decision?.category && (
                                 <small
                                   style={{
-                                    display: "block",
-                                    marginTop: "4px",
+                                    display:
+                                      "block",
+                                    marginTop:
+                                      "4px",
                                     opacity: 0.7,
                                   }}
                                 >
                                   {decision.category}
                                 </small>
                               )}
-                            </div>
-                          </td>
+                            </td>
 
-                          <td>
-                            #{approval.id}
-                          </td>
+                            <td>
+                              #{approval.id}
+                            </td>
 
-                          <td>
-                            {approval.assigned_role || "—"}
-                          </td>
+                            <td>
+                              {approval.assigned_role ||
+                                "—"}
+                            </td>
 
-                          <td>
-                            <span
-                              className={getStatusClass(
-                                approval.status
-                              )}
-                            >
-                              {approval.status || "Unknown"}
-                            </span>
-                          </td>
-
-                          <td>
-                            {formatDate(
-                              approval.assigned_at
-                            )}
-                          </td>
-
-                          <td>
-                            {formatDate(
-                              approval.reviewed_at
-                            )}
-                          </td>
-
-                          <td>
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "8px",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <Link
-                                to={`/decisions/${approval.decision_id}`}
-                                className="secondary-button"
+                            <td>
+                              <span
+                                className={getStatusClass(
+                                  approval.status
+                                )}
                               >
-                                View Decision
-                              </Link>
+                                {approval.status ||
+                                  "Unknown"}
+                              </span>
+                            </td>
 
-                              {approval.status ===
-                                "Pending" && (
-                                <Link
-                                  to={`/approvals/${approval.id}`}
-                                  className="primary-button"
-                                >
-                                  Review
-                                </Link>
+                            <td>
+                              {formatDate(
+                                approval.assigned_at
                               )}
+                            </td>
 
-                              {approval.status !==
-                                "Pending" && (
+                            <td>
+                              {formatDate(
+                                approval.reviewed_at
+                              )}
+                            </td>
+
+                            <td>
+
+                              <div
+                                className="table-actions"
+                              >
+
                                 <Link
-                                  to={`/approvals/${approval.id}`}
+                                  to={`/decisions/${approval.decision_id}`}
                                   className="secondary-button"
                                 >
-                                  View Review
+                                  View
                                 </Link>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+
+                                {approval.status ===
+                                  "Pending" && (
+                                  <Link
+                                    to={`/approvals/${approval.id}`}
+                                    className="primary-button"
+                                  >
+                                    Review
+                                  </Link>
+                                )}
+
+                              </div>
+
+                            </td>
+
+                          </tr>
+                        );
+                      }
+                    )}
+
                   </tbody>
+
                 </table>
+
               </div>
+
             </div>
+
           )}
+
         </>
       )}
+
     </div>
   );
 }
