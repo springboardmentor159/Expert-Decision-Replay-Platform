@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    container_name: expert_decision_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: expert_decision_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: expert_decision_api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      APP_NAME: Expert Decision Replay Platform
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/expert_decision_db
+      JWT_SECRET_KEY: change-this-secret-in-production
+      JWT_ALGORITHM: HS256
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:
