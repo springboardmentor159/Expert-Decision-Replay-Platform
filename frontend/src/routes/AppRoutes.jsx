@@ -5,6 +5,7 @@ import Dashboard from "../pages/Dashboard";
 import Decisions from "../pages/Decisions";
 import CreateDecision from "../pages/CreateDecision";
 import DecisionDetails from "../pages/DecisionDetails";
+import EditDecision from "../pages/EditDecision";
 import Alternatives from "../pages/Alternatives";
 import AlternativeComparison from "../pages/AlternativeComparison";
 import Comments from "../pages/Comments";
@@ -16,153 +17,164 @@ import Reports from "../pages/Reports";
 import { useAuth } from "../context/AuthContext";
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+const { isAuthenticated } = useAuth();
 
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
 function AppRoutes() {
-  return (
-    <Routes>
-      {/* Login */}
-      <Route path="/login" element={<Login />} />
+return (
+<Routes>
+{/* Login */}
+<Route path="/login" element={<Login />} />
 
-      {/* Registration */}
-      <Route path="/register" element={<Register />} />
+  {/* Registration */}
+  <Route path="/register" element={<Register />} />
 
-      {/* Dashboard */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
+  {/* Dashboard */}
+  <Route
+    path="/dashboard"
+    element={
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Decisions List */}
-      <Route
-        path="/decisions"
-        element={
-          <ProtectedRoute>
-            <Decisions />
-          </ProtectedRoute>
-        }
-      />
+  {/* Decisions List */}
+  <Route
+    path="/decisions"
+    element={
+      <ProtectedRoute>
+        <Decisions />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Create Decision */}
-      <Route
-        path="/decisions/create"
-        element={
-          <ProtectedRoute>
-            <CreateDecision />
-          </ProtectedRoute>
-        }
-      />
+  {/* Create Decision */}
+  <Route
+    path="/decisions/create"
+    element={
+      <ProtectedRoute>
+        <CreateDecision />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Decision Details */}
-      <Route
-        path="/decisions/:id"
-        element={
-          <ProtectedRoute>
-            <DecisionDetails />
-          </ProtectedRoute>
-        }
-      />
+  {/* Edit Decision */}
+  <Route
+    path="/decisions/:id/edit"
+    element={
+      <ProtectedRoute>
+        <EditDecision />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Alternative Analysis */}
-      <Route
-        path="/decisions/:id/alternatives"
-        element={
-          <ProtectedRoute>
-            <Alternatives />
-          </ProtectedRoute>
-        }
-      />
+  {/* Decision Details */}
+  <Route
+    path="/decisions/:id"
+    element={
+      <ProtectedRoute>
+        <DecisionDetails />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Compare Alternatives */}
-      <Route
-        path="/decisions/:id/alternatives/compare"
-        element={
-          <ProtectedRoute>
-            <AlternativeComparison />
-          </ProtectedRoute>
-        }
-      />
+  {/* Alternative Analysis */}
+  <Route
+    path="/decisions/:id/alternatives"
+    element={
+      <ProtectedRoute>
+        <Alternatives />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Discussion & Comments */}
-      <Route
-        path="/decisions/:id/comments"
-        element={
-          <ProtectedRoute>
-            <Comments />
-          </ProtectedRoute>
-        }
-      />
+  {/* Compare Alternatives */}
+  <Route
+    path="/decisions/:id/alternatives/compare"
+    element={
+      <ProtectedRoute>
+        <AlternativeComparison />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Approval Workflow */}
-      <Route
-        path="/decisions/:id/approvals"
-        element={
-          <ProtectedRoute>
-            <Approvals />
-          </ProtectedRoute>
-        }
-      />
+  {/* Discussion & Comments */}
+  <Route
+    path="/decisions/:id/comments"
+    element={
+      <ProtectedRoute>
+        <Comments />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Knowledge Repository */}
-      <Route
-        path="/knowledge"
-        element={
-          <ProtectedRoute>
-            <KnowledgeRepository />
-          </ProtectedRoute>
-        }
-      />
+  {/* Approval Workflow */}
+  <Route
+    path="/decisions/:id/approvals"
+    element={
+      <ProtectedRoute>
+        <Approvals />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Version History & Timeline */}
-      <Route
-        path="/decisions/:id/history"
-        element={
-          <ProtectedRoute>
-            <VersionHistory />
-          </ProtectedRoute>
-        }
-      />
+  {/* Knowledge Repository */}
+  <Route
+    path="/knowledge"
+    element={
+      <ProtectedRoute>
+        <KnowledgeRepository />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Audit & Activity Logs */}
-      <Route
-        path="/audit-logs"
-        element={
-          <ProtectedRoute>
-            <AuditLogs />
-          </ProtectedRoute>
-        }
-      />
+  {/* Version History & Timeline */}
+  <Route
+    path="/decisions/:id/history"
+    element={
+      <ProtectedRoute>
+        <VersionHistory />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Reports */}
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute>
-            <Reports />
-          </ProtectedRoute>
-        }
-      />
+  {/* Audit & Activity Logs */}
+  <Route
+    path="/audit-logs"
+    element={
+      <ProtectedRoute>
+        <AuditLogs />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Default Route */}
-      <Route
-        path="/"
-        element={<Navigate to="/login" replace />}
-      />
+  {/* Reports */}
+  <Route
+    path="/reports"
+    element={
+      <ProtectedRoute>
+        <Reports />
+      </ProtectedRoute>
+    }
+  />
 
-      {/* Invalid Route */}
-      <Route
-        path="*"
-        element={<Navigate to="/login" replace />}
-      />
-    </Routes>
-  );
+  {/* Default Route */}
+  <Route
+    path="/"
+    element={<Navigate to="/login" replace />}
+  />
+
+  {/* Invalid Route */}
+  <Route
+    path="*"
+    element={<Navigate to="/login" replace />}
+  />
+</Routes>
+
+);
 }
 
 export default AppRoutes;

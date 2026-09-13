@@ -6,10 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.alternative import Alternative
 from app.models.decision import Decision
-from app.schemas.alternative import (
-    AlternativeCreate,
-    AlternativeResponse
-)
+from app.schemas.alternative import AlternativeCreate, AlternativeResponse
 from app.core.auth import get_current_user
 
 
@@ -18,7 +15,10 @@ router = APIRouter(
 )
 
 
+# ============================================================
 # CREATE ALTERNATIVE
+# ============================================================
+
 @router.post(
     "/decisions/{decision_id}/alternatives",
     response_model=AlternativeResponse,
@@ -60,7 +60,10 @@ def create_alternative(
     return new_alternative
 
 
+# ============================================================
 # GET ALL ALTERNATIVES FOR A DECISION
+# ============================================================
+
 @router.get(
     "/decisions/{decision_id}/alternatives",
     response_model=List[AlternativeResponse]
@@ -89,7 +92,10 @@ def get_alternatives(
     )
 
 
+# ============================================================
 # GET ALTERNATIVE BY ID
+# ============================================================
+
 @router.get(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -114,7 +120,10 @@ def get_alternative(
     return alternative
 
 
+# ============================================================
 # UPDATE ALTERNATIVE
+# ============================================================
+
 @router.put(
     "/alternatives/{alternative_id}",
     response_model=AlternativeResponse
@@ -151,7 +160,41 @@ def update_alternative(
     return alternative
 
 
+# ============================================================
+# DELETE ALTERNATIVE
+# ============================================================
+
+@router.delete(
+    "/alternatives/{alternative_id}",
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_alternative(
+    alternative_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    alternative = (
+        db.query(Alternative)
+        .filter(Alternative.id == alternative_id)
+        .first()
+    )
+
+    if not alternative:
+        raise HTTPException(
+            status_code=404,
+            detail="Alternative not found"
+        )
+
+    db.delete(alternative)
+    db.commit()
+
+    return None
+
+
+# ============================================================
 # COMPARE ALTERNATIVES
+# ============================================================
+
 @router.get(
     "/decisions/{decision_id}/alternatives/compare"
 )
