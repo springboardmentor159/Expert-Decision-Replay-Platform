@@ -191,6 +191,207 @@ def employee_recent_activities(
         for activity in activities
     ]
 
+# =========================================================
+# REVIEWER DASHBOARD
+# =========================================================
+
+@router.get(
+    "/reviewer"
+)
+def reviewer_dashboard(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    role = get_role(current_user)
+
+    if role != "reviewer":
+        raise HTTPException(
+            status_code=403,
+            detail="Reviewer access required"
+        )
+
+    user_id = int(current_user["sub"])
+
+    # All approvals assigned to this reviewer
+    assigned_approvals = (
+        db.query(Approval)
+        .filter(
+            Approval.assigned_to == user_id
+        )
+    )
+
+    total_reviews = assigned_approvals.count()
+
+    pending_reviews = assigned_approvals.filter(
+        Approval.status == "Pending"
+    ).count()
+
+    approved_reviews = assigned_approvals.filter(
+        Approval.status == "Approved"
+    ).count()
+
+    rejected_reviews = assigned_approvals.filter(
+        Approval.status == "Rejected"
+    ).count()
+
+    completed_reviews = (
+        approved_reviews +
+        rejected_reviews
+    )
+
+    return {
+        "total_reviews": total_reviews,
+        "pending_reviews": pending_reviews,
+        "completed_reviews": completed_reviews,
+        "approved_reviews": approved_reviews,
+        "rejected_reviews": rejected_reviews
+    }
+
+
+# =========================================================
+# REVIEWER DECISIONS
+# =========================================================
+
+@router.get("/reviewer/decisions")
+def reviewer_decisions(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    role = get_role(current_user)
+
+    if role != "reviewer":
+        raise HTTPException(
+            status_code=403,
+            detail="Reviewer access required"
+        )
+
+    user_id = int(current_user["sub"])
+
+    decisions = (
+        db.query(Decision)
+        .join(
+            Approval,
+            Approval.decision_id == Decision.id
+        )
+        .filter(
+            Approval.assigned_to == user_id
+        )
+        .order_by(
+            Decision.updated_at.desc()
+        )
+        .all()
+    )
+
+    # Remove duplicate decisions in Python
+    # because one decision can have multiple approvals.
+    unique_decisions = {}
+    
+    for decision in decisions:
+        if decision.id not in unique_decisions:
+            unique_decisions[decision.id] = decision
+
+    return [
+        {
+            "id": decision.id,
+            "title": decision.title,
+            "category": decision.category,
+            "status": decision.status,
+            "created_by": decision.created_by,
+            "created_at": decision.created_at,
+            "updated_at": decision.updated_at
+        }
+        for decision in unique_decisions.values()
+    ]
+
+# =========================================================
+# REVIEWER PENDING REVIEWS
+# =========================================================
+
+@router.get(
+    "/reviewer/pending-reviews"
+)
+def reviewer_pending_reviews(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    role = get_role(current_user)
+
+    if role != "reviewer":
+        raise HTTPException(
+            status_code=403,
+            detail="Reviewer access required"
+        )
+
+    user_id = int(current_user["sub"])
+
+    approvals = (
+        db.query(Approval)
+        .filter(
+            Approval.assigned_to == user_id,
+            Approval.status == "Pending"
+        )
+        .order_by(
+            Approval.created_at.desc()
+        )
+        .all()
+    )
+
+    return [
+        {
+            "approval_id": approval.id,
+            "decision_id": approval.decision_id,
+            "approval_level": approval.approval_level,
+            "status": approval.status,
+            "created_at": approval.created_at
+        }
+        for approval in approvals
+    ]
+
+
+# =========================================================
+# REVIEWER RECENT ACTIVITIES
+# =========================================================
+
+@router.get(
+    "/reviewer/recent-activities"
+)
+def reviewer_recent_activities(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    role = get_role(current_user)
+
+    if role != "reviewer":
+        raise HTTPException(
+            status_code=403,
+            detail="Reviewer access required"
+        )
+
+    user_id = int(current_user["sub"])
+
+    activities = (
+        db.query(ActivityLog)
+        .filter(
+            ActivityLog.user_id == user_id
+        )
+        .order_by(
+            ActivityLog.created_at.desc()
+        )
+        .limit(20)
+        .all()
+    )
+
+    return [
+        {
+            "id": activity.id,
+            "action": activity.action,
+            "entity_type": activity.entity_type,
+            "entity_id": activity.entity_id,
+            "description": activity.description,
+            "created_at": activity.created_at
+        }
+        for activity in activities
+    ]
 
 # =========================================================
 # MANAGER DASHBOARD

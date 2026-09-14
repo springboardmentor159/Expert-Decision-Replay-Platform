@@ -113,6 +113,7 @@ def get_decisions(
     category: Optional[str] = None,
     search: Optional[str] = None,
     tag: Optional[str] = None,
+    created_by: Optional[int] = None,
     page: int = 1,
     limit: int = 10,
     sort_by: str = "created_at",
@@ -122,6 +123,12 @@ def get_decisions(
 ):
 
     query = db.query(Decision)
+
+    # Filter by Creator
+    if created_by is not None:
+        query = query.filter(
+            Decision.created_by == created_by
+        )
 
     # Filter by Status
     if status:
@@ -735,6 +742,7 @@ def update_decision_status(
     db.commit()
 
     return decision
+
 
 # =========================================================
 # UPDATE DECISION RATIONALE

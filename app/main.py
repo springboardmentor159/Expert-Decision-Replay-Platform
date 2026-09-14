@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers.users import router as user_router
 from app.routers.decisions import router as decision_router
 from app.routers import alternatives
@@ -17,6 +17,16 @@ from app.routers import teams
 
 app = FastAPI(
     title="Expert Decision Replay Platform"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
