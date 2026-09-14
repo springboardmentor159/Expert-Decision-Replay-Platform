@@ -3,170 +3,191 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
 
 function DecisionDetails() {
-const { id } = useParams();
-const navigate = useNavigate();
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-const [decision, setDecision] = useState(null);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState("");
+  const [decision, setDecision] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-useEffect(() => {
-const fetchDecision = async () => {
-try {
-console.log("Decision ID:", id);
+  useEffect(() => {
+    const fetchDecision = async () => {
+      try {
+        console.log("Decision ID:", id);
 
-    const response = await api.get(`/decisions/${id}`);
+        const response = await api.get(`/decisions/${id}`);
 
-    console.log("Decision response:", response.data);
+        console.log("Decision response:", response.data);
 
-    setDecision(response.data);
-  } catch (err) {
-    console.error("Decision error:", err);
-    setError("Unable to load decision.");
-  } finally {
-    setLoading(false);
+        setDecision(response.data);
+      } catch (err) {
+        console.error("Decision error:", err);
+        setError("Unable to load decision.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDecision();
+  }, [id]);
+
+  if (loading) {
+    return <p>Loading decision...</p>;
   }
-};
 
-fetchDecision();
+  if (error) {
+    return (
+      <div>
+        <p>{error}</p>
 
-}, [id]);
+        <button onClick={() => navigate("/decisions")}>
+          Back to Decisions
+        </button>
+      </div>
+    );
+  }
 
-if (loading) {
-return <p>Loading decision...</p>;
-}
+  if (!decision) {
+    return <p>No decision found.</p>;
+  }
 
-if (error) {
-return (
-<div>
-<p>{error}</p>
+  return (
+    <div>
+      <h1>Decision Details</h1>
 
-    <button onClick={() => navigate("/decisions")}>
-      Back to Decisions
-    </button>
-  </div>
-);
+      <hr />
 
-}
+      <h2>{decision.title}</h2>
 
-if (!decision) {
-return <p>No decision found.</p>;
-}
+      <p>
+        <strong>ID:</strong> {decision.id}
+      </p>
 
-return (
-<div>
-<h1>Decision Details</h1>
+      <p>
+        <strong>Problem Statement:</strong>
+      </p>
 
-  <hr />
+      <p>{decision.problem_statement || "Not available"}</p>
 
-  <h2>{decision.title}</h2>
+      <hr />
 
-  <p>
-    <strong>ID:</strong> {decision.id}
-  </p>
+      <h3>Decision Information</h3>
 
-  <p>
-    <strong>Problem Statement:</strong>
-  </p>
+      <p>
+        <strong>Category:</strong>{" "}
+        {decision.category || "Not specified"}
+      </p>
 
-  <p>{decision.problem_statement || "Not available"}</p>
+      <p>
+        <strong>Status:</strong>{" "}
+        {decision.status || "Draft"}
+      </p>
 
-  <hr />
+      <hr />
 
-  <h3>Decision Information</h3>
+      <h3>Additional Information</h3>
 
-  <p>
-    <strong>Category:</strong>{" "}
-    {decision.category || "Not specified"}
-  </p>
+      <p>
+        <strong>Created Date:</strong>{" "}
+        {decision.created_at
+          ? new Date(decision.created_at).toLocaleString()
+          : "Not available"}
+      </p>
 
-  <p>
-    <strong>Status:</strong>{" "}
-    {decision.status || "Draft"}
-  </p>
+      <p>
+        <strong>Last Updated:</strong>{" "}
+        {decision.updated_at
+          ? new Date(decision.updated_at).toLocaleString()
+          : "Not available"}
+      </p>
 
-  <hr />
+      <hr />
 
-  <h3>Additional Information</h3>
+      <h3>Actions</h3>
 
-  <p>
-    <strong>Created Date:</strong>{" "}
-    {decision.created_at
-      ? new Date(decision.created_at).toLocaleString()
-      : "Not available"}
-  </p>
+      <button onClick={() => navigate(`/decisions/${id}/edit`)}>
+        Edit Decision
+      </button>
 
-  <p>
-    <strong>Last Updated:</strong>{" "}
-    {decision.updated_at
-      ? new Date(decision.updated_at).toLocaleString()
-      : "Not available"}
-  </p>
+      <hr />
 
-  <hr />
+      <h3>Decision Modules</h3>
 
-  <h3>Actions</h3>
+      <button
+        onClick={() => navigate(`/decisions/${id}/alternatives`)}
+      >
+        Alternatives
+      </button>
 
-  <button onClick={() => navigate(`/decisions/${id}/edit`)}>
-    Edit Decision
-  </button>
+      <br />
+      <br />
 
-  <hr />
+      <button
+        onClick={() =>
+          navigate(`/decisions/${id}/alternatives/compare`)
+        }
+      >
+        Compare Alternatives
+      </button>
 
-  <h3>Decision Modules</h3>
+      <br />
+      <br />
 
-  <button
-    onClick={() => navigate(`/decisions/${id}/alternatives`)}
-  >
-    Alternatives
-  </button>
+      <button
+        onClick={() => navigate(`/decisions/${id}/comments`)}
+      >
+        Discussions & Comments
+      </button>
 
-  <br />
-  <br />
+      <br />
+      <br />
 
-  <button
-    onClick={() =>
-      navigate(`/decisions/${id}/alternatives/compare`)
-    }
-  >
-    Compare Alternatives
-  </button>
+      <button
+        onClick={() => navigate(`/decisions/${id}/approvals`)}
+      >
+        Approval Workflow
+      </button>
 
-  <br />
-  <br />
+      <br />
+      <br />
 
-  <button
-    onClick={() => navigate(`/decisions/${id}/comments`)}
-  >
-    Discussions & Comments
-  </button>
+      <button
+        onClick={() => navigate(`/decisions/${id}/history`)}
+      >
+        Version History
+      </button>
 
-  <br />
-  <br />
+      <br />
+      <br />
 
-  <button
-    onClick={() => navigate(`/decisions/${id}/approvals`)}
-  >
-    Approval Workflow
-  </button>
+      {/* Knowledge Repository */}
+      <button onClick={() => navigate("/knowledge")}>
+        Knowledge Repository
+      </button>
 
-  <br />
-  <br />
+      <br />
+      <br />
 
-  <button
-    onClick={() => navigate(`/decisions/${id}/history`)}
-  >
-    Version History
-  </button>
+      {/* Audit Logs */}
+      <button onClick={() => navigate("/audit-logs")}>
+        Audit Logs
+      </button>
 
-  <hr />
+      <br />
+      <br />
 
-  <button onClick={() => navigate("/decisions")}>
-    Back to Decisions
-  </button>
-</div>
+      {/* Reports */}
+      <button onClick={() => navigate("/reports")}>
+        Reports
+      </button>
 
-);
+      <hr />
+
+      <button onClick={() => navigate("/decisions")}>
+        Back to Decisions
+      </button>
+    </div>
+  );
 }
 
 export default DecisionDetails;
