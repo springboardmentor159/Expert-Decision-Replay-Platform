@@ -69,3 +69,8 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+    attachments = relationship(
+    "Attachment",
+    back_populates="decision",
+    cascade="all, delete-orphan"
+    )

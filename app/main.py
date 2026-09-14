@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.security import HTTPBearer
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.routers.user import router as user_router
@@ -17,11 +18,29 @@ from app.routers.audit import router as audit_router
 from app.routers.security import router as security_router
 from app.routers.access import router as access_router
 from app.routers.report import router as report_router
+from app.routers.attachment import router as attachment_router
+
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0"
 )
 
+
+# CORS configuration for React/Vite frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Routers
 app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(decision_router)
@@ -37,6 +56,8 @@ app.include_router(audit_router)
 app.include_router(security_router)
 app.include_router(access_router)
 app.include_router(report_router)
+app.include_router(attachment_router)
+
 
 @app.get("/health")
 def health_check():

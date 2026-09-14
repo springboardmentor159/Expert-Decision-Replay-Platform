@@ -1160,3 +1160,32 @@ def update_decision(
     db.refresh(decision)
 
     return decision
+@router.delete("/{decision_id}")
+def delete_decision(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    decision = db.query(Decision).filter(
+        Decision.id == decision_id
+    ).first()
+
+    if not decision:
+        raise HTTPException(
+            status_code=404,
+            detail="Decision not found"
+        )
+
+    # Only the user who created the decision can delete it
+    if decision.created_by != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to delete this decision"
+        )
+
+    db.delete(decision)
+    db.commit()
+
+    return {
+        "message": "Decision deleted successfully"
+    }

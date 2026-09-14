@@ -28,6 +28,7 @@ from app.models.meeting_note import MeetingNote
 from app.models.tag import Tag
 from app.models.activity_log import ActivityLog
 from app.models.approval import Approval
+from app.models.attachment import Attachment
 
 from app.core.config import settings
 

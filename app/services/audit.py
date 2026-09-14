@@ -23,6 +23,7 @@ ALLOWED_ENTITY_TYPES = {
     "MeetingNote",
     "Approval",
     "User",
+    "Attachment",
 }
 
 
