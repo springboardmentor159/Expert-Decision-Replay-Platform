@@ -17,6 +17,14 @@ class DecisionStatus(str, Enum):
     ARCHIVED = "Archived"
 
 
+class ImplementationStatus(str, Enum):
+    NOT_STARTED = "Not Started"
+    IN_PROGRESS = "In Progress"
+    COMPLETED = "Completed"
+    BLOCKED = "Blocked"
+    CANCELLED = "Cancelled"
+
+
 class Decision(Base):
     __tablename__ = "decisions"
 
@@ -41,6 +49,16 @@ class Decision(Base):
         nullable=True
     )
 
+    evaluation_criteria = Column(
+        Text,
+        nullable=True
+    )
+
+    final_outcomes = Column(
+        Text,
+        nullable=True
+    )
+
     category = Column(
         String,
         nullable=False
@@ -56,6 +74,18 @@ class Decision(Base):
         ),
         nullable=False,
         default=DecisionStatus.DRAFT
+    )
+
+    implementation_status = Column(
+        SQLEnum(
+            ImplementationStatus,
+            name="implementation_status",
+            values_callable=lambda enum_class: [
+                s.value for s in enum_class
+            ]
+        ),
+        nullable=False,
+        default=ImplementationStatus.NOT_STARTED
     )
 
     created_by = Column(
@@ -137,3 +167,10 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+
+    attachments = relationship(
+        "DecisionAttachment",
+        back_populates="decision",
+        cascade="all, delete-orphan"
+    )
+

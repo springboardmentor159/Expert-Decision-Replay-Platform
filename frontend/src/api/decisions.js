@@ -100,4 +100,26 @@ export const decisionsApi = {
       method: 'DELETE',
     });
   },
+
+  updateImplementationStatus: async (id, implementation_status) => {
+    return await request(`/decisions/${id}/implementation`, {
+      method: 'PATCH',
+      body: { implementation_status },
+    });
+  },
+
+  updateOutcomes: async (id, final_outcomes) => {
+    return await request(`/decisions/${id}/outcomes`, {
+      method: 'PATCH',
+      body: { final_outcomes },
+    });
+  },
+
+  updateCriteria: async (id, evaluation_criteria) => {
+    return await request(`/decisions/${id}/criteria`, {
+      method: 'PATCH',
+      body: { evaluation_criteria },
+    });
+  },
 };
+

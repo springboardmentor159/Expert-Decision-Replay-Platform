@@ -3,8 +3,9 @@ import { LogOut, User as UserIcon, Shield, Layers } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 import { RoleBadge } from '../common/StatusBadge';
+import { NotificationCenter } from './NotificationCenter';
 
-export function Navbar({ onToggleSidebar, onNavigateProfile }) {
+export function Navbar({ onToggleSidebar, onNavigateProfile, onSelectDecision }) {
   const { user, role, logout } = useAuth();
 
   return (
@@ -57,9 +58,12 @@ export function Navbar({ onToggleSidebar, onNavigateProfile }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        {/* Light/Dark Theme Switcher */}
+        {/* In-App Notifications */}
+        {user && <NotificationCenter onSelectDecision={onSelectDecision} />}
 
+        {/* Light/Dark Theme Switcher */}
         <ThemeToggle />
+
 
         {/* User Info & Profile */}
         {user && (

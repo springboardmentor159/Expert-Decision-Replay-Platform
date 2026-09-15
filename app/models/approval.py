@@ -58,6 +58,29 @@ class Approval(Base):
         nullable=True
     )
 
+    sequence_order = Column(
+        Integer,
+        nullable=False,
+        default=1
+    )
+
+    due_date = Column(
+        DateTime,
+        nullable=True
+    )
+
+    is_escalated = Column(
+        Integer,
+        nullable=False,
+        default=0
+    )
+
+    escalated_to_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True
+    )
+
     decision = relationship(
         "Decision",
         back_populates="approvals"
@@ -65,5 +88,12 @@ class Approval(Base):
 
     reviewer = relationship(
         "User",
+        foreign_keys=[reviewer_id],
         back_populates="approvals"
     )
+
+    escalated_to = relationship(
+        "User",
+        foreign_keys=[escalated_to_id]
+    )
+

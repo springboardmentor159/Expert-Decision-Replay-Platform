@@ -17,8 +17,11 @@ from app.models.user import User, UserRole
 from app.schemas.audit import DecisionVersionResponse, TimelineResponse
 from app.schemas.decision import (
     DecisionCreate,
+    DecisionCriteriaUpdate,
     DecisionHistoryItem,
+    DecisionImplementationUpdate,
     DecisionListResponse,
+    DecisionOutcomesUpdate,
     DecisionRationaleUpdate,
     DecisionResponse,
     DecisionSearchResponse,
@@ -34,6 +37,9 @@ from app.services.audit import (
     create_decision_version,
 )
 from app.services.auth import get_current_user
+from app.services.notification_service import create_notification
+from app.models.notification import NotificationType
+
 
 
 router = APIRouter(
@@ -1359,3 +1365,140 @@ def delete_decision(
     db.commit()
 
     return None
+
+
+# UPDATE IMPLEMENTATION STATUS
+@router.patch(
+    "/{decision_id}/implementation",
+    response_model=DecisionResponse,
+    summary="Update post-approval implementation status",
+)
+def update_implementation_status(
+    decision_id: int,
+    payload: DecisionImplementationUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(decision_id, db, current_user)
+
+    if not can_modify_decision(decision, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update implementation status.",
+        )
+
+    old_status = decision.implementation_status.value
+    decision.implementation_status = payload.implementation_status
+    new_status = payload.implementation_status.value
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description=f"Implementation status updated from '{old_status}' to '{new_status}'",
+        old_value={"implementation_status": old_status},
+        new_value={"implementation_status": new_status},
+    )
+
+    create_decision_version(db=db, decision=decision, user_id=current_user.id)
+    db.commit()
+    db.refresh(decision)
+
+    # Notify creator if updated by manager
+    if decision.created_by != current_user.id:
+        create_notification(
+            db=db,
+            user_id=decision.created_by,
+            title="Implementation Status Updated",
+            message=f"Implementation status for '{decision.title}' changed to {new_status}.",
+            notification_type=NotificationType.DECISION_STATUS_CHANGED,
+            link=f"/decisions/{decision.id}",
+        )
+        db.commit()
+
+    return decision
+
+
+# UPDATE FINAL OUTCOMES (RETROSPECTIVE)
+@router.patch(
+    "/{decision_id}/outcomes",
+    response_model=DecisionResponse,
+    summary="Record post-decision outcomes and lessons learned",
+)
+def update_final_outcomes(
+    decision_id: int,
+    payload: DecisionOutcomesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(decision_id, db, current_user)
+
+    if not can_modify_decision(decision, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to record decision outcomes.",
+        )
+
+    old_outcomes = decision.final_outcomes
+    decision.final_outcomes = payload.final_outcomes
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description="Decision final outcomes and post-mortem recorded",
+        old_value={"final_outcomes": old_outcomes},
+        new_value={"final_outcomes": payload.final_outcomes},
+    )
+
+    create_decision_version(db=db, decision=decision, user_id=current_user.id)
+    db.commit()
+    db.refresh(decision)
+    return decision
+
+
+# UPDATE EVALUATION CRITERIA
+@router.patch(
+    "/{decision_id}/criteria",
+    response_model=DecisionResponse,
+    summary="Update structured evaluation criteria",
+)
+def update_evaluation_criteria(
+    decision_id: int,
+    payload: DecisionCriteriaUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    decision = get_decision_or_404(decision_id, db, current_user)
+
+    if not can_modify_decision(decision, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to modify evaluation criteria.",
+        )
+
+    old_crit = decision.evaluation_criteria
+    decision.evaluation_criteria = payload.evaluation_criteria
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type="Decision",
+        entity_id=decision.id,
+        description="Decision evaluation criteria updated",
+        old_value={"evaluation_criteria": old_crit},
+        new_value={"evaluation_criteria": payload.evaluation_criteria},
+    )
+
+    db.commit()
+    db.refresh(decision)
+    return decision
+

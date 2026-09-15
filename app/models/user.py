@@ -109,5 +109,7 @@ class User(Base):
 
     approvals = relationship(
         "Approval",
+        foreign_keys="[Approval.reviewer_id]",
         back_populates="reviewer"
     )
+

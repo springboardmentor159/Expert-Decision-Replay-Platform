@@ -57,7 +57,11 @@ function MainApp() {
   };
 
   return (
-    <AppLayout currentView={currentView} setCurrentView={setCurrentView}>
+    <AppLayout
+      currentView={currentView}
+      setCurrentView={setCurrentView}
+      onSelectDecision={navigateToDecisionDetail}
+    >
       {currentView === 'dashboard' && (
         <DashboardPage
           onSelectDecision={navigateToDecisionDetail}

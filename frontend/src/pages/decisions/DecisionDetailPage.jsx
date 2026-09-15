@@ -25,6 +25,7 @@ import {
   Check,
   Award,
   Archive,
+  Paperclip,
 } from 'lucide-react';
 import { decisionsApi } from '../../api/decisions';
 import { alternativesApi } from '../../api/alternatives';
@@ -38,6 +39,9 @@ import { StatusBadge, RiskBadge } from '../../components/common/StatusBadge';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { Modal } from '../../components/common/Modal';
 import { EmptyState } from '../../components/common/EmptyState';
+import { DecisionReplayTimeline } from '../../components/decisions/DecisionReplayTimeline';
+import { DecisionAttachments } from '../../components/decisions/DecisionAttachments';
+
 
 function ThreadDiscussionCard({ thread, currentUserId }) {
   const [comments, setComments] = useState([]);
@@ -237,6 +241,47 @@ export function DecisionDetailPage({ decisionId, onBack }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
 
+  // Outcomes & Implementation state
+  const [outcomesText, setOutcomesText] = useState('');
+  const [editingOutcomes, setEditingOutcomes] = useState(false);
+  const [savingOutcomes, setSavingOutcomes] = useState(false);
+  const [assignSequenceOrder, setAssignSequenceOrder] = useState(1);
+
+  const handleUpdateImplementation = async (newStatus) => {
+    try {
+      const updated = await decisionsApi.updateImplementationStatus(decisionId, newStatus);
+      setDecision((prev) => ({ ...prev, implementation_status: updated.implementation_status }));
+      success(`Implementation status updated to ${newStatus}`);
+    } catch (err) {
+      error(err.message || 'Failed to update implementation status');
+    }
+  };
+
+  const handleSaveOutcomes = async () => {
+    setSavingOutcomes(true);
+    try {
+      const updated = await decisionsApi.updateOutcomes(decisionId, outcomesText);
+      setDecision((prev) => ({ ...prev, final_outcomes: updated.final_outcomes }));
+      setEditingOutcomes(false);
+      success('Final outcomes and retrospective saved');
+    } catch (err) {
+      error(err.message || 'Failed to save outcomes');
+    } finally {
+      setSavingOutcomes(false);
+    }
+  };
+
+  const handleEscalateApproval = async (approvalId) => {
+    if (!window.confirm('Are you sure you want to escalate this approval to priority oversight?')) return;
+    try {
+      await approvalsApi.escalate(approvalId, 'Escalated due to SLA urgency');
+      success('Approval escalated to management.');
+      loadAllDetails();
+    } catch (err) {
+      error(err.message || 'Failed to escalate approval');
+    }
+  };
+
   const handleArchiveDecision = async () => {
     try {
       await decisionsApi.updateStatus(decision.id, 'Archived');
@@ -244,6 +289,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
       setShowArchiveModal(false);
       loadAllDetails();
     } catch (err) {
+
       error(err.message || 'Failed to archive decision');
     }
   };
@@ -273,6 +319,9 @@ export function DecisionDetailPage({ decisionId, onBack }) {
       ]);
 
       setDecision(detail);
+      if (detail) {
+        setOutcomesText(detail.final_outcomes || '');
+      }
       setAlternatives(alts || []);
       setApprovals(apps || []);
       setThreads(thrs || []);
@@ -424,7 +473,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
       return;
     }
     try {
-      await approvalsApi.create(decisionId, Number(selectedReviewerId));
+      await approvalsApi.create(decisionId, Number(selectedReviewerId), Number(assignSequenceOrder) || 1);
       success('Reviewer assigned successfully');
       setShowAssignModal(false);
       loadAllDetails();
@@ -705,6 +754,8 @@ export function DecisionDetailPage({ decisionId, onBack }) {
         {[
           { id: 'overview', label: 'Overview & Criteria', icon: FileText },
           { id: 'alternatives', label: `Alternatives (${alternatives.length})`, icon: Scale },
+          { id: 'replay', label: 'Decision Replay', icon: Sparkles },
+          { id: 'attachments', label: 'Documents & Specs', icon: Paperclip },
           { id: 'discussions', label: `Discussions & Notes (${threads.length + meetingNotes.length})`, icon: MessageSquare },
           { id: 'approvals', label: `Approval Workflow (${approvals.length})`, icon: CheckCircle2 },
           { id: 'timeline', label: `Timeline & Versions (${versions.length})`, icon: GitCommit },
@@ -785,8 +836,114 @@ export function DecisionDetailPage({ decisionId, onBack }) {
               </p>
             </div>
           </div>
+
+          {/* Post-Approval Implementation & Final Outcomes */}
+          <div className="card" style={{ borderColor: 'var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Award size={18} style={{ color: 'var(--success)' }} />
+                  Implementation Tracking & Post-Decision Outcomes
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.2rem 0 0' }}>
+                  Track post-approval execution status and institutional learnings.
+                </p>
+              </div>
+
+              {/* Status Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Status:</span>
+                <select
+                  className="form-input"
+                  value={decision.implementation_status || 'Not Started'}
+                  onChange={(e) => handleUpdateImplementation(e.target.value)}
+                  disabled={!canModify}
+                  style={{ padding: '4px 10px', fontSize: '0.85rem', borderRadius: '6px', width: 'auto' }}
+                >
+                  <option value="Not Started">Not Started</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Blocked">Blocked</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Final Outcomes / Retrospective */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Final Outcomes & Lessons Learned:</span>
+                {canModify && !editingOutcomes && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setEditingOutcomes(true)}
+                    style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                  >
+                    <Edit2 size={13} /> {decision.final_outcomes ? 'Edit' : 'Record Outcomes'}
+                  </button>
+                )}
+              </div>
+
+              {editingOutcomes ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <textarea
+                    className="form-input"
+                    rows={4}
+                    value={outcomesText}
+                    onChange={(e) => setOutcomesText(e.target.value)}
+                    placeholder="Document the retrospective analysis, actual ROI, performance impact, and advice for future teams..."
+                    style={{ fontSize: '0.875rem' }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setOutcomesText(decision.final_outcomes || '');
+                        setEditingOutcomes(false);
+                      }}
+                      disabled={savingOutcomes}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleSaveOutcomes}
+                      disabled={savingOutcomes || !outcomesText.trim()}
+                    >
+                      {savingOutcomes ? 'Saving...' : 'Save Outcomes'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  background: 'var(--bg-hover)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '0.85rem 1rem',
+                  fontSize: '0.875rem',
+                  color: decision.final_outcomes ? 'var(--text-primary)' : 'var(--text-muted)',
+                  fontStyle: decision.final_outcomes ? 'normal' : 'italic',
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-line',
+                }}>
+                  {decision.final_outcomes || 'No post-decision outcomes or retrospective recorded yet. Authors and managers can document realized outcomes once implementation progresses.'}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Tab: Decision Replay */}
+      {activeTab === 'replay' && (
+        <DecisionReplayTimeline decisionId={decisionId} />
+      )}
+
+      {/* Tab: Documents & Attachments */}
+      {activeTab === 'attachments' && (
+        <DecisionAttachments decisionId={decisionId} canUpload={canModify} />
+      )}
+
 
       {/* Tab 2: Alternatives & Comparison */}
       {activeTab === 'alternatives' && (
@@ -1124,8 +1281,10 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Reviewer ID</th>
+                      <th>Reviewer</th>
+                      <th>Stage</th>
                       <th>Status</th>
+                      <th>Escalation</th>
                       <th>Requested Date</th>
                       <th>Decision Date</th>
                       <th>Actions</th>
@@ -1135,6 +1294,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                     {approvals.map((app) => {
                       const isCurrentUserReviewer = app.reviewer_id === user?.id;
                       const isPending = app.status === 'Pending';
+                      const canEscalate = isPending && (isManager || isAdmin || decision?.created_by === user?.id);
 
                       return (
                         <tr key={app.id}>
@@ -1146,26 +1306,52 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                               </span>
                             )}
                           </td>
+                          <td>
+                            <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
+                              Level {app.sequence_order || 1}
+                            </span>
+                          </td>
                           <td><StatusBadge status={app.status} /></td>
+                          <td>
+                            {app.is_escalated ? (
+                              <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>
+                                Escalated
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Standard</span>
+                            )}
+                          </td>
                           <td>{new Date(app.created_at).toLocaleString()}</td>
                           <td>{app.completed_at ? new Date(app.completed_at).toLocaleString() : '—'}</td>
                           <td>
-                            {isPending && isCurrentUserReviewer && (
-                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {isPending && isCurrentUserReviewer && (
+                                <>
+                                  <button
+                                    className="btn btn-success btn-sm"
+                                    onClick={() => handleApprovalAction(app.id, 'Approved')}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={() => handleApprovalAction(app.id, 'Rejected')}
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {canEscalate && !app.is_escalated && (
                                 <button
-                                  className="btn btn-success btn-sm"
-                                  onClick={() => handleApprovalAction(app.id, 'Approved')}
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleEscalateApproval(app.id)}
+                                  title="Escalate overdue or priority approval to senior management"
+                                  style={{ color: 'var(--warning)', borderColor: 'var(--warning)' }}
                                 >
-                                  Approve
+                                  Escalate
                                 </button>
-                                <button
-                                  className="btn btn-danger btn-sm"
-                                  onClick={() => handleApprovalAction(app.id, 'Rejected')}
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1460,6 +1646,19 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                 ))}
               </select>
             )}
+          </div>
+
+          <div className="form-group" style={{ marginTop: '0.75rem' }}>
+            <label className="form-label">Review Stage / Sequence</label>
+            <select
+              className="form-select"
+              value={assignSequenceOrder}
+              onChange={(e) => setAssignSequenceOrder(Number(e.target.value))}
+            >
+              <option value="1">Stage 1 - Peer & Technical Review</option>
+              <option value="2">Stage 2 - Architecture / Governance Review</option>
+              <option value="3">Stage 3 - Executive Sign-off</option>
+            </select>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>

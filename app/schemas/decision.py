@@ -2,23 +2,38 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.decision import DecisionStatus
+from app.models.decision import DecisionStatus, ImplementationStatus
 
 
 class DecisionCreate(BaseModel):
     title: str
     problem_statement: str
     category: str
+    evaluation_criteria: str | None = None
+    rationale: str | None = None
 
 
 class DecisionUpdate(BaseModel):
     title: str
     problem_statement: str
     category: str
+    evaluation_criteria: str | None = None
 
 
 class DecisionRationaleUpdate(BaseModel):
     rationale: str
+
+
+class DecisionCriteriaUpdate(BaseModel):
+    evaluation_criteria: str
+
+
+class DecisionImplementationUpdate(BaseModel):
+    implementation_status: ImplementationStatus
+
+
+class DecisionOutcomesUpdate(BaseModel):
+    final_outcomes: str
 
 
 class DecisionStatusUpdate(BaseModel):
@@ -29,9 +44,12 @@ class DecisionResponse(BaseModel):
     id: int
     title: str
     problem_statement: str
-    rationale: str | None
+    rationale: str | None = None
+    evaluation_criteria: str | None = None
+    final_outcomes: str | None = None
     category: str
     status: DecisionStatus
+    implementation_status: ImplementationStatus = ImplementationStatus.NOT_STARTED
     created_by: int
     created_at: datetime
     updated_at: datetime
@@ -39,6 +57,7 @@ class DecisionResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True
     )
+
 
 
 class DecisionListResponse(BaseModel):

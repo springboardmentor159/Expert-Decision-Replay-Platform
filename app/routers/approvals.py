@@ -10,18 +10,21 @@ from app.models.decision import Decision, DecisionStatus
 from app.models.user import User, UserRole
 from app.schemas.approval import (
     ApprovalCreate,
+    ApprovalEscalateRequest,
     ApprovalResponse,
     ApprovalStatusUpdate,
 )
 from app.services.audit import create_audit_log, create_decision_version
 from app.services.auth import get_current_user
-
+from app.services.notification_service import create_notification
+from app.models.notification import NotificationType
 
 
 router = APIRouter(
     prefix="/approvals",
     tags=["Approvals"],
 )
+
 
 
 # ORGANIZATION ACCESS HELPERS
@@ -185,6 +188,8 @@ def create_approval(
     approval = Approval(
         decision_id=decision.id,
         reviewer_id=reviewer.id,
+        sequence_order=getattr(approval_data, "sequence_order", 1),
+        due_date=getattr(approval_data, "due_date", None),
         status=ApprovalStatus.PENDING,
     )
 
@@ -201,14 +206,24 @@ def create_approval(
         entity_id=approval.id,
         description=(
             f"Approval was assigned to '{reviewer.full_name}' "
-            f"for decision '{decision.title}'"
+            f"(Stage {approval.sequence_order}) for decision '{decision.title}'"
         ),
+    )
+
+    create_notification(
+        db=db,
+        user_id=reviewer.id,
+        title="Approval Requested",
+        message=f"You have been assigned to review '{decision.title}' (Stage {approval.sequence_order}).",
+        notification_type=NotificationType.APPROVAL_REQUESTED,
+        link=f"/decisions/{decision.id}",
     )
 
     db.commit()
     db.refresh(approval)
 
     return approval
+
 
 
 # GET ALL APPROVALS FOR A DECISION
@@ -318,6 +333,22 @@ def update_approval_status(
             detail="Approval status must be Approved or Rejected",
         )
 
+    # Check sequential stages: previous stages must be complete
+    lower_stage_pending = (
+        db.query(Approval)
+        .filter(
+            Approval.decision_id == approval.decision_id,
+            Approval.sequence_order < approval.sequence_order,
+            Approval.status == ApprovalStatus.PENDING,
+        )
+        .count()
+    )
+    if lower_stage_pending > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Previous approval stages must be completed before evaluating this stage.",
+        )
+
     # Get the associated decision.
     decision = get_decision_or_404(
         approval.decision_id,
@@ -391,7 +422,87 @@ def update_approval_status(
             user_id=current_user.id,
         )
 
+        if decision.status in (DecisionStatus.APPROVED, DecisionStatus.REJECTED):
+            create_notification(
+                db=db,
+                user_id=decision.created_by,
+                title=f"Decision {decision.status.value}",
+                message=f"Your decision '{decision.title}' has been {decision.status.value.lower()}.",
+                notification_type=NotificationType.APPROVAL_COMPLETED,
+                link=f"/decisions/{decision.id}",
+            )
+
     db.commit()
     db.refresh(approval)
 
     return approval
+
+
+# ESCALATE AN APPROVAL
+@router.post(
+    "/{approval_id}/escalate",
+    response_model=ApprovalResponse,
+    summary="Escalate an overdue or pending approval to management",
+)
+def escalate_approval(
+    approval_id: int,
+    escalate_data: ApprovalEscalateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    approval = get_approval_or_404(approval_id, db, current_user)
+    decision = get_decision_or_404(approval.decision_id, db, current_user)
+
+    if not (
+        decision.created_by == current_user.id
+        or current_user.role in (UserRole.MANAGER, UserRole.ADMINISTRATOR)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the decision author, Manager, or Administrator can escalate approvals.",
+        )
+
+    if approval.status != ApprovalStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot escalate an approval that has already been completed.",
+        )
+
+    approval.is_escalated = 1
+    if escalate_data.escalated_to_id:
+        target_user = db.query(User).filter(User.id == escalate_data.escalated_to_id).first()
+        if target_user:
+            approval.escalated_to_id = target_user.id
+
+    create_audit_log(
+        db=db,
+        decision_id=decision.id,
+        user_id=current_user.id,
+        action=AuditAction.UPDATE,
+        entity_type="Approval",
+        entity_id=approval.id,
+        description=f"Approval for decision '{decision.title}' was escalated by {current_user.full_name}. Reason: {escalate_data.reason or 'Overdue review SLA'}",
+    )
+
+    create_notification(
+        db=db,
+        user_id=approval.reviewer_id,
+        title="Approval Review Escalated",
+        message=f"Review for '{decision.title}' has been escalated due to SLA urgency.",
+        notification_type=NotificationType.ESCALATION,
+        link=f"/decisions/{decision.id}",
+    )
+    if approval.escalated_to_id:
+        create_notification(
+            db=db,
+            user_id=approval.escalated_to_id,
+            title="Escalated Approval Assigned",
+            message=f"An approval for '{decision.title}' was escalated to you for priority oversight.",
+            notification_type=NotificationType.ESCALATION,
+            link=f"/decisions/{decision.id}",
+        )
+
+    db.commit()
+    db.refresh(approval)
+    return approval
+

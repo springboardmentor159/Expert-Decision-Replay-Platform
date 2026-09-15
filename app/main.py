@@ -16,6 +16,10 @@ from app.routers.dashboard import router as dashboard_router
 from app.routers.activities import router as activities_router
 from app.routers.organizations import router as organization_router
 from app.routers.reports import router as reports_router
+from app.routers.teams import router as teams_router
+from app.routers.notifications import router as notifications_router
+from app.routers.attachments import router as attachments_router
+from app.routers.replay import router as replay_router
 
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,8 +44,20 @@ app.include_router(auth_router)
 # User Management APIs
 app.include_router(user_router)
 
+# Teams Management APIs
+app.include_router(teams_router)
+
 # Decision Management APIs
 app.include_router(decision_router)
+
+# Replay & Decision History APIs
+app.include_router(replay_router)
+
+# Document & Attachment APIs
+app.include_router(attachments_router)
+
+# Notification APIs
+app.include_router(notifications_router)
 
 # Alternative Analysis APIs
 app.include_router(alternative_router)
@@ -70,6 +86,7 @@ app.include_router(organization_router)
 
 # Reports and Export Module APIs
 app.include_router(reports_router)
+
 
 @app.get("/")
 def root():
