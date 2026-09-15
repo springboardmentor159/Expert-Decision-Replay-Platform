@@ -13,12 +13,7 @@ function DecisionDetails() {
   useEffect(() => {
     const fetchDecision = async () => {
       try {
-        console.log("Decision ID:", id);
-
         const response = await api.get(`/decisions/${id}`);
-
-        console.log("Decision response:", response.data);
-
         setDecision(response.data);
       } catch (err) {
         console.error("Decision error:", err);
@@ -32,160 +27,372 @@ function DecisionDetails() {
   }, [id]);
 
   if (loading) {
-    return <p>Loading decision...</p>;
+    return (
+      <div className="decision-page-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading decision...</p>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div>
+      <div className="decision-error-card">
+        <div className="error-large-icon">!</div>
+        <h2>Unable to Load Decision</h2>
         <p>{error}</p>
 
-        <button onClick={() => navigate("/decisions")}>
-          Back to Decisions
+        <button
+          className="primary-submit-button"
+          onClick={() => navigate("/decisions")}
+        >
+          ← Back to Decisions
         </button>
       </div>
     );
   }
 
   if (!decision) {
-    return <p>No decision found.</p>;
+    return (
+      <div className="decision-error-card">
+        <h2>No Decision Found</h2>
+        <button
+          className="primary-submit-button"
+          onClick={() => navigate("/decisions")}
+        >
+          Back to Decisions
+        </button>
+      </div>
+    );
   }
 
+  const status = decision.status || "Draft";
+
   return (
-    <div>
-      <h1>Decision Details</h1>
+    <div className="decision-details-page">
 
-      <hr />
+      {/* Header */}
+      <div className="decision-details-header">
 
-      <h2>{decision.title}</h2>
+        <div>
+          <div className="page-breadcrumb">
+            Decisions / Decision Details
+          </div>
 
-      <p>
-        <strong>ID:</strong> {decision.id}
-      </p>
+          <h1>{decision.title}</h1>
 
-      <p>
-        <strong>Problem Statement:</strong>
-      </p>
+          <div className="decision-header-meta">
+            <span className={`status-badge ${status.toLowerCase().replace(/\s+/g, "-")}`}>
+              {status}
+            </span>
 
-      <p>{decision.problem_statement || "Not available"}</p>
+            <span className="decision-id">
+              Decision #{decision.id}
+            </span>
+          </div>
+        </div>
 
-      <hr />
+        <div className="decision-header-actions">
+          <button
+            className="secondary-page-button"
+            onClick={() => navigate("/decisions")}
+          >
+            ← Back
+          </button>
 
-      <h3>Decision Information</h3>
+          <button
+            className="primary-submit-button"
+            onClick={() => navigate(`/decisions/${id}/edit`)}
+          >
+            Edit Decision
+          </button>
+        </div>
 
-      <p>
-        <strong>Category:</strong>{" "}
-        {decision.category || "Not specified"}
-      </p>
+      </div>
 
-      <p>
-        <strong>Status:</strong>{" "}
-        {decision.status || "Draft"}
-      </p>
+      {/* Main Content */}
+      <div className="decision-details-grid">
 
-      <hr />
+        {/* Left Column */}
+        <div className="decision-main-column">
 
-      <h3>Additional Information</h3>
+          {/* Problem Statement */}
+          <div className="details-card">
 
-      <p>
-        <strong>Created Date:</strong>{" "}
-        {decision.created_at
-          ? new Date(decision.created_at).toLocaleString()
-          : "Not available"}
-      </p>
+            <div className="details-card-title">
+              <div className="details-icon">?</div>
 
-      <p>
-        <strong>Last Updated:</strong>{" "}
-        {decision.updated_at
-          ? new Date(decision.updated_at).toLocaleString()
-          : "Not available"}
-      </p>
+              <div>
+                <h2>Problem Statement</h2>
+                <p>The business problem or situation requiring a decision</p>
+              </div>
+            </div>
 
-      <hr />
+            <div className="problem-content">
+              {decision.problem_statement || "Not available"}
+            </div>
 
-      <h3>Actions</h3>
+          </div>
 
-      <button onClick={() => navigate(`/decisions/${id}/edit`)}>
-        Edit Decision
-      </button>
+          {/* Decision Information */}
+          <div className="details-card">
 
-      <hr />
+            <div className="details-card-title">
+              <div className="details-icon">▣</div>
 
-      <h3>Decision Modules</h3>
+              <div>
+                <h2>Decision Information</h2>
+                <p>Basic information about this decision</p>
+              </div>
+            </div>
 
-      <button
-        onClick={() => navigate(`/decisions/${id}/alternatives`)}
-      >
-        Alternatives
-      </button>
+            <div className="decision-info-grid">
 
-      <br />
-      <br />
+              <div className="info-item">
+                <span>Decision ID</span>
+                <strong>#{decision.id}</strong>
+              </div>
 
-      <button
-        onClick={() =>
-          navigate(`/decisions/${id}/alternatives/compare`)
-        }
-      >
-        Compare Alternatives
-      </button>
+              <div className="info-item">
+                <span>Category</span>
+                <strong>
+                  {decision.category || "Not specified"}
+                </strong>
+              </div>
 
-      <br />
-      <br />
+              <div className="info-item">
+                <span>Status</span>
+                <strong>{status}</strong>
+              </div>
 
-      <button
-        onClick={() => navigate(`/decisions/${id}/comments`)}
-      >
-        Discussions & Comments
-      </button>
+              <div className="info-item">
+                <span>Created</span>
+                <strong>
+                  {decision.created_at
+                    ? new Date(decision.created_at).toLocaleDateString()
+                    : "Not available"}
+                </strong>
+              </div>
 
-      <br />
-      <br />
+              <div className="info-item">
+                <span>Last Updated</span>
+                <strong>
+                  {decision.updated_at
+                    ? new Date(decision.updated_at).toLocaleDateString()
+                    : "Not available"}
+                </strong>
+              </div>
 
-      <button
-        onClick={() => navigate(`/decisions/${id}/approvals`)}
-      >
-        Approval Workflow
-      </button>
+            </div>
 
-      <br />
-      <br />
+          </div>
 
-      <button
-        onClick={() => navigate(`/decisions/${id}/history`)}
-      >
-        Version History
-      </button>
+          {/* Decision Modules */}
+          <div className="details-card">
 
-      <br />
-      <br />
+            <div className="details-card-title">
+              <div className="details-icon">◇</div>
 
-      {/* Knowledge Repository */}
-      <button onClick={() => navigate("/knowledge")}>
-        Knowledge Repository
-      </button>
+              <div>
+                <h2>Decision Workspace</h2>
+                <p>Continue working with this decision</p>
+              </div>
+            </div>
 
-      <br />
-      <br />
+            <div className="decision-modules-grid">
 
-      {/* Audit Logs */}
-      <button onClick={() => navigate("/audit-logs")}>
-        Audit Logs
-      </button>
+              <button
+                className="module-card"
+                onClick={() =>
+                  navigate(`/decisions/${id}/alternatives`)
+                }
+              >
+                <div className="module-icon">↔</div>
+                <div>
+                  <strong>Alternatives</strong>
+                  <span>Add and evaluate possible solutions</span>
+                </div>
+                <b>→</b>
+              </button>
 
-      <br />
-      <br />
+              <button
+                className="module-card"
+                onClick={() =>
+                  navigate(`/decisions/${id}/alternatives/compare`)
+                }
+              >
+                <div className="module-icon">⇄</div>
+                <div>
+                  <strong>Compare Alternatives</strong>
+                  <span>Compare available options</span>
+                </div>
+                <b>→</b>
+              </button>
 
-      {/* Reports */}
-      <button onClick={() => navigate("/reports")}>
-        Reports
-      </button>
+              <button
+                className="module-card"
+                onClick={() =>
+                  navigate(`/decisions/${id}/comments`)
+                }
+              >
+                <div className="module-icon">☷</div>
+                <div>
+                  <strong>Discussions</strong>
+                  <span>Collaborate through comments</span>
+                </div>
+                <b>→</b>
+              </button>
 
-      <hr />
+              <button
+                className="module-card"
+                onClick={() =>
+                  navigate(`/decisions/${id}/approvals`)
+                }
+              >
+                <div className="module-icon">✓</div>
+                <div>
+                  <strong>Approval Workflow</strong>
+                  <span>Review and approve the decision</span>
+                </div>
+                <b>→</b>
+              </button>
 
-      <button onClick={() => navigate("/decisions")}>
-        Back to Decisions
-      </button>
+              <button
+                className="module-card"
+                onClick={() =>
+                  navigate(`/decisions/${id}/history`)
+                }
+              >
+                <div className="module-icon">◷</div>
+                <div>
+                  <strong>Version History</strong>
+                  <span>View previous decision versions</span>
+                </div>
+                <b>→</b>
+              </button>
+
+              <button
+                className="module-card"
+                onClick={() => navigate("/knowledge")}
+              >
+                <div className="module-icon">▤</div>
+                <div>
+                  <strong>Knowledge Repository</strong>
+                  <span>Explore related knowledge</span>
+                </div>
+                <b>→</b>
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* Right Column */}
+        <aside className="decision-side-column">
+
+          {/* Status Card */}
+          <div className="decision-status-card">
+
+            <div className="side-card-heading">
+              <span className="side-heading-icon">●</span>
+              <h3>Decision Status</h3>
+            </div>
+
+            <div className="large-status">
+              <span
+                className={`status-dot ${status
+                  .toLowerCase()
+                  .replace(/\s+/g, "-")}`}
+              ></span>
+
+              {status}
+            </div>
+
+            <p>
+              Current status of this decision in the decision lifecycle.
+            </p>
+
+          </div>
+
+          {/* Quick Actions */}
+          <div className="side-details-card">
+
+            <div className="side-card-heading">
+              <span className="side-heading-icon">⚡</span>
+              <h3>Quick Actions</h3>
+            </div>
+
+            <button
+              className="side-action-button"
+              onClick={() =>
+                navigate(`/decisions/${id}/comments`)
+              }
+            >
+              <span>☷</span>
+              Open Discussions
+            </button>
+
+            <button
+              className="side-action-button"
+              onClick={() =>
+                navigate(`/decisions/${id}/approvals`)
+              }
+            >
+              <span>✓</span>
+              View Approvals
+            </button>
+
+            <button
+              className="side-action-button"
+              onClick={() =>
+                navigate(`/decisions/${id}/history`)
+              }
+            >
+              <span>◷</span>
+              View History
+            </button>
+
+            <button
+              className="side-action-button"
+              onClick={() => navigate("/reports")}
+            >
+              <span>▥</span>
+              View Reports
+            </button>
+
+          </div>
+
+          {/* Administration */}
+          <div className="side-details-card">
+
+            <div className="side-card-heading">
+              <span className="side-heading-icon">⚙</span>
+              <h3>Administration</h3>
+            </div>
+
+            <button
+              className="side-action-button"
+              onClick={() => navigate("/audit-logs")}
+            >
+              <span>◉</span>
+              Audit Logs
+            </button>
+
+            <button
+              className="side-action-button"
+              onClick={() => navigate("/knowledge")}
+            >
+              <span>▤</span>
+              Knowledge Repository
+            </button>
+
+          </div>
+
+        </aside>
+
+      </div>
     </div>
   );
 }

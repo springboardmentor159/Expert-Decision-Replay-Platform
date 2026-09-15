@@ -87,8 +87,6 @@ function KnowledgeRepository() {
 
       const response = await api.get("/tags");
 
-      console.log("Tags response:", response.data);
-
       setTags(response.data);
     } catch (err) {
       console.error("Tags error:", err);
@@ -134,9 +132,7 @@ function KnowledgeRepository() {
       });
 
       setTags((current) => [...current, response.data]);
-
       setTagName("");
-
       setTagMessage("Tag added successfully.");
     } catch (err) {
       console.error("Add tag error:", err);
@@ -163,230 +159,453 @@ function KnowledgeRepository() {
     }, 0);
   };
 
+  const getStatusClass = (status) => {
+    switch (status) {
+      case "Approved":
+        return "repository-status approved";
+
+      case "Rejected":
+        return "repository-status rejected";
+
+      case "Under Review":
+        return "repository-status review";
+
+      default:
+        return "repository-status draft";
+    }
+  };
+
   return (
-    <div>
-      <h1>Knowledge Repository</h1>
+    <div className="repository-page">
 
-      <p>
-        Search and discover organizational decisions.
-      </p>
+      {/* Header */}
+      <div className="repository-header">
 
-      <hr />
+        <div>
+          <div className="page-breadcrumb">
+            Workspace / Knowledge Repository
+          </div>
 
-      <h2>Search Decisions</h2>
+          <h1>Knowledge Repository</h1>
 
-      <form onSubmit={handleSearch}>
-        <input
-          type="text"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          placeholder="Search by title, problem or category"
-        />
+          <p>
+            Search, discover and explore organizational decisions.
+          </p>
+        </div>
 
         <button
-          type="submit"
-          style={{ marginLeft: "10px" }}
+          className="secondary-page-button"
+          onClick={() => navigate("/dashboard")}
         >
-          Search
+          ← Dashboard
         </button>
-      </form>
 
-      <br />
-
-      <div>
-        <label>
-          <strong>Category:</strong>
-        </label>
-
-        <br />
-
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        >
-          <option value="">All Categories</option>
-
-          {categories.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
       </div>
 
-      <br />
+      {/* Summary Cards */}
+      <div className="repository-summary">
 
-      <div>
-        <label>
-          <strong>Status:</strong>
-        </label>
+        <div className="repository-summary-card">
+          <div className="repository-summary-icon">
+            ◈
+          </div>
 
-        <br />
+          <div>
+            <span>Decisions Found</span>
+            <strong>{decisions.length}</strong>
+          </div>
+        </div>
 
-        <select
-          value={decisionStatus}
-          onChange={(e) =>
-            setDecisionStatus(e.target.value)
-          }
-        >
-          <option value="">All Statuses</option>
+        <div className="repository-summary-card">
+          <div className="repository-summary-icon">
+            #
+          </div>
 
-          {statuses.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
+          <div>
+            <span>Available Tags</span>
+            <strong>{tags.length}</strong>
+          </div>
+        </div>
+
+        <div className="repository-summary-card">
+          <div className="repository-summary-icon">
+            ⌕
+          </div>
+
+          <div>
+            <span>Search</span>
+            <strong>Enabled</strong>
+          </div>
+        </div>
+
       </div>
 
-      <br />
+      {/* Search & Filters */}
+      <div className="repository-search-card">
 
-      <button onClick={fetchDecisions}>
-        Apply Filters
-      </button>
+        <div className="repository-section-heading">
+          <div>
+            <h2>Find a Decision</h2>
+            <p>
+              Search by title, problem statement or category.
+            </p>
+          </div>
+        </div>
 
-      <button
-        onClick={handleClear}
-        style={{ marginLeft: "10px" }}
-      >
-        Clear
-      </button>
-
-      <hr />
-
-      <h2>Tags</h2>
-
-      <form onSubmit={handleAddTag}>
-        <input
-          type="text"
-          value={tagName}
-          onChange={(e) => setTagName(e.target.value)}
-          placeholder="Enter tag name"
-        />
-
-        <button
-          type="submit"
-          style={{ marginLeft: "10px" }}
+        <form
+          className="repository-search-form"
+          onSubmit={handleSearch}
         >
-          Add Tag
-        </button>
-      </form>
 
-      {tagMessage && (
-        <p>
-          <strong>{tagMessage}</strong>
-        </p>
-      )}
+          <div className="repository-search-input">
 
-      {tagError && <p>{tagError}</p>}
+            <span>⌕</span>
 
-      <br />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) =>
+                setSearchText(e.target.value)
+              }
+              placeholder="Search decisions..."
+            />
 
-      {tagsLoading ? (
-        <p>Loading tags...</p>
-      ) : tags.length === 0 ? (
-        <p>No tags found.</p>
-      ) : (
-        <table border="1" cellPadding="10">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Tag Name</th>
-            </tr>
-          </thead>
+          </div>
 
-          <tbody>
+          <button
+            type="submit"
+            className="primary-submit-button"
+          >
+            Search
+          </button>
+
+        </form>
+
+        <div className="repository-filters">
+
+          <div className="repository-filter-group">
+
+            <label>Category</label>
+
+            <select
+              value={category}
+              onChange={(e) =>
+                setCategory(e.target.value)
+              }
+            >
+              <option value="">
+                All Categories
+              </option>
+
+              {categories.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+
+          </div>
+
+          <div className="repository-filter-group">
+
+            <label>Status</label>
+
+            <select
+              value={decisionStatus}
+              onChange={(e) =>
+                setDecisionStatus(e.target.value)
+              }
+            >
+              <option value="">
+                All Statuses
+              </option>
+
+              {statuses.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+
+          </div>
+
+          <div className="repository-filter-actions">
+
+            <button
+              type="button"
+              className="filter-apply-button"
+              onClick={fetchDecisions}
+            >
+              Apply Filters
+            </button>
+
+            <button
+              type="button"
+              className="filter-clear-button"
+              onClick={handleClear}
+            >
+              Clear
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* Tags */}
+      <div className="repository-tags-card">
+
+        <div className="repository-section-heading">
+
+          <div>
+            <h2>Knowledge Tags</h2>
+            <p>
+              Use tags to organize and classify decisions.
+            </p>
+          </div>
+
+          <span className="repository-count">
+            {tags.length} Tags
+          </span>
+
+        </div>
+
+        <form
+          className="tag-form"
+          onSubmit={handleAddTag}
+        >
+
+          <input
+            type="text"
+            value={tagName}
+            onChange={(e) =>
+              setTagName(e.target.value)
+            }
+            placeholder="Enter a new tag name"
+          />
+
+          <button
+            type="submit"
+            className="primary-submit-button"
+          >
+            + Add Tag
+          </button>
+
+        </form>
+
+        {tagMessage && (
+          <div className="repository-success">
+            ✓ {tagMessage}
+          </div>
+        )}
+
+        {tagError && (
+          <div className="repository-error">
+            {tagError}
+          </div>
+        )}
+
+        {!tagsLoading && tags.length > 0 && (
+          <div className="tag-list">
+
             {tags.map((tag) => (
-              <tr key={tag.id}>
-                <td>{tag.id}</td>
-                <td>{tag.name}</td>
-              </tr>
+              <span
+                className="tag-pill"
+                key={tag.id}
+              >
+                #{tag.name}
+              </span>
             ))}
-          </tbody>
-        </table>
-      )}
 
-      <hr />
-
-      {loading && <p>Loading decisions...</p>}
-
-      {error && <p>{error}</p>}
-
-      {!loading &&
-        !error &&
-        decisions.length === 0 && (
-          <p>No decisions found.</p>
+          </div>
         )}
 
-      {!loading &&
-        !error &&
-        decisions.length > 0 && (
-          <>
+        {tagsLoading && (
+          <div className="repository-small-loading">
+            Loading tags...
+          </div>
+        )}
+
+        {!tagsLoading && tags.length === 0 && (
+          <div className="repository-small-empty">
+            No tags found.
+          </div>
+        )}
+
+      </div>
+
+      {/* Decision Repository */}
+      <div className="repository-results-card">
+
+        <div className="repository-section-heading">
+
+          <div>
             <h2>Decision Repository</h2>
+            <p>
+              Browse decisions available in the organizational knowledge base.
+            </p>
+          </div>
 
-            <table border="1" cellPadding="10">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Title</th>
-                  <th>Problem Statement</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Created By</th>
-                  <th>Created At</th>
-                  <th>Updated At</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
+          <span className="repository-count">
+            {decisions.length} Results
+          </span>
 
-              <tbody>
-                {decisions.map((decision) => (
-                  <tr key={decision.id}>
-                    <td>{decision.id}</td>
-                    <td>{decision.title}</td>
-                    <td>{decision.problem_statement}</td>
-                    <td>{decision.category}</td>
-                    <td>{decision.status}</td>
-                    <td>{decision.created_by}</td>
-                    <td>
-                      {decision.created_at
-                        ? new Date(
-                            decision.created_at
-                          ).toLocaleString()
-                        : "-"}
-                    </td>
-                    <td>
-                      {decision.updated_at
-                        ? new Date(
-                            decision.updated_at
-                          ).toLocaleString()
-                        : "-"}
-                    </td>
-                    <td>
-                      <button
-                        onClick={() =>
-                          navigate(
-                            `/decisions/${decision.id}`
-                          )
-                        }
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+        </div>
+
+        {loading && (
+          <div className="repository-loading">
+            <div className="loading-spinner"></div>
+            <p>Loading decisions...</p>
+          </div>
         )}
 
-      <br />
+        {!loading && error && (
+          <div className="repository-error-box">
 
-      <button
-        onClick={() => navigate("/dashboard")}
-      >
-        Back to Dashboard
-      </button>
+            <div className="repository-error-icon">
+              !
+            </div>
+
+            <h3>Unable to Load Repository</h3>
+
+            <p>{error}</p>
+
+          </div>
+        )}
+
+        {!loading &&
+          !error &&
+          decisions.length === 0 && (
+            <div className="repository-empty">
+
+              <div className="repository-empty-icon">
+                ◈
+              </div>
+
+              <h3>No Decisions Found</h3>
+
+              <p>
+                Try changing your search text or filters.
+              </p>
+
+            </div>
+          )}
+
+        {!loading &&
+          !error &&
+          decisions.length > 0 && (
+
+            <div className="repository-table-wrapper">
+
+              <table className="repository-table">
+
+                <thead>
+                  <tr>
+                    <th>Decision</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Created By</th>
+                    <th>Last Updated</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {decisions.map((decision) => (
+
+                    <tr key={decision.id}>
+
+                      <td>
+
+                        <div className="repository-decision-cell">
+
+                          <div className="repository-decision-icon">
+                            D
+                          </div>
+
+                          <div>
+                            <strong>
+                              {decision.title}
+                            </strong>
+
+                            <span>
+                              Decision #{decision.id}
+                            </span>
+                          </div>
+
+                        </div>
+
+                      </td>
+
+                      <td>
+                        <span className="repository-category">
+                          {decision.category || "—"}
+                        </span>
+                      </td>
+
+                      <td>
+
+                        <span
+                          className={getStatusClass(
+                            decision.status
+                          )}
+                        >
+                          {decision.status || "Draft"}
+                        </span>
+
+                      </td>
+
+                      <td>
+                        <span className="repository-user">
+                          User #{decision.created_by || "—"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="repository-date">
+                          {decision.updated_at
+                            ? new Date(
+                                decision.updated_at
+                              ).toLocaleString()
+                            : decision.created_at
+                            ? new Date(
+                                decision.created_at
+                              ).toLocaleString()
+                            : "—"}
+                        </span>
+                      </td>
+
+                      <td>
+
+                        <button
+                          className="repository-view-button"
+                          onClick={() =>
+                            navigate(
+                              `/decisions/${decision.id}`
+                            )
+                          }
+                        >
+                          View →
+                        </button>
+
+                      </td>
+
+                    </tr>
+
+                  ))}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          )}
+
+      </div>
+
     </div>
   );
 }

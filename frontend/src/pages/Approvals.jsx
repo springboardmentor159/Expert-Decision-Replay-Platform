@@ -66,10 +66,7 @@ function Approvals() {
         approval_level: Number(approvalLevel),
       });
 
-      setApprovals((current) => [
-        ...current,
-        response.data,
-      ]);
+      setApprovals((current) => [...current, response.data]);
 
       setReviewerId("");
       setApprovalLevel("");
@@ -92,26 +89,18 @@ function Approvals() {
     }
   };
 
-  const handleApprovalUpdate = async (
-    approvalId,
-    newStatus
-  ) => {
+  const handleApprovalUpdate = async (approvalId, newStatus) => {
     setError("");
     setMessage("");
 
     try {
-      const response = await api.put(
-        `/approvals/${approvalId}`,
-        {
-          status: newStatus,
-        }
-      );
+      const response = await api.put(`/approvals/${approvalId}`, {
+        status: newStatus,
+      });
 
       setApprovals((current) =>
         current.map((approval) =>
-          approval.id === approvalId
-            ? response.data
-            : approval
+          approval.id === approvalId ? response.data : approval
         )
       );
 
@@ -133,139 +122,316 @@ function Approvals() {
     }
   };
 
+  const pendingCount = approvals.filter(
+    (approval) => approval.status === "Pending"
+  ).length;
+
+  const approvedCount = approvals.filter(
+    (approval) => approval.status === "Approved"
+  ).length;
+
+  const rejectedCount = approvals.filter(
+    (approval) => approval.status === "Rejected"
+  ).length;
+
+  const getStatusClass = (status) => {
+    if (status === "Approved") return "approved";
+    if (status === "Rejected") return "rejected";
+    return "pending";
+  };
+
   return (
-    <div>
-      <h1>Approval Workflow</h1>
+    <div className="approvals-page">
 
-      <p>
-        <strong>Decision ID:</strong> {id}
-      </p>
-
-      <hr />
-
-      <h2>Create Approval Request</h2>
-
-      <form onSubmit={handleCreateApproval}>
+      {/* Header */}
+      <div className="approvals-page-header">
         <div>
-          <label>
-            <strong>Reviewer ID:</strong>
-          </label>
-          <br />
+          <div className="page-breadcrumb">
+            Decisions / Approval Workflow
+          </div>
 
-          <input
-            type="number"
-            min="1"
-            value={reviewerId}
-            onChange={(e) =>
-              setReviewerId(e.target.value)
-            }
-            placeholder="Enter reviewer user ID"
-          />
+          <h1>Approval Workflow</h1>
+
+          <p>
+            Manage reviewers and track the approval progress for
+            Decision #{id}.
+          </p>
         </div>
 
-        <br />
+        <div className="approval-header-actions">
+          <span className="decision-id-badge">
+            Decision #{id}
+          </span>
 
-        <div>
-          <label>
-            <strong>Approval Level:</strong>
-          </label>
-          <br />
-
-          <select
-            value={approvalLevel}
-            onChange={(e) =>
-              setApprovalLevel(e.target.value)
-            }
+          <button
+            className="secondary-page-button"
+            onClick={() => navigate(`/decisions/${id}`)}
           >
-            <option value="">
-              Select Approval Level
-            </option>
+            ← Decision Details
+          </button>
+        </div>
+      </div>
 
-            <option value="1">Level 1</option>
+      {/* Summary Cards */}
+      <div className="approval-summary">
 
-            <option value="2">Level 2</option>
+        <div className="approval-summary-card">
+          <div className="approval-summary-icon">◉</div>
 
-            <option value="3">Level 3</option>
-          </select>
+          <div>
+            <span>Total Requests</span>
+            <strong>{approvals.length}</strong>
+          </div>
         </div>
 
-        <br />
+        <div className="approval-summary-card">
+          <div className="approval-summary-icon pending-icon">
+            ⏳
+          </div>
 
-        <button type="submit" disabled={saving}>
-          {saving
-            ? "Creating..."
-            : "Create Approval Request"}
-        </button>
-      </form>
+          <div>
+            <span>Pending</span>
+            <strong>{pendingCount}</strong>
+          </div>
+        </div>
 
-      <br />
+        <div className="approval-summary-card">
+          <div className="approval-summary-icon approved-icon">
+            ✓
+          </div>
 
+          <div>
+            <span>Approved</span>
+            <strong>{approvedCount}</strong>
+          </div>
+        </div>
+
+        <div className="approval-summary-card">
+          <div className="approval-summary-icon rejected-icon">
+            !
+          </div>
+
+          <div>
+            <span>Rejected</span>
+            <strong>{rejectedCount}</strong>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Create Approval */}
+      <div className="approval-create-card">
+
+        <div className="approval-card-heading">
+          <div className="approval-heading-icon">
+            +
+          </div>
+
+          <div>
+            <h2>Create Approval Request</h2>
+            <p>
+              Assign this decision to a reviewer for evaluation.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleCreateApproval}>
+
+          <div className="approval-form-grid">
+
+            <div className="form-field">
+              <label>Reviewer ID</label>
+
+              <input
+                type="number"
+                min="1"
+                value={reviewerId}
+                onChange={(e) => setReviewerId(e.target.value)}
+                placeholder="Enter reviewer user ID"
+              />
+
+              <small>
+                Enter the user ID of the reviewer.
+              </small>
+            </div>
+
+            <div className="form-field">
+              <label>Approval Level</label>
+
+              <select
+                value={approvalLevel}
+                onChange={(e) => setApprovalLevel(e.target.value)}
+              >
+                <option value="">
+                  Select Approval Level
+                </option>
+
+                <option value="1">Level 1</option>
+                <option value="2">Level 2</option>
+                <option value="3">Level 3</option>
+              </select>
+
+              <small>
+                Select the required approval stage.
+              </small>
+            </div>
+
+            <div className="approval-submit-wrapper">
+              <button
+                type="submit"
+                className="primary-submit-button"
+                disabled={saving}
+              >
+                {saving
+                  ? "Creating..."
+                  : "Create Approval Request"}
+              </button>
+            </div>
+
+          </div>
+
+        </form>
+
+      </div>
+
+      {/* Messages */}
       {message && (
-        <p>
-          <strong>{message}</strong>
-        </p>
+        <div className="success-message">
+          <span>✓</span>
+          {message}
+        </div>
       )}
 
-      {error && <p>{error}</p>}
+      {error && (
+        <div className="error-message">
+          <span>!</span>
+          {error}
+        </div>
+      )}
 
-      <hr />
+      {/* Workflow */}
+      <div className="approval-workflow-card">
 
-      <h2>Approval Status</h2>
+        <div className="approval-list-header">
+          <div>
+            <h2>Approval Progress</h2>
 
-      {loading ? (
-        <p>Loading approvals...</p>
-      ) : approvals.length === 0 ? (
-        <p>
-          No approval requests found for this decision.
-        </p>
-      ) : (
-        <table border="1" cellPadding="10">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Decision ID</th>
-              <th>Reviewer ID</th>
-              <th>Approval Level</th>
-              <th>Status</th>
-              <th>Assigned At</th>
-              <th>Completed At</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+            <p>
+              Reviewers assigned to evaluate this decision.
+            </p>
+          </div>
 
-          <tbody>
-            {approvals.map((approval) => (
-              <tr key={approval.id}>
-                <td>{approval.id}</td>
+          <span className="approval-count-badge">
+            {approvals.length}{" "}
+            {approvals.length === 1 ? "Request" : "Requests"}
+          </span>
+        </div>
 
-                <td>{approval.decision_id}</td>
+        {loading ? (
+          <div className="page-loading">
+            <div className="loading-spinner"></div>
+            <p>Loading approval workflow...</p>
+          </div>
+        ) : approvals.length === 0 ? (
+          <div className="approval-empty">
 
-                <td>{approval.reviewer_id}</td>
+            <div className="approval-empty-icon">
+              ✓
+            </div>
 
-                <td>{approval.approval_level}</td>
+            <h3>No Approval Requests</h3>
 
-                <td>{approval.status}</td>
+            <p>
+              Create an approval request above to start the
+              review workflow for this decision.
+            </p>
 
-                <td>
-                  {approval.assigned_at
-                    ? new Date(
-                        approval.assigned_at
-                      ).toLocaleString()
-                    : "-"}
-                </td>
+          </div>
+        ) : (
+          <div className="approval-list">
 
-                <td>
-                  {approval.completed_at
-                    ? new Date(
-                        approval.completed_at
-                      ).toLocaleString()
-                    : "-"}
-                </td>
+            {approvals.map((approval, index) => (
+              <div className="approval-item" key={approval.id}>
 
-                <td>
-                  {approval.status === "Pending" ? (
-                    <>
+                <div className="approval-step">
+
+                  <div className="approval-step-number">
+                    {index + 1}
+                  </div>
+
+                  {index < approvals.length - 1 && (
+                    <div className="approval-step-line"></div>
+                  )}
+
+                </div>
+
+                <div className="approval-details">
+
+                  <div className="approval-item-top">
+
+                    <div>
+                      <h3>
+                        Approval Level {approval.approval_level}
+                      </h3>
+
+                      <p>
+                        Reviewer #{approval.reviewer_id}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`approval-status ${getStatusClass(
+                        approval.status
+                      )}`}
+                    >
+                      {approval.status}
+                    </span>
+
+                  </div>
+
+                  <div className="approval-info-grid">
+
+                    <div>
+                      <span>Approval ID</span>
+                      <strong>#{approval.id}</strong>
+                    </div>
+
+                    <div>
+                      <span>Reviewer</span>
+                      <strong>
+                        User #{approval.reviewer_id}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Assigned At</span>
+                      <strong>
+                        {approval.assigned_at
+                          ? new Date(
+                              approval.assigned_at
+                            ).toLocaleString()
+                          : "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Completed At</span>
+                      <strong>
+                        {approval.completed_at
+                          ? new Date(
+                              approval.completed_at
+                            ).toLocaleString()
+                          : "Pending"}
+                      </strong>
+                    </div>
+
+                  </div>
+
+                  {approval.status === "Pending" && (
+                    <div className="approval-actions">
+
                       <button
+                        className="approve-button"
                         onClick={() =>
                           handleApprovalUpdate(
                             approval.id,
@@ -273,42 +439,63 @@ function Approvals() {
                           )
                         }
                       >
-                        Approve
+                        ✓ Approve
                       </button>
 
                       <button
+                        className="reject-button"
                         onClick={() =>
                           handleApprovalUpdate(
                             approval.id,
                             "Rejected"
                           )
                         }
-                        style={{
-                          marginLeft: "10px",
-                        }}
                       >
-                        Reject
+                        ✕ Reject
                       </button>
-                    </>
-                  ) : (
-                    <span>No action</span>
+
+                    </div>
                   )}
-                </td>
-              </tr>
+
+                  {approval.status !== "Pending" && (
+                    <div className="approval-completed-note">
+                      {approval.status === "Approved"
+                        ? "✓ This approval request has been approved."
+                        : "✕ This approval request has been rejected."}
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
 
-      <br />
+          </div>
+        )}
 
-      <button
-        onClick={() =>
-          navigate(`/decisions/${id}`)
-        }
-      >
-        Back to Decision
-      </button>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="approval-bottom-actions">
+
+        <button
+          className="secondary-page-button"
+          onClick={() =>
+            navigate(`/decisions/${id}/comments`)
+          }
+        >
+          ← Discussions
+        </button>
+
+        <button
+          className="primary-submit-button"
+          onClick={() => navigate(`/decisions/${id}`)}
+        >
+          Decision Details
+        </button>
+
+      </div>
+
     </div>
   );
 }

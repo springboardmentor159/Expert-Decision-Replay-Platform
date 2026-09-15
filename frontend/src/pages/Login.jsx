@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function Login() {
@@ -25,7 +25,7 @@ function Login() {
 
       const result = await login(username, password);
 
-console.log("LOGIN SUCCESS:", result);
+      console.log("LOGIN SUCCESS:", result);
 
       navigate("/dashboard");
     } catch (err) {
@@ -44,44 +44,126 @@ console.log("LOGIN SUCCESS:", result);
   };
 
   return (
-    <div>
-      <h1>Expert Decision Replay</h1>
+    <div className="auth-page">
+      <div className="auth-brand-panel">
+        <div className="auth-brand-content">
+          <div className="auth-logo">ED</div>
 
-      <h2>Login</h2>
+          <h1>Expert Decision</h1>
+          <h1>Replay Platform</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Username</label>
-          <br />
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Enter username"
-          />
+          <p>
+            A centralized platform for capturing, reviewing and replaying
+            expert decisions with confidence.
+          </p>
+
+          <div className="auth-feature-list">
+            <div>
+              <span>✓</span>
+              Decision management
+            </div>
+
+            <div>
+              <span>✓</span>
+              Expert review workflows
+            </div>
+
+            <div>
+              <span>✓</span>
+              Complete decision history
+            </div>
+
+            <div>
+              <span>✓</span>
+              Audit and reporting
+            </div>
+          </div>
         </div>
 
-        <br />
-
-        <div>
-          <label>Password</label>
-          <br />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter password"
-          />
+        <div className="auth-brand-footer">
+          Expert Decision Replay Platform
         </div>
+      </div>
 
-        <br />
+      <div className="auth-form-panel">
+        <div className="auth-form-container">
+          <div className="mobile-auth-logo">ED</div>
 
-        {error && <p>{error}</p>}
+          <div className="auth-form-header">
+            <span className="auth-eyebrow">SECURE ACCESS</span>
+            <h2>Welcome back</h2>
+            <p>
+              Sign in to access your decision management workspace.
+            </p>
+          </div>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="auth-field">
+              <label htmlFor="username">Username</label>
+
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                autoComplete="username"
+              />
+            </div>
+
+            <div className="auth-field">
+              <div className="auth-label-row">
+                <label htmlFor="password">Password</label>
+              </div>
+
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+              />
+            </div>
+
+            {error && (
+              <div className="auth-error">
+                <span>!</span>
+                <p>{error}</p>
+              </div>
+            )}
+
+            <button
+              className="auth-submit-button"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="auth-button-spinner"></span>
+                  Logging in...
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </button>
+          </form>
+
+          <div className="auth-divider">
+            <span>OR</span>
+          </div>
+
+          <div className="auth-register-prompt">
+            <span>Don't have an account?</span>
+            <Link to="/register">Create an account</Link>
+          </div>
+
+          <div className="auth-security-note">
+            <span>🔒</span>
+            <p>Your session is protected using secure authentication.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

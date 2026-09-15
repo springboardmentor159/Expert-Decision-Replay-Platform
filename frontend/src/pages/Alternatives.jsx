@@ -29,10 +29,7 @@ function Alternatives() {
       setLoading(true);
       setError("");
 
-      const response = await api.get(
-        `/decisions/${id}/alternatives`
-      );
-
+      const response = await api.get(`/decisions/${id}/alternatives`);
       setAlternatives(response.data);
     } catch (err) {
       console.error("Alternatives error:", err);
@@ -87,9 +84,7 @@ function Alternatives() {
       estimated_cost:
         estimatedCost === "" ? null : Number(estimatedCost),
       feasibility_score:
-        feasibilityScore === ""
-          ? null
-          : Number(feasibilityScore),
+        feasibilityScore === "" ? null : Number(feasibilityScore),
       risk_level: riskLevel,
     };
 
@@ -148,12 +143,8 @@ function Alternatives() {
     setDescription(alternative.description || "");
     setPros(alternative.pros || "");
     setCons(alternative.cons || "");
-    setEstimatedCost(
-      alternative.estimated_cost ?? ""
-    );
-    setFeasibilityScore(
-      alternative.feasibility_score ?? ""
-    );
+    setEstimatedCost(alternative.estimated_cost ?? "");
+    setFeasibilityScore(alternative.feasibility_score ?? "");
     setRiskLevel(alternative.risk_level || "");
 
     setMessage("");
@@ -166,269 +157,380 @@ function Alternatives() {
   };
 
   return (
-    <div>
-      <h1>Alternative Analysis</h1>
+    <div className="alternatives-page">
 
-      <p>
-        <strong>Decision ID:</strong> {id}
-      </p>
-
-      <hr />
-
-      <h2>
-        {editingId
-          ? "Edit Alternative"
-          : "Add Alternative"}
-      </h2>
-
-      <form onSubmit={handleSubmit}>
+      {/* Header */}
+      <div className="alternatives-header">
         <div>
-          <label>
-            <strong>Name:</strong>
-          </label>
-          <br />
+          <div className="page-breadcrumb">
+            Decisions / Alternative Analysis
+          </div>
 
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Enter alternative name"
-          />
+          <h1>Alternative Analysis</h1>
+
+          <p>
+            Evaluate possible solutions and identify the best option
+            for Decision #{id}.
+          </p>
         </div>
 
-        <br />
+        <div className="alternatives-header-actions">
+          <button
+            className="secondary-page-button"
+            onClick={() => navigate(`/decisions/${id}`)}
+          >
+            ← Back to Decision
+          </button>
 
-        <div>
-          <label>
-            <strong>Description:</strong>
-          </label>
-          <br />
-
-          <textarea
-            rows="4"
-            cols="50"
-            value={description}
-            onChange={(e) =>
-              setDescription(e.target.value)
-            }
-            placeholder="Describe the alternative"
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>
-            <strong>Pros:</strong>
-          </label>
-          <br />
-
-          <textarea
-            rows="3"
-            cols="50"
-            value={pros}
-            onChange={(e) => setPros(e.target.value)}
-            placeholder="Advantages"
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>
-            <strong>Cons:</strong>
-          </label>
-          <br />
-
-          <textarea
-            rows="3"
-            cols="50"
-            value={cons}
-            onChange={(e) => setCons(e.target.value)}
-            placeholder="Disadvantages"
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>
-            <strong>Estimated Cost:</strong>
-          </label>
-          <br />
-
-          <input
-            type="number"
-            min="0"
-            value={estimatedCost}
-            onChange={(e) =>
-              setEstimatedCost(e.target.value)
-            }
-            placeholder="Enter estimated cost"
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>
-            <strong>Feasibility Score (1-5):</strong>
-          </label>
-          <br />
-
-          <input
-            type="number"
-            min="1"
-            max="5"
-            step="1"
-            value={feasibilityScore}
-            onChange={(e) =>
-              setFeasibilityScore(e.target.value)
-            }
-            placeholder="1 to 5"
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>
-            <strong>Risk Level:</strong>
-          </label>
-          <br />
-
-          <select
-            value={riskLevel}
-            onChange={(e) =>
-              setRiskLevel(e.target.value)
+          <button
+            className="primary-submit-button"
+            onClick={() =>
+              navigate(`/decisions/${id}/alternatives/compare`)
             }
           >
-            <option value="">Select Risk Level</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </select>
+            Compare Alternatives →
+          </button>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="alternative-summary">
+        <div className="alternative-summary-card">
+          <div className="summary-icon">↔</div>
+          <div>
+            <span>Total Alternatives</span>
+            <strong>{alternatives.length}</strong>
+          </div>
         </div>
 
-        <br />
+        <div className="alternative-summary-card">
+          <div className="summary-icon">★</div>
+          <div>
+            <span>Decision</span>
+            <strong>#{id}</strong>
+          </div>
+        </div>
 
-        <button type="submit" disabled={saving}>
-          {saving
-            ? "Saving..."
-            : editingId
-            ? "Update Alternative"
-            : "Add Alternative"}
+        <div className="alternative-summary-card">
+          <div className="summary-icon">✓</div>
+          <div>
+            <span>Analysis</span>
+            <strong>
+              {alternatives.length > 0 ? "In Progress" : "Not Started"}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Layout */}
+      <div className="alternatives-layout">
+
+        {/* Form */}
+        <div className="alternative-form-card">
+
+          <div className="alternative-card-header">
+            <div className="form-header-icon">
+              {editingId ? "✎" : "+"}
+            </div>
+
+            <div>
+              <h2>
+                {editingId
+                  ? "Edit Alternative"
+                  : "Add Alternative"}
+              </h2>
+
+              <p>
+                {editingId
+                  ? "Update the selected alternative."
+                  : "Add a possible solution to this decision."}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+
+            <div className="alternative-form-grid">
+
+              <div className="alternative-field full-field">
+                <label>
+                  Alternative Name <span>*</span>
+                </label>
+
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Example: Implement cloud-based solution"
+                />
+              </div>
+
+              <div className="alternative-field full-field">
+                <label>Description</label>
+
+                <textarea
+                  rows="4"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe how this alternative would solve the problem..."
+                />
+              </div>
+
+              <div className="alternative-field">
+                <label>Pros</label>
+
+                <textarea
+                  rows="4"
+                  value={pros}
+                  onChange={(e) => setPros(e.target.value)}
+                  placeholder="Advantages of this option"
+                />
+              </div>
+
+              <div className="alternative-field">
+                <label>Cons</label>
+
+                <textarea
+                  rows="4"
+                  value={cons}
+                  onChange={(e) => setCons(e.target.value)}
+                  placeholder="Disadvantages or limitations"
+                />
+              </div>
+
+              <div className="alternative-field">
+                <label>Estimated Cost</label>
+
+                <input
+                  type="number"
+                  min="0"
+                  value={estimatedCost}
+                  onChange={(e) =>
+                    setEstimatedCost(e.target.value)
+                  }
+                  placeholder="Enter cost"
+                />
+              </div>
+
+              <div className="alternative-field">
+                <label>Feasibility Score</label>
+
+                <select
+                  value={feasibilityScore}
+                  onChange={(e) =>
+                    setFeasibilityScore(e.target.value)
+                  }
+                >
+                  <option value="">Select score</option>
+                  <option value="1">1 - Very Low</option>
+                  <option value="2">2 - Low</option>
+                  <option value="3">3 - Moderate</option>
+                  <option value="4">4 - High</option>
+                  <option value="5">5 - Very High</option>
+                </select>
+              </div>
+
+              <div className="alternative-field">
+                <label>Risk Level</label>
+
+                <select
+                  value={riskLevel}
+                  onChange={(e) =>
+                    setRiskLevel(e.target.value)
+                  }
+                >
+                  <option value="">Select risk level</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+
+            </div>
+
+            {message && (
+              <div className="success-message">
+                ✓ {message}
+              </div>
+            )}
+
+            {error && (
+              <div className="error-message">
+                ⚠ {error}
+              </div>
+            )}
+
+            <div className="alternative-form-actions">
+
+              {editingId && (
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={clearForm}
+                >
+                  Cancel Edit
+                </button>
+              )}
+
+              <button
+                type="submit"
+                className="primary-submit-button"
+                disabled={saving}
+              >
+                {saving
+                  ? "Saving..."
+                  : editingId
+                  ? "Update Alternative"
+                  : "Add Alternative"}
+              </button>
+
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      {/* Existing Alternatives */}
+      <div className="alternatives-list-card">
+
+        <div className="alternatives-list-header">
+          <div>
+            <h2>Existing Alternatives</h2>
+            <p>
+              Review and manage the available options for this decision.
+            </p>
+          </div>
+
+          <span className="alternative-count">
+            {alternatives.length} option
+            {alternatives.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="page-loading">
+            <div className="loading-spinner"></div>
+            <p>Loading alternatives...</p>
+          </div>
+        ) : alternatives.length === 0 ? (
+          <div className="alternatives-empty">
+            <div className="empty-icon">↔</div>
+            <h3>No Alternatives Yet</h3>
+            <p>
+              Add the first possible solution using the form above.
+            </p>
+          </div>
+        ) : (
+          <div className="alternative-cards">
+
+            {alternatives.map((alternative) => (
+              <div
+                className="alternative-item-card"
+                key={alternative.id}
+              >
+
+                <div className="alternative-item-top">
+
+                  <div className="alternative-title-area">
+                    <div className="alternative-number">
+                      {alternative.id}
+                    </div>
+
+                    <div>
+                      <h3>{alternative.name}</h3>
+
+                      <span>
+                        Alternative #{alternative.id}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    className="edit-alternative-button"
+                    onClick={() => handleEdit(alternative)}
+                  >
+                    ✎ Edit
+                  </button>
+
+                </div>
+
+                <p className="alternative-description">
+                  {alternative.description || "No description provided."}
+                </p>
+
+                <div className="alternative-details-grid">
+
+                  <div className="alternative-detail-box">
+                    <span>Pros</span>
+                    <p>{alternative.pros || "—"}</p>
+                  </div>
+
+                  <div className="alternative-detail-box">
+                    <span>Cons</span>
+                    <p>{alternative.cons || "—"}</p>
+                  </div>
+
+                  <div className="alternative-detail-box">
+                    <span>Estimated Cost</span>
+                    <strong>
+                      {alternative.estimated_cost ?? "—"}
+                    </strong>
+                  </div>
+
+                  <div className="alternative-detail-box">
+                    <span>Feasibility</span>
+                    <strong>
+                      {alternative.feasibility_score
+                        ? `${alternative.feasibility_score}/5`
+                        : "—"}
+                    </strong>
+                  </div>
+
+                  <div className="alternative-detail-box">
+                    <span>Risk Level</span>
+
+                    <strong
+                      className={`risk-label ${
+                        alternative.risk_level
+                          ? alternative.risk_level.toLowerCase()
+                          : ""
+                      }`}
+                    >
+                      {alternative.risk_level || "—"}
+                    </strong>
+                  </div>
+
+                </div>
+              </div>
+            ))}
+
+          </div>
+        )}
+
+      </div>
+
+      {/* Bottom Actions */}
+      <div className="alternatives-bottom-actions">
+
+        <button
+          className="secondary-page-button"
+          onClick={() => navigate(`/decisions/${id}`)}
+        >
+          ← Back to Decision
         </button>
 
-        {editingId && (
-          <button
-            type="button"
-            onClick={clearForm}
-            style={{ marginLeft: "10px" }}
-          >
-            Cancel Edit
-          </button>
-        )}
-      </form>
+        <button
+          className="primary-submit-button"
+          onClick={() =>
+            navigate(`/decisions/${id}/alternatives/compare`)
+          }
+        >
+          Compare Alternatives →
+        </button>
 
-      <br />
+      </div>
 
-      {message && (
-        <p>
-          <strong>{message}</strong>
-        </p>
-      )}
-
-      {error && <p>{error}</p>}
-
-      <hr />
-
-      <h2>Existing Alternatives</h2>
-
-      {loading ? (
-        <p>Loading alternatives...</p>
-      ) : alternatives.length === 0 ? (
-        <p>No alternatives found for this decision.</p>
-      ) : (
-        <table border="1" cellPadding="10">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Pros</th>
-              <th>Cons</th>
-              <th>Estimated Cost</th>
-              <th>Feasibility</th>
-              <th>Risk</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {alternatives.map((alternative) => (
-              <tr key={alternative.id}>
-                <td>{alternative.id}</td>
-
-                <td>{alternative.name}</td>
-
-                <td>
-                  {alternative.description || "-"}
-                </td>
-
-                <td>{alternative.pros || "-"}</td>
-
-                <td>{alternative.cons || "-"}</td>
-
-                <td>
-                  {alternative.estimated_cost ?? "-"}
-                </td>
-
-                <td>
-                  {alternative.feasibility_score ?? "-"}
-                </td>
-
-                <td>
-                  {alternative.risk_level || "-"}
-                </td>
-
-                <td>
-                  <button
-                    onClick={() =>
-                      handleEdit(alternative)
-                    }
-                  >
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <br />
-
-      <button
-        onClick={() =>
-          navigate(
-            `/decisions/${id}/alternatives/compare`
-          )
-        }
-      >
-        Compare Alternatives
-      </button>
-
-      <br />
-      <br />
-
-      <button
-        onClick={() =>
-          navigate(`/decisions/${id}`)
-        }
-      >
-        Back to Decision
-      </button>
     </div>
   );
 }

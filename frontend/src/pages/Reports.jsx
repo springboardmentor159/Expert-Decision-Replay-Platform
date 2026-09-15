@@ -31,7 +31,6 @@ function Reports() {
       setError("");
 
       let endpoint = `/reports/${reportType}`;
-
       const params = {};
 
       if (reportType === "decisions") {
@@ -79,8 +78,7 @@ function Reports() {
       setData([]);
       setSummary({});
       setError(
-        err.response?.data?.detail ||
-          "Unable to load the report."
+        err.response?.data?.detail || "Unable to load the report."
       );
     } finally {
       setLoading(false);
@@ -99,7 +97,7 @@ function Reports() {
   };
 
   const clearFilters = () => {
-    setFilters({
+    const emptyFilters = {
       category: "",
       status: "",
       created_by: "",
@@ -113,7 +111,9 @@ function Reports() {
       entity_type: "",
       entity_id: "",
       user_id: "",
-    });
+    };
+
+    setFilters(emptyFilters);
 
     setTimeout(() => {
       fetchReport();
@@ -122,11 +122,9 @@ function Reports() {
 
   const exportReport = async (format) => {
     try {
-      // Backend endpoint format:
-      // /reports/decisions/export/pdf
-      // /reports/decisions/export/excel
-      let endpoint = `/reports/${reportType}/export/${format}`;
+      setError("");
 
+      const endpoint = `/reports/${reportType}/export/${format}`;
       const params = {};
 
       Object.entries(filters).forEach(([key, value]) => {
@@ -141,7 +139,6 @@ function Reports() {
       });
 
       const blob = new Blob([response.data]);
-
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement("a");
@@ -156,8 +153,6 @@ function Reports() {
       link.remove();
 
       window.URL.revokeObjectURL(url);
-
-      setError("");
     } catch (err) {
       console.error(err);
 
@@ -172,53 +167,71 @@ function Reports() {
     if (reportType === "decisions") {
       return (
         <>
-          <input
-            name="category"
-            placeholder="Category"
-            value={filters.category}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Category</label>
+            <input
+              name="category"
+              placeholder="Enter category"
+              value={filters.category}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <select
-            name="status"
-            value={filters.status}
-            onChange={handleFilterChange}
-          >
-            <option value="">All Status</option>
-            <option value="Draft">Draft</option>
-            <option value="Under Review">Under Review</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Archived">Archived</option>
-          </select>
+          <div className="report-filter-field">
+            <label>Status</label>
+            <select
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+            >
+              <option value="">All Status</option>
+              <option value="Draft">Draft</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
 
-          <input
-            name="created_by"
-            placeholder="Created By ID"
-            value={filters.created_by}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Created By</label>
+            <input
+              name="created_by"
+              placeholder="User ID"
+              value={filters.created_by}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            type="date"
-            name="start_date"
-            value={filters.start_date}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Start Date</label>
+            <input
+              type="date"
+              name="start_date"
+              value={filters.start_date}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            type="date"
-            name="end_date"
-            value={filters.end_date}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>End Date</label>
+            <input
+              type="date"
+              name="end_date"
+              value={filters.end_date}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            name="tag"
-            placeholder="Tag"
-            value={filters.tag}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Tag</label>
+            <input
+              name="tag"
+              placeholder="Enter tag"
+              value={filters.tag}
+              onChange={handleFilterChange}
+            />
+          </div>
         </>
       );
     }
@@ -226,51 +239,69 @@ function Reports() {
     if (reportType === "approvals") {
       return (
         <>
-          <select
-            name="status"
-            value={filters.status}
-            onChange={handleFilterChange}
-          >
-            <option value="">All Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-          </select>
+          <div className="report-filter-field">
+            <label>Status</label>
+            <select
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+            >
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
 
-          <input
-            name="reviewer_id"
-            placeholder="Reviewer ID"
-            value={filters.reviewer_id}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Reviewer ID</label>
+            <input
+              name="reviewer_id"
+              placeholder="Reviewer ID"
+              value={filters.reviewer_id}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            name="decision_id"
-            placeholder="Decision ID"
-            value={filters.decision_id}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Decision ID</label>
+            <input
+              name="decision_id"
+              placeholder="Decision ID"
+              value={filters.decision_id}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            name="approval_level"
-            placeholder="Approval Level"
-            value={filters.approval_level}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Approval Level</label>
+            <input
+              name="approval_level"
+              placeholder="Level"
+              value={filters.approval_level}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            type="date"
-            name="start_date"
-            value={filters.start_date}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Start Date</label>
+            <input
+              type="date"
+              name="start_date"
+              value={filters.start_date}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            type="date"
-            name="end_date"
-            value={filters.end_date}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>End Date</label>
+            <input
+              type="date"
+              name="end_date"
+              value={filters.end_date}
+              onChange={handleFilterChange}
+            />
+          </div>
         </>
       );
     }
@@ -278,112 +309,169 @@ function Reports() {
     if (reportType === "teams") {
       return (
         <>
-          <input
-            name="category"
-            placeholder="Category"
-            value={filters.category}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Category</label>
+            <input
+              name="category"
+              placeholder="Enter category"
+              value={filters.category}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <select
-            name="status"
-            value={filters.status}
-            onChange={handleFilterChange}
-          >
-            <option value="">All Status</option>
-            <option value="Draft">Draft</option>
-            <option value="Under Review">Under Review</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Archived">Archived</option>
-          </select>
+          <div className="report-filter-field">
+            <label>Status</label>
+            <select
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChange}
+            >
+              <option value="">All Status</option>
+              <option value="Draft">Draft</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
 
-          <input
-            type="date"
-            name="start_date"
-            value={filters.start_date}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>Start Date</label>
+            <input
+              type="date"
+              name="start_date"
+              value={filters.start_date}
+              onChange={handleFilterChange}
+            />
+          </div>
 
-          <input
-            type="date"
-            name="end_date"
-            value={filters.end_date}
-            onChange={handleFilterChange}
-          />
+          <div className="report-filter-field">
+            <label>End Date</label>
+            <input
+              type="date"
+              name="end_date"
+              value={filters.end_date}
+              onChange={handleFilterChange}
+            />
+          </div>
         </>
       );
     }
 
     return (
       <>
-        <input
-          name="user_id"
-          placeholder="User ID"
-          value={filters.user_id}
-          onChange={handleFilterChange}
-        />
+        <div className="report-filter-field">
+          <label>User ID</label>
+          <input
+            name="user_id"
+            placeholder="User ID"
+            value={filters.user_id}
+            onChange={handleFilterChange}
+          />
+        </div>
 
-        <input
-          name="action"
-          placeholder="Action"
-          value={filters.action}
-          onChange={handleFilterChange}
-        />
+        <div className="report-filter-field">
+          <label>Action</label>
+          <input
+            name="action"
+            placeholder="Action"
+            value={filters.action}
+            onChange={handleFilterChange}
+          />
+        </div>
 
-        <input
-          name="entity_type"
-          placeholder="Entity Type"
-          value={filters.entity_type}
-          onChange={handleFilterChange}
-        />
+        <div className="report-filter-field">
+          <label>Entity Type</label>
+          <input
+            name="entity_type"
+            placeholder="Entity type"
+            value={filters.entity_type}
+            onChange={handleFilterChange}
+          />
+        </div>
 
-        <input
-          name="entity_id"
-          placeholder="Entity ID"
-          value={filters.entity_id}
-          onChange={handleFilterChange}
-        />
+        <div className="report-filter-field">
+          <label>Entity ID</label>
+          <input
+            name="entity_id"
+            placeholder="Entity ID"
+            value={filters.entity_id}
+            onChange={handleFilterChange}
+          />
+        </div>
 
-        <input
-          type="date"
-          name="start_date"
-          value={filters.start_date}
-          onChange={handleFilterChange}
-        />
+        <div className="report-filter-field">
+          <label>Start Date</label>
+          <input
+            type="date"
+            name="start_date"
+            value={filters.start_date}
+            onChange={handleFilterChange}
+          />
+        </div>
 
-        <input
-          type="date"
-          name="end_date"
-          value={filters.end_date}
-          onChange={handleFilterChange}
-        />
+        <div className="report-filter-field">
+          <label>End Date</label>
+          <input
+            type="date"
+            name="end_date"
+            value={filters.end_date}
+            onChange={handleFilterChange}
+          />
+        </div>
       </>
     );
   };
 
+  const formatKey = (key) => {
+    return key
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const renderTable = () => {
     if (loading) {
-      return <p>Loading report...</p>;
+      return (
+        <div className="report-state">
+          <div className="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
+      );
     }
 
     if (error) {
-      return <p>{error}</p>;
+      return (
+        <div className="report-error">
+          <span>!</span>
+          <div>
+            <strong>Unable to load report</strong>
+            <p>{error}</p>
+          </div>
+        </div>
+      );
     }
 
     if (!data.length) {
-      return <p>No report data found.</p>;
+      return (
+        <div className="report-empty">
+          <div className="report-empty-icon">▤</div>
+          <h3>No report data found</h3>
+          <p>
+            Try adjusting the filters or selecting a different report type.
+          </p>
+        </div>
+      );
     }
 
     const columns = Object.keys(data[0]);
 
     return (
-      <div style={{ overflowX: "auto" }}>
-        <table border="1" cellPadding="8" cellSpacing="0">
+      <div className="report-table-wrapper">
+        <table className="professional-report-table">
           <thead>
             <tr>
               {columns.map((column) => (
-                <th key={column}>{column}</th>
+                <th key={column}>{formatKey(column)}</th>
               ))}
             </tr>
           </thead>
@@ -406,83 +494,192 @@ function Reports() {
     );
   };
 
-  return (
-    <div style={{ padding: "20px" }}>
-      <h1>Reports</h1>
+  const reportTitle = {
+    decisions: "Decision Reports",
+    approvals: "Approval Reports",
+    teams: "Team Reports",
+    audit: "Audit Reports",
+  };
 
-      <div style={{ marginBottom: "20px" }}>
-        <button onClick={() => setReportType("decisions")}>
+  const reportDescription = {
+    decisions:
+      "Review decision records, statuses, categories and activity across the platform.",
+    approvals:
+      "Monitor approval workflows, reviewers, approval levels and outcomes.",
+    teams:
+      "Analyze decision activity and status information across teams.",
+    audit:
+      "Review system activity, user actions and entity-level audit information.",
+  };
+
+  return (
+    <div className="reports-page">
+      <div className="page-breadcrumb">
+        Reports <span>/</span> {reportTitle[reportType]}
+      </div>
+
+      <div className="reports-header">
+        <div>
+          <h1>Reports & Analytics</h1>
+          <p>
+            Generate, filter and export enterprise reports from the decision
+            management platform.
+          </p>
+        </div>
+
+        <div className="reports-header-badge">
+          <span className="reports-header-icon">▥</span>
+          Reporting Center
+        </div>
+      </div>
+
+      <div className="report-type-tabs">
+        <button
+          className={reportType === "decisions" ? "active" : ""}
+          onClick={() => setReportType("decisions")}
+        >
+          <span>◈</span>
           Decision Reports
         </button>
 
-        <button onClick={() => setReportType("approvals")}>
+        <button
+          className={reportType === "approvals" ? "active" : ""}
+          onClick={() => setReportType("approvals")}
+        >
+          <span>✓</span>
           Approval Reports
         </button>
 
-        <button onClick={() => setReportType("teams")}>
+        <button
+          className={reportType === "teams" ? "active" : ""}
+          onClick={() => setReportType("teams")}
+        >
+          <span>♟</span>
           Team Reports
         </button>
 
-        <button onClick={() => setReportType("audit")}>
+        <button
+          className={reportType === "audit" ? "active" : ""}
+          onClick={() => setReportType("audit")}
+        >
+          <span>◷</span>
           Audit Reports
         </button>
       </div>
 
-      <h2>
-        {reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report
-      </h2>
+      <div className="report-intro-card">
+        <div>
+          <div className="report-section-label">CURRENT REPORT</div>
+          <h2>{reportTitle[reportType]}</h2>
+          <p>{reportDescription[reportType]}</p>
+        </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "10px",
-          flexWrap: "wrap",
-          marginBottom: "15px",
-        }}
-      >
-        {renderFilters()}
+        <div className="report-record-count">
+          <span>Records</span>
+          <strong>{data.length}</strong>
+        </div>
       </div>
 
-      <button onClick={fetchReport}>Apply Filters</button>
+      <div className="report-filter-card">
+        <div className="report-card-heading">
+          <div>
+            <h3>Report Filters</h3>
+            <p>Refine the report using the available criteria.</p>
+          </div>
+          <span className="filter-icon">⌕</span>
+        </div>
 
-      <button
-        onClick={clearFilters}
-        style={{ marginLeft: "10px" }}
-      >
-        Clear Filters
-      </button>
+        <div className="report-filters-grid">
+          {renderFilters()}
+        </div>
 
-      <button
-        onClick={() => exportReport("pdf")}
-        style={{ marginLeft: "10px" }}
-      >
-        Export PDF
-      </button>
+        <div className="report-filter-actions">
+          <button
+            className="report-apply-button"
+            onClick={fetchReport}
+            disabled={loading}
+          >
+            {loading ? "Loading..." : "Apply Filters"}
+          </button>
 
-      <button
-        onClick={() => exportReport("excel")}
-        style={{ marginLeft: "10px" }}
-      >
-        Export Excel
-      </button>
+          <button
+            className="report-clear-button"
+            onClick={clearFilters}
+            disabled={loading}
+          >
+            Clear Filters
+          </button>
+        </div>
+      </div>
 
-      <h3>Summary</h3>
-
-      {Object.keys(summary).length === 0 ? (
-        <p>No summary available.</p>
-      ) : (
-        <div>
-          {Object.entries(summary).map(([key, value]) => (
-            <p key={key}>
-              <strong>{key}:</strong> {String(value)}
+      <div className="report-export-card">
+        <div className="report-export-text">
+          <div className="export-icon">⇩</div>
+          <div>
+            <h3>Export Report</h3>
+            <p>
+              Download the current report with the selected filters applied.
             </p>
-          ))}
+          </div>
+        </div>
+
+        <div className="report-export-actions">
+          <button
+            className="export-pdf-button"
+            onClick={() => exportReport("pdf")}
+          >
+            <span>PDF</span>
+            Export PDF
+          </button>
+
+          <button
+            className="export-excel-button"
+            onClick={() => exportReport("excel")}
+          >
+            <span>XLSX</span>
+            Export Excel
+          </button>
+        </div>
+      </div>
+
+      {Object.keys(summary).length > 0 && (
+        <div className="report-summary-card">
+          <div className="report-card-heading">
+            <div>
+              <h3>Report Summary</h3>
+              <p>Key information returned by the reporting service.</p>
+            </div>
+          </div>
+
+          <div className="report-summary-grid">
+            {Object.entries(summary).map(([key, value]) => (
+              <div className="report-summary-item" key={key}>
+                <span>{formatKey(key)}</span>
+                <strong>{String(value)}</strong>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <h3>Report Data</h3>
+      <div className="report-data-card">
+        <div className="report-card-heading">
+          <div>
+            <h3>Report Data</h3>
+            <p>
+              Detailed records returned for the selected report and filters.
+            </p>
+          </div>
 
-      {renderTable()}
+          {!loading && data.length > 0 && (
+            <span className="report-data-badge">
+              {data.length} {data.length === 1 ? "record" : "records"}
+            </span>
+          )}
+        </div>
+
+        {renderTable()}
+      </div>
     </div>
   );
 }

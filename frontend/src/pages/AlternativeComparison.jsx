@@ -32,96 +32,324 @@ function AlternativeComparison() {
     fetchComparison();
   }, [id]);
 
+  const getBestFeasibility = () => {
+    const scores = alternatives
+      .map((alternative) => Number(alternative.feasibility_score))
+      .filter((score) => !Number.isNaN(score));
+
+    return scores.length > 0 ? Math.max(...scores) : null;
+  };
+
+  const bestScore = getBestFeasibility();
+
   return (
-    <div>
-      <h1>Compare Alternatives</h1>
+    <div className="comparison-page">
 
-      <p>
-        <strong>Decision ID:</strong> {id}
-      </p>
+      {/* Header */}
+      <div className="comparison-header">
+        <div>
+          <div className="page-breadcrumb">
+            Decisions / Alternatives / Comparison
+          </div>
 
-      <hr />
+          <h1>Compare Alternatives</h1>
 
-      {loading && <p>Loading comparison...</p>}
+          <p>
+            Compare the available options and evaluate which alternative
+            is most suitable for Decision #{id}.
+          </p>
+        </div>
 
-      {!loading && error && <p>{error}</p>}
+        <div className="comparison-header-actions">
+          <button
+            className="secondary-page-button"
+            onClick={() =>
+              navigate(`/decisions/${id}/alternatives`)
+            }
+          >
+            ← Alternatives
+          </button>
 
-      {!loading && !error && alternatives.length === 0 && (
-        <p>No alternatives available for comparison.</p>
-      )}
+          <button
+            className="primary-submit-button"
+            onClick={() => navigate(`/decisions/${id}`)}
+          >
+            Decision Details
+          </button>
+        </div>
+      </div>
 
-      {!loading && !error && alternatives.length > 0 && (
-        <table border="1" cellPadding="10">
-          <thead>
-            <tr>
-              <th>Criteria</th>
+      {/* Summary */}
+      <div className="comparison-summary">
 
-              {alternatives.map((alternative, index) => (
-                <th key={index}>{alternative.name}</th>
-              ))}
-            </tr>
-          </thead>
+        <div className="comparison-summary-card">
+          <div className="comparison-summary-icon">↔</div>
+          <div>
+            <span>Options Compared</span>
+            <strong>{alternatives.length}</strong>
+          </div>
+        </div>
 
-          <tbody>
-            <tr>
-              <td>
-                <strong>Estimated Cost</strong>
-              </td>
+        <div className="comparison-summary-card">
+          <div className="comparison-summary-icon">★</div>
+          <div>
+            <span>Highest Feasibility</span>
+            <strong>
+              {bestScore !== null ? `${bestScore}/5` : "—"}
+            </strong>
+          </div>
+        </div>
 
-              {alternatives.map((alternative, index) => (
-                <td key={index}>
-                  {alternative.estimated_cost ?? "-"}
-                </td>
-              ))}
-            </tr>
+        <div className="comparison-summary-card">
+          <div className="comparison-summary-icon">#</div>
+          <div>
+            <span>Decision</span>
+            <strong>#{id}</strong>
+          </div>
+        </div>
 
-            <tr>
-              <td>
-                <strong>Feasibility Score</strong>
-              </td>
+      </div>
 
-              {alternatives.map((alternative, index) => (
-                <td key={index}>
-                  {alternative.feasibility_score ?? "-"}
-                </td>
-              ))}
-            </tr>
+      {/* Content */}
+      <div className="comparison-card">
 
-            <tr>
-              <td>
-                <strong>Risk Level</strong>
-              </td>
+        <div className="comparison-card-header">
+          <div>
+            <h2>Alternative Comparison Matrix</h2>
+            <p>
+              Review the key criteria for each available option.
+            </p>
+          </div>
+        </div>
 
-              {alternatives.map((alternative, index) => (
-                <td key={index}>
-                  {alternative.risk_level || "-"}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      )}
+        {loading && (
+          <div className="page-loading">
+            <div className="loading-spinner"></div>
+            <p>Loading comparison...</p>
+          </div>
+        )}
 
-      <br />
+        {!loading && error && (
+          <div className="comparison-error">
+            <div>!</div>
+            <h3>Unable to Load Comparison</h3>
+            <p>{error}</p>
+          </div>
+        )}
 
-      <button
-        onClick={() =>
-          navigate(`/decisions/${id}/alternatives`)
-        }
-      >
-        Back to Alternatives
-      </button>
+        {!loading && !error && alternatives.length === 0 && (
+          <div className="comparison-empty">
+            <div className="comparison-empty-icon">↔</div>
+            <h3>No Alternatives Available</h3>
+            <p>
+              Add alternatives before comparing the available options.
+            </p>
 
-      <br />
-      <br />
+            <button
+              className="primary-submit-button"
+              onClick={() =>
+                navigate(`/decisions/${id}/alternatives`)
+              }
+            >
+              Add Alternatives
+            </button>
+          </div>
+        )}
 
-      <button
-        onClick={() =>
-          navigate(`/decisions/${id}`)
-        }
-      >
-        Back to Decision
-      </button>
+        {!loading && !error && alternatives.length > 0 && (
+          <div className="comparison-table-wrapper">
+            <table className="comparison-table">
+
+              <thead>
+                <tr>
+                  <th className="criteria-column">
+                    Criteria
+                  </th>
+
+                  {alternatives.map((alternative, index) => {
+                    const isBest =
+                      bestScore !== null &&
+                      Number(alternative.feasibility_score) === bestScore;
+
+                    return (
+                      <th key={index}>
+                        <div className="comparison-option-header">
+
+                          <div className="comparison-option-number">
+                            {index + 1}
+                          </div>
+
+                          <div>
+                            <strong>{alternative.name}</strong>
+
+                            {isBest && (
+                              <span className="recommended-badge">
+                                Recommended
+                              </span>
+                            )}
+                          </div>
+
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+
+              <tbody>
+
+                {/* Description */}
+                <tr>
+                  <td className="criteria-cell">
+                    Description
+                  </td>
+
+                  {alternatives.map((alternative, index) => (
+                    <td key={index}>
+                      <div className="comparison-description">
+                        {alternative.description || "Not provided"}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Pros */}
+                <tr>
+                  <td className="criteria-cell">
+                    <span className="criteria-label positive">
+                      ✓ Pros
+                    </span>
+                  </td>
+
+                  {alternatives.map((alternative, index) => (
+                    <td key={index}>
+                      <div className="comparison-pros">
+                        {alternative.pros || "Not provided"}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Cons */}
+                <tr>
+                  <td className="criteria-cell">
+                    <span className="criteria-label negative">
+                      ✕ Cons
+                    </span>
+                  </td>
+
+                  {alternatives.map((alternative, index) => (
+                    <td key={index}>
+                      <div className="comparison-cons">
+                        {alternative.cons || "Not provided"}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Cost */}
+                <tr>
+                  <td className="criteria-cell">
+                    Estimated Cost
+                  </td>
+
+                  {alternatives.map((alternative, index) => (
+                    <td key={index}>
+                      <strong className="comparison-value">
+                        {alternative.estimated_cost ?? "—"}
+                      </strong>
+                    </td>
+                  ))}
+                </tr>
+
+                {/* Feasibility */}
+                <tr>
+                  <td className="criteria-cell">
+                    Feasibility Score
+                  </td>
+
+                  {alternatives.map((alternative, index) => {
+                    const score =
+                      alternative.feasibility_score;
+
+                    const isBest =
+                      bestScore !== null &&
+                      Number(score) === bestScore;
+
+                    return (
+                      <td key={index}>
+                        <div className="feasibility-display">
+
+                          <strong>
+                            {score ?? "—"}
+                          </strong>
+
+                          {score && (
+                            <span>/5</span>
+                          )}
+
+                          {isBest && (
+                            <small>Highest</small>
+                          )}
+
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+
+                {/* Risk */}
+                <tr>
+                  <td className="criteria-cell">
+                    Risk Level
+                  </td>
+
+                  {alternatives.map((alternative, index) => {
+                    const risk =
+                      alternative.risk_level || "";
+
+                    return (
+                      <td key={index}>
+                        <span
+                          className={`comparison-risk ${
+                            risk.toLowerCase()
+                          }`}
+                        >
+                          {risk || "—"}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      </div>
+
+      {/* Bottom Actions */}
+      <div className="comparison-bottom-actions">
+
+        <button
+          className="secondary-page-button"
+          onClick={() =>
+            navigate(`/decisions/${id}/alternatives`)
+          }
+        >
+          ← Back to Alternatives
+        </button>
+
+        <button
+          className="primary-submit-button"
+          onClick={() => navigate(`/decisions/${id}`)}
+        >
+          Back to Decision
+        </button>
+
+      </div>
+
     </div>
   );
 }

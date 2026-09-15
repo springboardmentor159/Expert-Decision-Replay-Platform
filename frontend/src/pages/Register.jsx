@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
 
 function Register() {
@@ -69,127 +69,236 @@ function Register() {
   };
 
   return (
-    <div>
-      <h1>Expert Decision Replay Platform</h1>
+    <div className="auth-page register-auth-page">
+      {/* Left panel */}
+      <div className="auth-brand-panel">
+        <div className="auth-brand-content">
+          <div className="auth-logo">ED</div>
 
-      <h2>Create Account</h2>
+          <h1>Expert Decision</h1>
+          <h1>Replay Platform</h1>
 
-      <form onSubmit={handleSubmit}>
-        <label>Full Name</label>
-        <br />
-        <input
-          name="full_name"
-          value={form.full_name}
-          onChange={handleChange}
-          placeholder="Enter full name"
-        />
+          <p>
+            Create your account and join a centralized workspace for
+            structured decision management and expert collaboration.
+          </p>
 
-        <br />
-        <br />
+          <div className="auth-feature-list">
+            <div>
+              <span>✓</span>
+              Centralized decision management
+            </div>
 
-        <label>Email</label>
-        <br />
-        <input
-          type="email"
-          name="email"
-          value={form.email}
-          onChange={handleChange}
-          placeholder="Enter email"
-        />
+            <div>
+              <span>✓</span>
+              Role-based access control
+            </div>
 
-        <br />
-        <br />
+            <div>
+              <span>✓</span>
+              Approval and review workflows
+            </div>
 
-        <label>Password</label>
-        <br />
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          placeholder="Enter password"
-        />
+            <div>
+              <span>✓</span>
+              Secure audit and reporting
+            </div>
+          </div>
+        </div>
 
-        <br />
-        <br />
+        <div className="auth-brand-footer">
+          Expert Decision Replay Platform
+        </div>
+      </div>
 
-        <label>Role</label>
-        <br />
-        <select
-          name="role"
-          value={form.role}
-          onChange={handleChange}
-        >
-          <option value="Employee">Employee</option>
-          <option value="Reviewer">Reviewer</option>
-          <option value="Manager">Manager</option>
-          <option value="Administrator">Administrator</option>
-        </select>
+      {/* Registration panel */}
+      <div className="auth-form-panel register-form-panel">
+        <div className="auth-form-container register-form-container">
+          <div className="mobile-auth-logo">ED</div>
 
-        <br />
-        <br />
+          <div className="auth-form-header">
+            <span className="auth-eyebrow">ACCOUNT SETUP</span>
 
-        <label>Employee ID</label>
-        <br />
-        <input
-          name="employee_id"
-          value={form.employee_id}
-          onChange={handleChange}
-          placeholder="Enter employee ID"
-        />
+            <h2>Create your account</h2>
 
-        <br />
-        <br />
+            <p>
+              Enter your details to create an account on the decision
+              management platform.
+            </p>
+          </div>
 
-        <label>Department</label>
-        <br />
-        <input
-          name="department"
-          value={form.department}
-          onChange={handleChange}
-          placeholder="Enter department"
-        />
+          <form className="auth-form register-form" onSubmit={handleSubmit}>
+            <div className="register-fields-grid">
+              {/* Full Name */}
+              <div className="auth-field register-full-width">
+                <label htmlFor="full_name">
+                  Full Name <span>*</span>
+                </label>
 
-        <br />
-        <br />
+                <input
+                  id="full_name"
+                  name="full_name"
+                  value={form.full_name}
+                  onChange={handleChange}
+                  placeholder="Enter full name"
+                  autoComplete="name"
+                />
+              </div>
 
-        <label>Designation</label>
-        <br />
-        <input
-          name="designation"
-          value={form.designation}
-          onChange={handleChange}
-          placeholder="Enter designation"
-        />
+              {/* Email */}
+              <div className="auth-field">
+                <label htmlFor="email">
+                  Email <span>*</span>
+                </label>
 
-        <br />
-        <br />
+                <input
+                  id="email"
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="Enter email"
+                  autoComplete="email"
+                />
+              </div>
 
-        <label>Phone Number</label>
-        <br />
-        <input
-          name="phone_number"
-          value={form.phone_number}
-          onChange={handleChange}
-          placeholder="Enter phone number"
-        />
+              {/* Password */}
+              <div className="auth-field">
+                <label htmlFor="password">
+                  Password <span>*</span>
+                </label>
 
-        <br />
-        <br />
+                <input
+                  id="password"
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="Create password"
+                  autoComplete="new-password"
+                />
+              </div>
 
-        {error && <p>{error}</p>}
-        {success && <p>{success}</p>}
+              {/* Role */}
+              <div className="auth-field">
+                <label htmlFor="role">Role</label>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Registering..." : "Register"}
-        </button>
-      </form>
+                <select
+                  id="role"
+                  name="role"
+                  value={form.role}
+                  onChange={handleChange}
+                >
+                  <option value="Employee">Employee</option>
+                  <option value="Reviewer">Reviewer</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Administrator">Administrator</option>
+                </select>
+              </div>
 
-      <br />
+              {/* Employee ID */}
+              <div className="auth-field">
+                <label htmlFor="employee_id">
+                  Employee ID <span>*</span>
+                </label>
 
-      <button onClick={() => navigate("/login")}>
-        Back to Login
-      </button>
+                <input
+                  id="employee_id"
+                  name="employee_id"
+                  value={form.employee_id}
+                  onChange={handleChange}
+                  placeholder="Enter employee ID"
+                />
+              </div>
+
+              {/* Department */}
+              <div className="auth-field">
+                <label htmlFor="department">Department</label>
+
+                <input
+                  id="department"
+                  name="department"
+                  value={form.department}
+                  onChange={handleChange}
+                  placeholder="Enter department"
+                />
+              </div>
+
+              {/* Designation */}
+              <div className="auth-field">
+                <label htmlFor="designation">Designation</label>
+
+                <input
+                  id="designation"
+                  name="designation"
+                  value={form.designation}
+                  onChange={handleChange}
+                  placeholder="Enter designation"
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="auth-field">
+                <label htmlFor="phone_number">Phone Number</label>
+
+                <input
+                  id="phone_number"
+                  name="phone_number"
+                  value={form.phone_number}
+                  onChange={handleChange}
+                  placeholder="Enter phone number"
+                  autoComplete="tel"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="auth-error">
+                <span>!</span>
+                <p>{error}</p>
+              </div>
+            )}
+
+            {success && (
+              <div className="auth-success">
+                <span>✓</span>
+                <p>{success}</p>
+              </div>
+            )}
+
+            <button
+              className="auth-submit-button"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="auth-button-spinner"></span>
+                  Creating account...
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </button>
+          </form>
+
+          <div className="auth-divider">
+            <span>OR</span>
+          </div>
+
+          <div className="auth-register-prompt">
+            <span>Already have an account?</span>
+            <Link to="/login">Sign in</Link>
+          </div>
+
+          <div className="auth-security-note">
+            <span>🔒</span>
+            <p>
+              Your account information is protected by secure authentication.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

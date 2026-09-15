@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const role = user?.role || "Employee";
 
@@ -78,195 +80,410 @@ function Dashboard() {
     fetchRecentActivities();
   }, []);
 
+  const statCards = [
+    {
+      title: "Total Decisions",
+      value: stats.total_decisions,
+      icon: "▣",
+      className: "blue",
+    },
+    {
+      title: "Draft Decisions",
+      value: stats.draft_decisions,
+      icon: "✎",
+      className: "orange",
+    },
+    {
+      title: "Under Review",
+      value: stats.under_review,
+      icon: "◷",
+      className: "purple",
+    },
+    {
+      title: "Approved",
+      value: stats.approved_decisions,
+      icon: "✓",
+      className: "green",
+    },
+  ];
+
   return (
-    <div>
-      <h1>Expert Decision Replay Platform</h1>
+    <div className="dashboard-page">
 
-      <h2>Welcome to the Dashboard</h2>
+      {/* PAGE HEADING */}
 
-      {user ? (
-        <>
-          <p>
-            Welcome, <strong>{user.full_name}</strong>
+      <div className="dashboard-heading">
+        <div>
+          <p className="page-label">OVERVIEW</p>
+
+          <h1>Good evening, {user?.full_name || "Ramya"} 👋</h1>
+
+          <p className="dashboard-subtitle">
+            Here's what's happening with your decisions today.
           </p>
+        </div>
 
-          <p>
-            Role: <strong>{role}</strong>
-          </p>
+        <button
+          className="primary-button"
+          onClick={() => navigate("/decisions/create")}
+        >
+          <span>+</span>
+          Create Decision
+        </button>
+      </div>
 
-          {role === "Employee" && (
-            <div>
-              <h3>Employee Dashboard</h3>
-              <p>Create and manage your decisions.</p>
-              <p>View decision history and participate in discussions.</p>
-            </div>
-          )}
 
-          {role === "Reviewer" && (
-            <div>
-              <h3>Reviewer Dashboard</h3>
-              <p>Review submitted decisions.</p>
-              <p>Provide feedback and request changes.</p>
-            </div>
-          )}
+      {/* STATISTICS */}
 
-          {role === "Manager" && (
-            <div>
-              <h3>Manager Dashboard</h3>
-              <p>Review decisions awaiting approval.</p>
-              <p>Approve or reject decisions.</p>
-            </div>
-          )}
-
-          {role === "Administrator" && (
-            <div>
-              <h3>Administrator Dashboard</h3>
-              <p>
-                Manage users, decisions, reports and system activities.
-              </p>
-            </div>
-          )}
-
-          <hr />
-
-          {/* Decision Statistics */}
-          <h3>Decision Statistics</h3>
-
-          {loading ? (
-            <p>Loading statistics...</p>
-          ) : error ? (
-            <p>{error}</p>
-          ) : (
-            <div>
-              <p>
-                <strong>Total Decisions:</strong>{" "}
-                {stats.total_decisions}
-              </p>
-
-              <p>
-                <strong>Draft Decisions:</strong>{" "}
-                {stats.draft_decisions}
-              </p>
-
-              <p>
-                <strong>Under Review:</strong>{" "}
-                {stats.under_review}
-              </p>
-
-              <p>
-                <strong>Approved Decisions:</strong>{" "}
-                {stats.approved_decisions}
-              </p>
-
-              <p>
-                <strong>Rejected Decisions:</strong>{" "}
-                {stats.rejected_decisions}
-              </p>
-            </div>
-          )}
-
-          <hr />
-
-          {/* My Decisions */}
-          <h3>My Decisions</h3>
-
-          {decisionsLoading ? (
-            <p>Loading your decisions...</p>
-          ) : decisionsError ? (
-            <p>{decisionsError}</p>
-          ) : myDecisions.length === 0 ? (
-            <p>You have not created any decisions yet.</p>
-          ) : (
-            <table border="1" cellPadding="10">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Title</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Created At</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {myDecisions.map((decision) => (
-                  <tr key={decision.id}>
-                    <td>{decision.id}</td>
-                    <td>{decision.title}</td>
-                    <td>{decision.category}</td>
-                    <td>{decision.status}</td>
-                    <td>
-                      {decision.created_at
-                        ? new Date(
-                            decision.created_at
-                          ).toLocaleString()
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          <hr />
-
-          {/* Recent Activities */}
-          <h3>Recent Activities</h3>
-
-          {activitiesLoading ? (
-            <p>Loading recent activities...</p>
-          ) : activitiesError ? (
-            <p>{activitiesError}</p>
-          ) : recentActivities.length === 0 ? (
-            <p>No recent activities found.</p>
-          ) : (
-            <table border="1" cellPadding="10">
-              <thead>
-                <tr>
-                  <th>Activity</th>
-                  <th>Entity</th>
-                  <th>Entity ID</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {recentActivities.map((activity) => (
-                  <tr key={activity.id}>
-                    <td>
-                      {activity.action ||
-                        activity.activity_type ||
-                        "-"}
-                    </td>
-
-                    <td>
-                      {activity.entity_type || "-"}
-                    </td>
-
-                    <td>
-                      {activity.entity_id || "-"}
-                    </td>
-
-                    <td>
-                      {activity.created_at
-                        ? new Date(
-                            activity.created_at
-                          ).toLocaleString()
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
+      {loading ? (
+        <div className="loading-card">
+          Loading dashboard statistics...
+        </div>
+      ) : error ? (
+        <div className="error-card">
+          {error}
+        </div>
       ) : (
-        <p>Loading user information...</p>
+        <div className="stats-grid">
+
+          {statCards.map((card) => (
+            <div className="stat-card" key={card.title}>
+
+              <div className={`stat-icon ${card.className}`}>
+                {card.icon}
+              </div>
+
+              <div className="stat-content">
+                <p>{card.title}</p>
+                <h2>{card.value}</h2>
+              </div>
+
+            </div>
+          ))}
+
+        </div>
       )}
 
-      <br />
 
-      <button onClick={logout}>Logout</button>
+      {/* MAIN GRID */}
+
+      <div className="dashboard-grid">
+
+        {/* MY DECISIONS */}
+
+        <div className="dashboard-card decisions-card">
+
+          <div className="card-header">
+
+            <div>
+              <h2>My Decisions</h2>
+              <p>Recently created and updated decisions</p>
+            </div>
+
+            <button
+              className="text-button"
+              onClick={() => navigate("/decisions")}
+            >
+              View All →
+            </button>
+
+          </div>
+
+          {decisionsLoading ? (
+            <div className="empty-state">
+              Loading your decisions...
+            </div>
+          ) : decisionsError ? (
+            <div className="error-state">
+              {decisionsError}
+            </div>
+          ) : myDecisions.length === 0 ? (
+
+            <div className="empty-state">
+
+              <div className="empty-icon">
+                ▣
+              </div>
+
+              <h3>No decisions yet</h3>
+
+              <p>
+                Create your first decision to get started.
+              </p>
+
+              <button
+                className="secondary-button"
+                onClick={() => navigate("/decisions/create")}
+              >
+                Create Decision
+              </button>
+
+            </div>
+
+          ) : (
+
+            <div className="decision-table-wrapper">
+
+              <table className="modern-table">
+
+                <thead>
+                  <tr>
+                    <th>Decision</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {myDecisions.slice(0, 5).map((decision) => (
+
+                    <tr
+                      key={decision.id}
+                      onClick={() =>
+                        navigate(`/decisions/${decision.id}`)
+                      }
+                      className="clickable-row"
+                    >
+
+                      <td>
+                        <div className="decision-name">
+                          <div className="decision-avatar">
+                            {decision.title
+                              ? decision.title.charAt(0).toUpperCase()
+                              : "D"}
+                          </div>
+
+                          <div>
+                            <strong>
+                              {decision.title}
+                            </strong>
+
+                            <span>
+                              Decision #{decision.id}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        {decision.category || "-"}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`status-badge ${String(
+                            decision.status || ""
+                          )
+                            .toLowerCase()
+                            .replace(/\s+/g, "-")}`}
+                        >
+                          {decision.status || "Unknown"}
+                        </span>
+                      </td>
+
+                      <td>
+                        {decision.created_at
+                          ? new Date(
+                              decision.created_at
+                            ).toLocaleDateString()
+                          : "-"}
+                      </td>
+
+                    </tr>
+
+                  ))}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          )}
+
+        </div>
+
+
+        {/* RIGHT SIDE */}
+
+        <div className="right-dashboard-column">
+
+          {/* QUICK ACTIONS */}
+
+          <div className="dashboard-card quick-card">
+
+            <div className="card-header">
+
+              <div>
+                <h2>Quick Actions</h2>
+                <p>Common tasks</p>
+              </div>
+
+            </div>
+
+            <button
+              className="quick-action"
+              onClick={() => navigate("/decisions/create")}
+            >
+              <span className="quick-icon blue">
+                +
+              </span>
+
+              <div>
+                <strong>Create Decision</strong>
+                <small>Start a new decision</small>
+              </div>
+
+              <span className="arrow">→</span>
+            </button>
+
+            <button
+              className="quick-action"
+              onClick={() => navigate("/knowledge")}
+            >
+              <span className="quick-icon purple">
+                ▤
+              </span>
+
+              <div>
+                <strong>Knowledge Repository</strong>
+                <small>Explore past decisions</small>
+              </div>
+
+              <span className="arrow">→</span>
+            </button>
+
+            <button
+              className="quick-action"
+              onClick={() => navigate("/reports")}
+            >
+              <span className="quick-icon green">
+                ▥
+              </span>
+
+              <div>
+                <strong>View Reports</strong>
+                <small>Analyze decision data</small>
+              </div>
+
+              <span className="arrow">→</span>
+            </button>
+
+          </div>
+
+
+          {/* ROLE CARD */}
+
+          <div className="role-card">
+
+            <div className="role-card-icon">
+              ◉
+            </div>
+
+            <div>
+              <span>Your Role</span>
+              <strong>{role}</strong>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      {/* RECENT ACTIVITY */}
+
+      <div className="dashboard-card activity-card">
+
+        <div className="card-header">
+
+          <div>
+            <h2>Recent Activity</h2>
+            <p>Your latest activity on the platform</p>
+          </div>
+
+          <button
+            className="text-button"
+            onClick={() => navigate("/audit-logs")}
+          >
+            View Audit Logs →
+          </button>
+
+        </div>
+
+        {activitiesLoading ? (
+
+          <div className="empty-state">
+            Loading recent activities...
+          </div>
+
+        ) : activitiesError ? (
+
+          <div className="error-state">
+            {activitiesError}
+          </div>
+
+        ) : recentActivities.length === 0 ? (
+
+          <div className="empty-state">
+            <div className="empty-icon">◷</div>
+            <h3>No recent activity</h3>
+            <p>Your platform activity will appear here.</p>
+          </div>
+
+        ) : (
+
+          <div className="activity-list">
+
+            {recentActivities.slice(0, 5).map((activity) => (
+
+              <div
+                className="activity-item"
+                key={activity.id}
+              >
+
+                <div className="activity-icon">
+                  ✓
+                </div>
+
+                <div className="activity-content">
+
+                  <strong>
+                    {activity.action ||
+                      activity.activity_type ||
+                      "Activity"}
+                  </strong>
+
+                  <span>
+                    {activity.entity_type || "Decision"}
+                    {activity.entity_id
+                      ? ` #${activity.entity_id}`
+                      : ""}
+                  </span>
+
+                </div>
+
+                <time>
+                  {activity.created_at
+                    ? new Date(
+                        activity.created_at
+                      ).toLocaleString()
+                    : "-"}
+                </time>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </div>
+
     </div>
   );
 }
