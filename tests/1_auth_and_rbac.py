@@ -32,7 +32,7 @@ def test_auth_login_valid_and_invalid(client: TestClient, employee_user: User):
     # Valid login
     res = client.post(
         "/auth/login",
-        data={"username": employee_user.email, "password": "Password123!"},
+        data={"username": employee_user.email, "password": "password123"},
     )
     assert res.status_code == 200
     token_data = res.json()

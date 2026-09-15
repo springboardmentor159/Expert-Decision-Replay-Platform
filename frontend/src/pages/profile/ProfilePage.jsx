@@ -321,15 +321,15 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                   </div>
                 </div>
 
-                {/* Approved Decisions */}
+                {/* Approved by Me */}
                 <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        Approved Decisions
+                        Approved by Me
                       </div>
                       <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--success)', marginTop: '4px' }}>
-                        {statistics?.approved_decisions ?? 0}
+                        {statistics?.approved_reviews ?? 0}
                       </div>
                     </div>
                     <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)' }}>
@@ -337,27 +337,27 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                     </div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Decisions approved & ratified
+                    Reviews approved & ratified by you
                   </div>
                 </div>
 
-                {/* Discussion Comments */}
+                {/* Rejected by Me */}
                 <div className="card" style={{ padding: '1.25rem', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        Discussion Notes
+                        Rejected by Me
                       </div>
-                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--primary)', marginTop: '4px' }}>
-                        {statistics?.total_comments_posted ?? 0}
+                      <div style={{ fontSize: '2rem', fontWeight: 700, fontFamily: 'Outfit', color: 'var(--danger)', marginTop: '4px' }}>
+                        {statistics?.rejected_reviews ?? 0}
                       </div>
                     </div>
-                    <div style={{ padding: '8px', borderRadius: '8px', background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                      <MessageSquare size={22} />
+                    <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)' }}>
+                      <XCircle size={22} />
                     </div>
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    Comments contributed to discussions
+                    Reviews flagged or rejected by you
                   </div>
                 </div>
               </>
@@ -558,12 +558,32 @@ export function ProfilePage({ onNavigateCreate, onNavigateMyDecisions }) {
                   <span style={{ fontWeight: 600, color: '#f59e0b' }}>{statistics?.pending_reviews ?? 0}</span>
                 </div>
 
+                {isReviewer && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <CheckCircle2 size={15} style={{ color: 'var(--success)' }} />
+                        Reviews Approved
+                      </span>
+                      <span style={{ fontWeight: 600, color: 'var(--success)' }}>{statistics?.approved_reviews ?? 0}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <XCircle size={15} style={{ color: 'var(--danger)' }} />
+                        Reviews Rejected
+                      </span>
+                      <span style={{ fontWeight: 600, color: 'var(--danger)' }}>{statistics?.rejected_reviews ?? 0}</span>
+                    </div>
+                  </>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.875rem' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Award size={15} style={{ color: 'var(--success)' }} />
+                    <Award size={15} style={{ color: 'var(--primary)' }} />
                     Reviews Completed & Finalized
                   </span>
-                  <span style={{ fontWeight: 600, color: 'var(--success)' }}>{statistics?.completed_reviews ?? 0}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{statistics?.completed_reviews ?? 0}</span>
                 </div>
               </div>
             </div>

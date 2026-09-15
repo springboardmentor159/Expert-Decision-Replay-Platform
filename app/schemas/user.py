@@ -86,4 +86,6 @@ class UserStatisticsResponse(BaseModel):
     assigned_reviews: int
     pending_reviews: int
     completed_reviews: int
+    approved_reviews: int = 0
+    rejected_reviews: int = 0
 

@@ -220,16 +220,8 @@ def get_my_statistics(
                 .filter(Alternative.decision_id.in_(reviewer_decision_ids))
             )
         else:
-            # Fallback to organizational decisions under review or finalized
-            decisions_query = db.query(Decision).filter(
-                Decision.organization_id == current_user.organization_id,
-                Decision.status.in_([DecisionStatus.UNDER_REVIEW, DecisionStatus.APPROVED, DecisionStatus.REJECTED, DecisionStatus.ARCHIVED])
-            )
-            alternatives_query = (
-                db.query(Alternative)
-                .join(Decision, Alternative.decision_id == Decision.id)
-                .filter(Decision.organization_id == current_user.organization_id)
-            )
+            decisions_query = db.query(Decision).filter(Decision.id == -1)
+            alternatives_query = db.query(Alternative).filter(Alternative.id == -1)
 
     else:  # Employee
         decisions_query = db.query(Decision).filter(Decision.created_by == current_user.id)
@@ -258,14 +250,21 @@ def get_my_statistics(
         .filter(Approval.reviewer_id == current_user.id, Approval.status == ApprovalStatus.PENDING)
         .count()
     )
-    completed_reviews = (
+    approved_reviews = (
         db.query(Approval)
-        .filter(
-            Approval.reviewer_id == current_user.id,
-            Approval.status.in_([ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]),
-        )
+        .filter(Approval.reviewer_id == current_user.id, Approval.status == ApprovalStatus.APPROVED)
         .count()
     )
+    rejected_reviews = (
+        db.query(Approval)
+        .filter(Approval.reviewer_id == current_user.id, Approval.status == ApprovalStatus.REJECTED)
+        .count()
+    )
+    completed_reviews = approved_reviews + rejected_reviews
+
+    if current_user.role == UserRole.REVIEWER:
+        decided_reviews = approved_reviews + rejected_reviews
+        approval_rate = round((approved_reviews / decided_reviews * 100), 1) if decided_reviews > 0 else 0.0
 
     return UserStatisticsResponse(
         total_decisions=total_decisions,
@@ -280,6 +279,8 @@ def get_my_statistics(
         assigned_reviews=assigned_reviews,
         pending_reviews=pending_reviews,
         completed_reviews=completed_reviews,
+        approved_reviews=approved_reviews,
+        rejected_reviews=rejected_reviews,
     )
 
 

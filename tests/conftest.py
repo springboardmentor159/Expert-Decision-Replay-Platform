@@ -42,7 +42,7 @@ def create_or_get_user(db: Session, email: str, full_name: str, role: UserRole, 
             email=email,
             full_name=full_name,
             role=role,
-            password=hash_password("Password123!"),
+            password=hash_password("password123"),
             employee_id=f"EMP-{uuid.uuid4().hex[:6].upper()}",
             department=department,
             designation=f"{role.value} Specialist",
@@ -50,6 +50,10 @@ def create_or_get_user(db: Session, email: str, full_name: str, role: UserRole, 
             organization_id=org_id,
         )
         db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        user.password = hash_password("password123")
         db.commit()
         db.refresh(user)
     return user
