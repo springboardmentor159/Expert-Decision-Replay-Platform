@@ -594,8 +594,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
           )}
           {(isManager || isAdmin || decision.created_by === user?.id) &&
             decision.status !== 'Approved' &&
-            decision.status !== 'Archived' &&
-            (!approvals || approvals.length === 0) && (
+            decision.status !== 'Archived' && (
             <button className="btn btn-secondary btn-sm" onClick={() => setShowAssignModal(true)}>
               <User size={15} /> Assign Reviewer
             </button>
@@ -1271,7 +1270,16 @@ export function DecisionDetailPage({ decisionId, onBack }) {
             </div>
 
             {/* Approvals Table */}
-            <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>Assigned Approvals & Reviews</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Assigned Approvals & Reviews</h3>
+              {(isManager || isAdmin || decision.created_by === user?.id) &&
+                decision.status !== 'Approved' &&
+                decision.status !== 'Archived' && (
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowAssignModal(true)}>
+                  <User size={14} /> + Assign Another Stage / Reviewer
+                </button>
+              )}
+            </div>
             {approvals.length === 0 ? (
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                 No reviewer currently assigned. (Click "Assign Reviewer" above to assign an evaluator)
