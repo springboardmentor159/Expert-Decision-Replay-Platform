@@ -79,7 +79,7 @@ def get_decision_replay(
                 timestamp=alt.created_at,
                 event_type="ALTERNATIVE",
                 title=f"Alternative Added: {alt.name}",
-                description=f"Option evaluated with Cost: ${alt.estimated_cost}, Risk: {alt.risk_level.value}, Feasibility: {alt.feasibility_score}/5.",
+                description=f"Option evaluated with Cost: ₹{alt.estimated_cost}, Risk: {alt.risk_level.value}, Feasibility: {alt.feasibility_score}/5.",
                 badge_color="warning",
                 metadata={"feasibility": alt.feasibility_score, "cost": float(alt.estimated_cost)},
             )

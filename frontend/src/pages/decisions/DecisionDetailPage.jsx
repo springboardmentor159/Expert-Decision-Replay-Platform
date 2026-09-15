@@ -677,7 +677,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  <span>Cost: <strong>${chosenAlternative.estimated_cost != null ? Number(chosenAlternative.estimated_cost).toLocaleString() : 'N/A'}</strong></span>
+                  <span>Cost: <strong>₹{chosenAlternative.estimated_cost != null ? Number(chosenAlternative.estimated_cost).toLocaleString() : 'N/A'}</strong></span>
                   <span>•</span>
                   <span>Feasibility: <strong>{chosenAlternative.feasibility_score}/5</strong></span>
                   <span>•</span>
@@ -856,7 +856,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                     Feasibility: {chosenAlternative.feasibility_score} / 5
                   </span>
                   <span className="badge badge-secondary" style={{ fontSize: '0.8rem' }}>
-                    Est. Cost: ${chosenAlternative.estimated_cost != null ? Number(chosenAlternative.estimated_cost).toLocaleString() : 'N/A'}
+                    Est. Cost: ₹{chosenAlternative.estimated_cost != null ? Number(chosenAlternative.estimated_cost).toLocaleString() : 'N/A'}
                   </span>
                 </div>
               </div>
@@ -1128,7 +1128,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                         <div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Estimated Cost</div>
                           <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                            ${alt.estimated_cost != null ? alt.estimated_cost.toLocaleString() : 'N/A'}
+                            ₹{alt.estimated_cost != null ? alt.estimated_cost.toLocaleString() : 'N/A'}
                           </div>
                         </div>
                       </div>
@@ -1595,7 +1595,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label">Estimated Cost ($)</label>
+              <label className="form-label">Estimated Cost (₹)</label>
               <input
                 type="number"
                 className="form-input"
@@ -1718,7 +1718,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                           </span>
                         </td>
                         <td>
-                          {alt.estimated_cost != null ? `$${alt.estimated_cost.toLocaleString()}` : 'N/A'}
+                          {alt.estimated_cost != null ? `₹${alt.estimated_cost.toLocaleString()}` : 'N/A'}
                         </td>
                         <td><RiskBadge level={alt.risk_level} /></td>
                       </tr>
