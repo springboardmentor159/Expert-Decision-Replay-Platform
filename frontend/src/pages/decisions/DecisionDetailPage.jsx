@@ -189,6 +189,8 @@ export function DecisionDetailPage({ decisionId, onBack }) {
     return saved ? Number(saved) : null;
   });
 
+  const chosenAlternative = alternatives.find((a) => a.id === selectedAltId);
+
   const handleSelectAlternative = (altId) => {
     if (selectedAltId === altId) {
       setSelectedAltId(null);
@@ -650,6 +652,39 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                 Author: {decision.creator?.full_name || `User #${decision.created_by}`}
               </div>
             </div>
+
+            {/* Chosen / Adopted Alternative Header Callout */}
+            {chosenAlternative && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.65rem 1rem',
+                borderRadius: '8px',
+                background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04))',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Award size={18} style={{ color: 'var(--success)' }} />
+                  <span style={{ fontSize: '0.85rem' }}>
+                    <strong style={{ color: 'var(--success)' }}>
+                      {decision.status === 'Approved' ? 'Adopted Architecture Solution:' : 'Selected / Preferred Candidate:'}
+                    </strong>{' '}
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{chosenAlternative.name}</span>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <span>Cost: <strong>${chosenAlternative.estimated_cost != null ? Number(chosenAlternative.estimated_cost).toLocaleString() : 'N/A'}</strong></span>
+                  <span>•</span>
+                  <span>Feasibility: <strong>{chosenAlternative.feasibility_score}/5</strong></span>
+                  <span>•</span>
+                  <RiskBadge level={chosenAlternative.risk_level} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -797,6 +832,57 @@ export function DecisionDetailPage({ decisionId, onBack }) {
               {decision.problem_statement}
             </p>
           </div>
+
+          {/* Chosen Alternative Spotlight Card in Overview */}
+          {chosenAlternative && (
+            <div className="card" style={{
+              border: '1.5px solid var(--success)',
+              background: 'linear-gradient(180deg, var(--bg-card), var(--bg-hover))',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '0.35rem' }}>
+                    <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Award size={13} /> {decision.status === 'Approved' ? 'Adopted Architecture Selection' : 'Selected Candidate Option'}
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.2rem', margin: 0, color: 'var(--text-primary)' }}>
+                    {chosenAlternative.name}
+                  </h3>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <RiskBadge level={chosenAlternative.risk_level} />
+                  <span className="badge badge-secondary" style={{ fontSize: '0.8rem' }}>
+                    Feasibility: {chosenAlternative.feasibility_score} / 5
+                  </span>
+                  <span className="badge badge-secondary" style={{ fontSize: '0.8rem' }}>
+                    Est. Cost: ${chosenAlternative.estimated_cost != null ? Number(chosenAlternative.estimated_cost).toLocaleString() : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              {chosenAlternative.description && (
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.85rem', lineHeight: 1.5 }}>
+                  {chosenAlternative.description}
+                </p>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem', fontSize: '0.85rem' }}>
+                {chosenAlternative.pros && (
+                  <div style={{ background: 'var(--bg-card)', padding: '0.65rem 0.85rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <strong style={{ color: 'var(--success)', display: 'block', marginBottom: '3px' }}>Key Advantages (Pros):</strong>
+                    <span style={{ color: 'var(--text-secondary)' }}>{chosenAlternative.pros}</span>
+                  </div>
+                )}
+                {chosenAlternative.cons && (
+                  <div style={{ background: 'var(--bg-card)', padding: '0.65rem 0.85rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <strong style={{ color: 'var(--danger)', display: 'block', marginBottom: '3px' }}>Trade-offs / Watchouts (Cons):</strong>
+                    <span style={{ color: 'var(--text-secondary)' }}>{chosenAlternative.cons}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {decision.rationale && (
             <div className="card">
@@ -1071,12 +1157,31 @@ export function DecisionDetailPage({ decisionId, onBack }) {
                       <button
                         type="button"
                         className={`btn btn-sm ${isSelected ? 'btn-success' : 'btn-secondary'}`}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                        onClick={() => handleSelectAlternative(alt.id)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          opacity: decision.status === 'Approved' && !isSelected ? 0.45 : 1,
+                          cursor: decision.status === 'Approved' ? 'default' : 'pointer',
+                        }}
+                        onClick={() => {
+                          if (decision.status === 'Approved') return;
+                          handleSelectAlternative(alt.id);
+                        }}
+                        disabled={decision.status === 'Approved' && !isSelected}
+                        title={
+                          decision.status === 'Approved'
+                            ? isSelected
+                              ? 'This alternative was officially adopted and approved'
+                              : 'Decision is approved; candidate choice is locked'
+                            : isSelected
+                            ? 'Click to deselect'
+                            : 'Click to select as preferred candidate'
+                        }
                       >
                         {isSelected ? (
                           <>
-                            <Check size={14} /> Selected Option
+                            <Check size={14} /> {decision.status === 'Approved' ? 'Adopted Choice' : 'Selected Choice'}
                           </>
                         ) : (
                           <>
