@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+html { background: #f4f7f6; }
+body { margin: 0; background: radial-gradient(circle at 90% 0%, #e0f0eb 0, transparent 28rem), #f4f7f6; color: #16332f; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; }

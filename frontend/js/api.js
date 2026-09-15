@@ -1,6 +1,6 @@
 // Centralized API Client & Service Layer
 
-const API_BASE = '';
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.DEV) ? '/api' : '';
 
 export class ApiError extends Error {
   constructor(message, status, data = null) {

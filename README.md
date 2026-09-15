@@ -40,3 +40,6 @@ Copy `.env.example` to `.env` and provide deployment-specific values. Never comm
    - It should return a list of users only when the token is valid.
 5. If you omit or use an invalid token, Swagger returns `401 Unauthorized`.
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
