@@ -238,7 +238,7 @@ export function LoginPage({ onNavigateRegister }) {
           </div>
         </div>
 
-        </div>
+        <div></div>
       </div>
 
       {/* RIGHT SIDE: Clean, Focused Corporate Login Form */}
