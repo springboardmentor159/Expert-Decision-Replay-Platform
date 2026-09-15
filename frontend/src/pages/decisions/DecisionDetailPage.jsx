@@ -189,10 +189,14 @@ export function DecisionDetailPage({ decisionId, onBack }) {
     return saved ? Number(saved) : null;
   });
 
-  const chosenAlternative = alternatives.find((a) => a.id === selectedAltId);
+  const chosenAlternative =
+    alternatives.find((a) => a.id === selectedAltId) ||
+    (decision?.status === 'Approved' && alternatives.length > 0 ? alternatives[0] : null);
+
+  const effectiveSelectedAltId = chosenAlternative ? chosenAlternative.id : selectedAltId;
 
   const handleSelectAlternative = (altId) => {
-    if (selectedAltId === altId) {
+    if (effectiveSelectedAltId === altId) {
       setSelectedAltId(null);
       localStorage.removeItem(`selected_alt_${decisionId}`);
       success('Deselected candidate option');
@@ -1069,7 +1073,7 @@ export function DecisionDetailPage({ decisionId, onBack }) {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
               {alternatives.map((alt) => {
-                const isSelected = selectedAltId === alt.id;
+                const isSelected = effectiveSelectedAltId === alt.id;
                 return (
                   <div
                     key={alt.id}

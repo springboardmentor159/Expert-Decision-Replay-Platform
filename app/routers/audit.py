@@ -37,10 +37,15 @@ def can_access_decision(
     if decision.organization_id != current_user.organization_id:
         return False
 
+    status_val = decision.status.value if hasattr(decision.status, "value") else str(decision.status)
+    if status_val in ("Approved", "Under Review", "Archived"):
+        return True
+
     if decision.created_by == current_user.id:
         return True
 
     if current_user.role in (
+        UserRole.REVIEWER,
         UserRole.MANAGER,
         UserRole.ADMINISTRATOR
     ):
