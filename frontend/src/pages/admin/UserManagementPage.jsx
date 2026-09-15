@@ -280,6 +280,70 @@ export function UserManagementPage() {
             </div>
           </div>
 
+          {/* Visual Role & Department Graphs */}
+          {users.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+              {/* Role Distribution Bar */}
+              <div className="card" style={{ padding: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: 600 }}>Workforce Role Composition</h3>
+                  <span className="badge badge-secondary" style={{ fontSize: '0.72rem' }}>{users.length} Users</span>
+                </div>
+                <div style={{ height: '10px', display: 'flex', borderRadius: '5px', overflow: 'hidden', background: 'var(--border-color)', marginBottom: '0.75rem' }}>
+                  <div style={{ width: `${(roleCounts.Employee / users.length) * 100}%`, background: 'var(--primary)' }} title={`Employees: ${roleCounts.Employee}`} />
+                  <div style={{ width: `${(roleCounts.Reviewer / users.length) * 100}%`, background: 'var(--info)' }} title={`Reviewers: ${roleCounts.Reviewer}`} />
+                  <div style={{ width: `${(roleCounts.Manager / users.length) * 100}%`, background: 'var(--purple)' }} title={`Managers: ${roleCounts.Manager}`} />
+                  <div style={{ width: `${(roleCounts.Administrator / users.length) * 100}%`, background: 'var(--warning)' }} title={`Admins: ${roleCounts.Administrator}`} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }} /> Emp: {Math.round((roleCounts.Employee / users.length) * 100)}%</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--info)' }} /> Rev: {Math.round((roleCounts.Reviewer / users.length) * 100)}%</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--purple)' }} /> Mgr: {Math.round((roleCounts.Manager / users.length) * 100)}%</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--warning)' }} /> Adm: {Math.round((roleCounts.Administrator / users.length) * 100)}%</span>
+                </div>
+              </div>
+
+              {/* Department Distribution Bar Chart */}
+              <div className="card" style={{ padding: '1.25rem' }}>
+                {(() => {
+                  const departmentCounts = users.reduce((acc, u) => {
+                    const dept = u.department || 'General';
+                    acc[dept] = (acc[dept] || 0) + 1;
+                    return acc;
+                  }, {});
+                  const maxDeptCount = Math.max(...Object.values(departmentCounts), 1);
+
+                  return (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: 600 }}>Department Allocation</h3>
+                        <span className="badge badge-secondary" style={{ fontSize: '0.72rem' }}>{Object.keys(departmentCounts).length} Departments</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {Object.entries(departmentCounts).slice(0, 4).map(([dept, cnt], idx) => {
+                          const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899'];
+                          const col = colors[idx % colors.length];
+                          const pct = Math.round((cnt / maxDeptCount) * 100);
+                          return (
+                            <div key={dept}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '2px' }}>
+                                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{dept}</span>
+                                <span style={{ color: 'var(--text-muted)' }}>{cnt} members</span>
+                              </div>
+                              <div style={{ height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: col, borderRadius: '3px', transition: 'width 0.5s' }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* Search & Filters */}
           <div className="card" style={{ padding: '1rem 1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>

@@ -20,6 +20,7 @@ import { approvalsApi } from '../../api/approvals';
 import { organizationsApi } from '../../api/organizations';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { AdminAnalyticsCharts } from '../../components/admin/AdminAnalyticsCharts';
 
 export function DashboardPage({ onSelectDecision, onNavigateCreate, onNavigateReviews }) {
   const { user, role, isEmployee, isReviewer, isManager, isAdmin } = useAuth();
@@ -249,45 +250,13 @@ export function DashboardPage({ onSelectDecision, onNavigateCreate, onNavigateRe
         </div>
       )}
 
-      {/* Admin Analytics Sections */}
+      {/* Admin Visual Analytics Charts & Graphs */}
       {isAdmin && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-          <div className="card">
-            <h2 style={{ fontSize: '1.15rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <TrendingUp size={18} style={{ color: 'var(--primary)' }} /> Decisions by Status
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {statusStats.length === 0 ? (
-                <div style={{ color: 'var(--text-muted)' }}>No decision status data available.</div>
-              ) : (
-                statusStats.map((st) => (
-                  <div key={st.status} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <StatusBadge status={st.status} />
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{st.count} decisions</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="card">
-            <h2 style={{ fontSize: '1.15rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Layers size={18} style={{ color: 'var(--purple)' }} /> Decisions by Category
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {categoryStats.length === 0 ? (
-                <div style={{ color: 'var(--text-muted)' }}>No category data available.</div>
-              ) : (
-                categoryStats.map((cat) => (
-                  <div key={cat.category} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 500 }}>{cat.category || 'General'}</span>
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{cat.count}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+        <AdminAnalyticsCharts
+          data={data}
+          categoryStats={categoryStats}
+          statusStats={statusStats}
+        />
       )}
 
       {/* Recent Decisions Table for Employee / Manager */}
