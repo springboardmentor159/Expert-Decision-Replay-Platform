@@ -176,28 +176,28 @@ export function LoginPage({ onNavigateRegister }) {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => fillQuickLogin('employee@example.com', 'Password123!')}
+                onClick={() => fillQuickLogin('employee@example.com', 'password123')}
               >
                 <UserCheck size={14} /> Employee
               </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => fillQuickLogin('reviewer@example.com', 'Password123!')}
+                onClick={() => fillQuickLogin('reviewer@example.com', 'password123')}
               >
                 <Shield size={14} /> Reviewer
               </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => fillQuickLogin('manager@example.com', 'Password123!')}
+                onClick={() => fillQuickLogin('manager@example.com', 'password123')}
               >
                 <Shield size={14} /> Manager
               </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => fillQuickLogin('admin@example.com', 'Password123!')}
+                onClick={() => fillQuickLogin('admin@example.com', 'password123')}
               >
                 <Shield size={14} /> Admin
               </button>
