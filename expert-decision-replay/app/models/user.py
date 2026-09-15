@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -56,6 +56,12 @@ class User(Base):
         String,
         nullable=False
     )
+    team_id = Column(
+        Integer,
+        ForeignKey("teams.id"),
+        nullable=True
+    )
+
 
     # =====================================================
     # One User -> Many Decisions
@@ -105,6 +111,7 @@ class User(Base):
         back_populates="reviewer"
     )
 
+
     # =====================================================
     # One User -> Many Activity Logs
     # =====================================================
@@ -114,7 +121,7 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
-
+    notifications = relationship("Notification")
     # =====================================================
     # One User -> Many Audit Logs
     # =====================================================
@@ -129,4 +136,12 @@ class User(Base):
     back_populates="user",
     cascade="all, delete-orphan"
 )
+     # =====================================================
+    # Many Users -> One Team
+    # =====================================================
+
+    team = relationship(
+        "Team",
+        back_populates="members"
+    )
 

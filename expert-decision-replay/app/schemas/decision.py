@@ -1,12 +1,18 @@
 from enum import Enum
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator
+)
 
 
 # -----------------------------------------
 # Decision Status
 # -----------------------------------------
+
 
 class DecisionStatus(str, Enum):
     DRAFT = "Draft"
@@ -20,25 +26,56 @@ class DecisionStatus(str, Enum):
 # Create Decision
 # -----------------------------------------
 
+
 class DecisionCreate(BaseModel):
-    title: str
-    problem_statement: str
-    category: str
+    title: str = Field(..., min_length=1)
+    problem_statement: str = Field(..., min_length=1)
+    category: str = Field(..., min_length=1)
+
+    @field_validator(
+        "title",
+        "problem_statement",
+        "category"
+    )
+    @classmethod
+    def validate_not_empty(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("This field cannot be empty")
+
+        return value
 
 
 # -----------------------------------------
 # Update Decision
 # -----------------------------------------
 
+
 class DecisionUpdate(BaseModel):
-    title: str
-    problem_statement: str
-    category: str
+    title: str = Field(..., min_length=1)
+    problem_statement: str = Field(..., min_length=1)
+    category: str = Field(..., min_length=1)
+
+    @field_validator(
+        "title",
+        "problem_statement",
+        "category"
+    )
+    @classmethod
+    def validate_not_empty(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("This field cannot be empty")
+
+        return value
 
 
 # -----------------------------------------
 # Update Decision Status
 # -----------------------------------------
+
 
 class DecisionStatusUpdate(BaseModel):
     status: DecisionStatus
@@ -48,13 +85,25 @@ class DecisionStatusUpdate(BaseModel):
 # Decision Rationale Update
 # -----------------------------------------
 
+
 class DecisionRationaleUpdate(BaseModel):
-    rationale: str
+    rationale: str = Field(..., min_length=1)
+
+    @field_validator("rationale")
+    @classmethod
+    def validate_rationale(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Rationale cannot be empty")
+
+        return value
 
 
 # -----------------------------------------
 # Decision Response
 # -----------------------------------------
+
 
 class DecisionResponse(BaseModel):
     id: int

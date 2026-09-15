@@ -137,3 +137,8 @@ class Decision(Base):
         back_populates="decision",
         cascade="all, delete-orphan"
     )
+    documents = relationship(
+    "Document",
+    back_populates="decision",
+    cascade="all, delete-orphan",
+)

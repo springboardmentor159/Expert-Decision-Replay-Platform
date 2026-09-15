@@ -16,6 +16,41 @@ router = APIRouter(
 
 
 # =========================================================
+# ALLOWED VALUES
+# =========================================================
+
+ALLOWED_RISK_LEVELS = {
+    "Low",
+    "Medium",
+    "High"
+}
+
+
+# =========================================================
+# VALIDATE ALTERNATIVE DATA
+# =========================================================
+
+def validate_alternative_data(alternative: AlternativeCreate):
+
+    # Feasibility score must be between 0 and 6
+    if not 0 <= alternative.feasibility_score <= 6:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="feasibility_score must be between 0 and 6"
+        )
+
+    # Risk level validation
+    if alternative.risk_level not in ALLOWED_RISK_LEVELS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Invalid risk level",
+                "allowed_risk_levels": sorted(ALLOWED_RISK_LEVELS)
+            }
+        )
+
+
+# =========================================================
 # CREATE ALTERNATIVE
 # =========================================================
 
@@ -29,6 +64,8 @@ def create_alternative(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+    validate_alternative_data(alternative)
+
     decision = db.query(Decision).filter(
         Decision.id == alternative.decision_id
     ).first()
@@ -135,6 +172,8 @@ def update_alternative(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+    validate_alternative_data(alternative_data)
+
     alternative = db.query(Alternative).filter(
         Alternative.id == alternative_id
     ).first()

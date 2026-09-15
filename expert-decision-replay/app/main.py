@@ -1,11 +1,10 @@
-import db
-
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 
 from routers import audit
+from routers import document
 from routers import decision
 from routers import comment
 from routers import alternative
@@ -16,6 +15,10 @@ from routers import dashboard
 from routers import approval
 from routers import activities
 from routers import reports
+from routers import user
+from routers import notification
+from routers import team
+from app.core.scheduler import start_scheduler, stop_scheduler
 
 from app.core.config import settings
 from app.core.security import (
@@ -35,15 +38,25 @@ app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
 )
+@app.on_event("startup")
+def startup_event():
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    stop_scheduler()
 
 
 # =========================================================
 # INCLUDE ROUTERS
 # =========================================================
 
+app.include_router(user.router)
 app.include_router(decision.router)
 app.include_router(comment.router)
 app.include_router(alternative.router)
+app.include_router(document.router)
 app.include_router(discussion_thread.router)
 app.include_router(meeting_note.router)
 app.include_router(tags.router)
@@ -52,7 +65,8 @@ app.include_router(approval.router)
 app.include_router(activities.router)
 app.include_router(audit.router)
 app.include_router(reports.router)
-
+app.include_router(notification.router)
+app.include_router(team.router)
 # =========================================================
 # BEARER TOKEN SECURITY
 # =========================================================
@@ -139,6 +153,21 @@ def health_check():
         "status": "ok",
         "service": settings.app_name,
     }
+
+
+# =========================================================
+# GET ALL USERS
+# =========================================================
+
+@app.get(
+    "/users",
+    response_model=list[UserResponse],
+)
+def get_users(
+    db: Session = Depends(get_db),
+):
+    users = db.query(User).all()
+    return users
 
 
 # =========================================================

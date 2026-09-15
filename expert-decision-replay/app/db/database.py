@@ -16,7 +16,7 @@ Base = declarative_base()
 # =========================================================
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.database_url,
     pool_pre_ping=True,
 )
 
@@ -41,5 +41,6 @@ def get_db():
 
     try:
         yield db
+
     finally:
         db.close()

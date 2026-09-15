@@ -8,6 +8,7 @@ from app.core.dependencies import get_current_user, require_admin
 from app.db.database import get_db
 
 from app.models.decision import Decision
+from app.models.alternative import Alternative
 from app.models.tag import Tag
 from app.models.user import User
 from app.models.decision_version import DecisionVersion
@@ -60,10 +61,7 @@ def create_decision(
     db.commit()
     db.refresh(decision)
 
-    # -----------------------------------------------------
     # Create Version 1
-    # -----------------------------------------------------
-
     first_version = DecisionVersion(
         decision_id=decision.id,
         version_number=1,
@@ -157,10 +155,7 @@ def get_decisions(
 ):
     query = db.query(Decision)
 
-    # -----------------------------------------------------
-    # KEYWORD SEARCH
-    # -----------------------------------------------------
-
+    # Keyword search
     if search:
         search_pattern = f"%{search}%"
 
@@ -171,28 +166,19 @@ def get_decisions(
             )
         )
 
-    # -----------------------------------------------------
-    # STATUS FILTER
-    # -----------------------------------------------------
-
+    # Status filter
     if status_filter:
         query = query.filter(
             Decision.status == status_filter.value
         )
 
-    # -----------------------------------------------------
-    # CATEGORY FILTER
-    # -----------------------------------------------------
-
+    # Category filter
     if category:
         query = query.filter(
             Decision.category == category
         )
 
-    # -----------------------------------------------------
-    # TAG FILTER
-    # -----------------------------------------------------
-
+    # Tag filter
     if tag:
         query = query.join(
             Decision.tags
@@ -200,10 +186,7 @@ def get_decisions(
             Tag.name == tag
         )
 
-    # -----------------------------------------------------
-    # CONTROLLED SORTING
-    # -----------------------------------------------------
-
+    # Controlled sorting
     allowed_sort_fields = {
         "created_at": Decision.created_at,
         "updated_at": Decision.updated_at,
@@ -232,10 +215,7 @@ def get_decisions(
     else:
         query = query.order_by(desc(sort_column))
 
-    # -----------------------------------------------------
-    # PAGINATION
-    # -----------------------------------------------------
-
+    # Pagination
     offset = (page - 1) * limit
 
     query = query.offset(offset).limit(limit)
@@ -244,7 +224,7 @@ def get_decisions(
 
 
 # =========================================================
-# TASK 11 / TASK 20 - DECISION SEARCH
+# DECISION SEARCH
 # =========================================================
 
 @router.get(
@@ -282,27 +262,15 @@ def search_decisions(
         )
     )
 
-    # -----------------------------------------------------
-    # CATEGORY FILTER
-    # -----------------------------------------------------
-
     if category:
         query = query.filter(
             Decision.category == category
         )
 
-    # -----------------------------------------------------
-    # STATUS FILTER
-    # -----------------------------------------------------
-
     if status_filter:
         query = query.filter(
             Decision.status == status_filter.value
         )
-
-    # -----------------------------------------------------
-    # TAG FILTER
-    # -----------------------------------------------------
 
     if tag:
         query = query.join(
@@ -333,7 +301,64 @@ def search_decisions(
 
 
 # =========================================================
-# TASK 8 - ASSIGN TAGS TO DECISION
+# COMPARE DECISION ALTERNATIVES
+# =========================================================
+
+@router.get(
+    "/{decision_id}/alternatives/compare"
+)
+def compare_alternatives(
+    decision_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    # Check whether decision exists
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
+
+    if decision is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Decision not found"
+        )
+
+    # Get all alternatives belonging to this decision
+    alternatives = (
+        db.query(Alternative)
+        .filter(
+            Alternative.decision_id == decision_id
+        )
+        .order_by(
+            Alternative.id.asc()
+        )
+        .all()
+    )
+
+    return {
+        "decision_id": decision.id,
+        "decision_title": decision.title,
+        "alternatives_count": len(alternatives),
+        "alternatives": [
+            {
+                "id": alternative.id,
+                "name": alternative.name,
+                "description": alternative.description,
+                "pros": alternative.pros,
+                "cons": alternative.cons,
+                "estimated_cost": alternative.estimated_cost,
+                "feasibility_score": alternative.feasibility_score,
+                "risk_level": alternative.risk_level
+            }
+            for alternative in alternatives
+        ]
+    }
+
+
+# =========================================================
+# ASSIGN TAGS TO DECISION
 # =========================================================
 
 @router.post(
@@ -401,7 +426,7 @@ def assign_tags_to_decision(
 
 
 # =========================================================
-# TASK 9 - GET DECISION TAGS
+# GET DECISION TAGS
 # =========================================================
 
 @router.get(
@@ -429,7 +454,7 @@ def get_decision_tags(
 
 
 # =========================================================
-# TASK 10 - REMOVE TAG FROM DECISION
+# REMOVE TAG FROM DECISION
 # =========================================================
 
 @router.delete(
@@ -481,7 +506,7 @@ def remove_tag_from_decision(
 
 
 # =========================================================
-# TASK 20/23 - DECISION TIMELINE
+# DECISION TIMELINE
 # =========================================================
 
 @router.get(
@@ -545,13 +570,15 @@ def get_decision_versions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
 
@@ -620,13 +647,15 @@ def get_decision_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    decision = db.query(Decision).filter(
-        Decision.id == decision_id
-    ).first()
+    decision = (
+        db.query(Decision)
+        .filter(Decision.id == decision_id)
+        .first()
+    )
 
     if not decision:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found"
         )
 
@@ -699,19 +728,11 @@ def update_decision(
             detail="Decision not found"
         )
 
-    # -----------------------------------------------------
-    # Store old values before changing
-    # -----------------------------------------------------
-
     old_value = {
         "title": decision.title,
         "problem_statement": decision.problem_statement,
         "category": decision.category
     }
-
-    # -----------------------------------------------------
-    # Update decision
-    # -----------------------------------------------------
 
     decision.title = decision_data.title
     decision.problem_statement = decision_data.problem_statement
@@ -719,10 +740,6 @@ def update_decision(
 
     db.commit()
     db.refresh(decision)
-
-    # -----------------------------------------------------
-    # Find latest version
-    # -----------------------------------------------------
 
     latest_version = (
         db.query(DecisionVersion)
@@ -741,10 +758,6 @@ def update_decision(
         else 1
     )
 
-    # -----------------------------------------------------
-    # Create new version
-    # -----------------------------------------------------
-
     new_version = DecisionVersion(
         decision_id=decision.id,
         version_number=next_version_number,
@@ -760,10 +773,6 @@ def update_decision(
     db.commit()
     db.refresh(new_version)
 
-    # -----------------------------------------------------
-    # Activity log
-    # -----------------------------------------------------
-
     create_activity_log(
         db=db,
         user=current_user,
@@ -772,10 +781,6 @@ def update_decision(
         entity_id=decision.id,
         description=f"Updated decision: {decision.title}"
     )
-
-    # -----------------------------------------------------
-    # Audit log
-    # -----------------------------------------------------
 
     create_audit_log(
         db=db,
@@ -810,10 +815,6 @@ def update_decision_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # -----------------------------------------------------
-    # Find decision
-    # -----------------------------------------------------
-
     decision = (
         db.query(Decision)
         .filter(Decision.id == decision_id)
@@ -826,25 +827,57 @@ def update_decision_status(
             detail="Decision not found"
         )
 
-    # -----------------------------------------------------
-    # Store old status
-    # -----------------------------------------------------
-
     old_status = decision.status
     new_status = status_data.status.value
 
     # -----------------------------------------------------
-    # Update status
+    # VALID STATUS TRANSITIONS
     # -----------------------------------------------------
+
+    valid_transitions = {
+        "Draft": ["Draft", "Under Review"],
+        "Under Review": [
+            "Under Review",
+            "Approved",
+            "Rejected"
+        ],
+        "Approved": [
+            "Approved",
+            "Archived"
+        ],
+        "Rejected": [
+            "Rejected",
+            "Draft"
+        ],
+        "Archived": [
+            "Archived"
+        ]
+    }
+
+    allowed_statuses = valid_transitions.get(
+        old_status,
+        []
+    )
+
+    if new_status not in allowed_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid status transition: "
+                f"{old_status} -> {new_status}. "
+                f"Allowed transitions from {old_status}: "
+                f"{', '.join(allowed_statuses)}"
+            )
+        )
+
+    # No actual change
+    if old_status == new_status:
+        return decision
 
     decision.status = new_status
 
     db.commit()
     db.refresh(decision)
-
-    # -----------------------------------------------------
-    # Find latest version
-    # -----------------------------------------------------
 
     latest_version = (
         db.query(DecisionVersion)
@@ -863,10 +896,6 @@ def update_decision_status(
         else 1
     )
 
-    # -----------------------------------------------------
-    # Create new version
-    # -----------------------------------------------------
-
     new_version = DecisionVersion(
         decision_id=decision.id,
         version_number=next_version_number,
@@ -881,10 +910,6 @@ def update_decision_status(
     db.add(new_version)
     db.commit()
     db.refresh(new_version)
-
-    # -----------------------------------------------------
-    # Determine audit action
-    # -----------------------------------------------------
 
     if new_status == "Under Review" and old_status == "Draft":
 
@@ -916,10 +941,6 @@ def update_decision_status(
             f"from {old_status} to {new_status}"
         )
 
-    # -----------------------------------------------------
-    # Activity log
-    # -----------------------------------------------------
-
     create_activity_log(
         db=db,
         user=current_user,
@@ -928,10 +949,6 @@ def update_decision_status(
         entity_id=decision.id,
         description=description
     )
-
-    # -----------------------------------------------------
-    # Audit log
-    # -----------------------------------------------------
 
     create_audit_log(
         db=db,
@@ -977,24 +994,12 @@ def update_decision_rationale(
             detail="Decision not found"
         )
 
-    # -----------------------------------------------------
-    # Store old rationale
-    # -----------------------------------------------------
-
     old_rationale = decision.rationale
-
-    # -----------------------------------------------------
-    # Update rationale
-    # -----------------------------------------------------
 
     decision.rationale = rationale_data.rationale
 
     db.commit()
     db.refresh(decision)
-
-    # -----------------------------------------------------
-    # Find latest version
-    # -----------------------------------------------------
 
     latest_version = (
         db.query(DecisionVersion)
@@ -1013,10 +1018,6 @@ def update_decision_rationale(
         else 1
     )
 
-    # -----------------------------------------------------
-    # Create new version
-    # -----------------------------------------------------
-
     new_version = DecisionVersion(
         decision_id=decision.id,
         version_number=next_version_number,
@@ -1031,10 +1032,6 @@ def update_decision_rationale(
     db.add(new_version)
     db.commit()
     db.refresh(new_version)
-
-    # -----------------------------------------------------
-    # Audit log
-    # -----------------------------------------------------
 
     create_audit_log(
         db=db,
@@ -1110,10 +1107,6 @@ def delete_decision(
             detail="Decision not found"
         )
 
-    # -----------------------------------------------------
-    # Store values before deletion
-    # -----------------------------------------------------
-
     old_value = {
         "id": decision.id,
         "title": decision.title,
@@ -1128,10 +1121,6 @@ def delete_decision(
 
     db.delete(decision)
     db.commit()
-
-    # -----------------------------------------------------
-    # Audit log
-    # -----------------------------------------------------
 
     create_audit_log(
         db=db,

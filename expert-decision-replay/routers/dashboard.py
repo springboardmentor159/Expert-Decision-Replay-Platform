@@ -39,6 +39,14 @@ def get_employee_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    role = get_role(current_user)
+
+    if role != "Employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employee access required"
+        )
+
     total_decisions = (
         db.query(Decision)
         .filter(Decision.created_by == current_user.id)
@@ -128,6 +136,14 @@ def get_my_decisions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    role = get_role(current_user)
+
+    if role != "Employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employee access required"
+        )
+
     decisions = (
         db.query(Decision)
         .filter(Decision.created_by == current_user.id)
@@ -157,6 +173,14 @@ def get_employee_pending_reviews(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    role = get_role(current_user)
+
+    if role != "Employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employee access required"
+        )
+
     approvals = (
         db.query(Approval)
         .filter(
@@ -179,6 +203,14 @@ def get_employee_recent_activities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    role = get_role(current_user)
+
+    if role != "Employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employee access required"
+        )
+
     activities = (
         db.query(ActivityLog)
         .filter(ActivityLog.user_id == current_user.id)
@@ -623,10 +655,6 @@ def get_admin_analytics(
 # ADMIN - DECISION ACTIVITY
 # =========================================================
 
-# =========================================================
-# ADMIN - DECISION ACTIVITY
-# =========================================================
-
 @router.get("/admin/decision-activity")
 def get_decision_activity(
     period: str = Query(
@@ -712,9 +740,7 @@ def get_decision_activity(
         for row in results
     }
 
-# =========================================================
-# ADMIN - APPROVAL STATISTICS
-# =========================================================
+
 # =========================================================
 # ADMIN - APPROVAL STATISTICS
 # =========================================================
@@ -804,12 +830,14 @@ def get_approval_statistics(
                     Approval.completed_at - Approval.created_at
                 )
             ).label("average_seconds"),
+
             func.min(
                 func.extract(
                     "epoch",
                     Approval.completed_at - Approval.created_at
                 )
             ).label("fastest_seconds"),
+
             func.max(
                 func.extract(
                     "epoch",
@@ -848,9 +876,7 @@ def get_approval_statistics(
         )
     }
 
-# =========================================================
-# ADMIN - USER ACTIVITY
-# =========================================================
+
 # =========================================================
 # ADMIN - USER ACTIVITY
 # =========================================================

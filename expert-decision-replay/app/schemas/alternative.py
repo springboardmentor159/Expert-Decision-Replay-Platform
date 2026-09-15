@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 
 
@@ -9,7 +9,7 @@ class AlternativeCreate(BaseModel):
     pros: str
     cons: str
     estimated_cost: float
-    feasibility_score: int
+    feasibility_score: int = Field(..., ge=1, le=5)
     risk_level: str
 
 

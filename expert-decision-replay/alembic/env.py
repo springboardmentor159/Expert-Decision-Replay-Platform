@@ -10,7 +10,6 @@ from app.db.base import Base
 # =========================================================
 # IMPORT ALL MODELS
 # =========================================================
-# These imports allow Alembic to detect all SQLAlchemy models.
 
 from app.models.user import User
 from app.models.decision import Decision
@@ -24,6 +23,10 @@ from app.models.activity_log import ActivityLog
 from app.models.audit_log import AuditLog
 from app.models.security_log import SecurityLog
 from app.models.access_log import AccessLog
+from app.models.decision_version import DecisionVersion
+from app.models.document import Document
+from app.models.notification import Notification
+
 
 # =========================================================
 # ALEMBIC CONFIG
@@ -42,7 +45,7 @@ if config.config_file_name is not None:
 
 config.set_main_option(
     "sqlalchemy.url",
-    settings.DATABASE_URL,
+    settings.database_url,
 )
 
 
@@ -58,7 +61,6 @@ target_metadata = Base.metadata
 # =========================================================
 
 def run_migrations_offline() -> None:
-
     url = config.get_main_option("sqlalchemy.url")
 
     context.configure(
@@ -77,18 +79,16 @@ def run_migrations_offline() -> None:
 # =========================================================
 
 def run_migrations_online() -> None:
-
     connectable = engine_from_config(
         config.get_section(
             config.config_ini_section,
-            {}
+            {},
         ),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
-
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

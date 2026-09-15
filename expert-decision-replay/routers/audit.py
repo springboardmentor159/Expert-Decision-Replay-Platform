@@ -33,6 +33,7 @@ ALLOWED_ACTIONS = {
     "LOGOUT",
     "ACCESS",
 }
+
 ALLOWED_ENTITY_TYPES = {
     "Decision",
     "Alternative",
@@ -46,6 +47,7 @@ ALLOWED_ENTITY_TYPES = {
 
 # =========================================================
 # GET AUDIT LOGS
+# ADMINISTRATOR ONLY
 # =========================================================
 
 @router.get("/")
@@ -62,6 +64,18 @@ def get_audit_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # -----------------------------------------------------
+    # ROLE-BASED ACCESS
+    # -----------------------------------------------------
+
+    role = get_user_role(current_user)
+
+    if role != "Administrator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Administrators can access audit logs"
+        )
+
     # -----------------------------------------------------
     # VALIDATE ACTION
     # -----------------------------------------------------
@@ -99,17 +113,6 @@ def get_audit_logs(
         )
 
     query = db.query(AuditLog)
-
-    # -----------------------------------------------------
-    # ROLE-BASED ACCESS
-    # -----------------------------------------------------
-
-    role = get_user_role(current_user)
-
-    if role != "Administrator":
-        query = query.filter(
-            AuditLog.user_id == current_user.id
-        )
 
     # -----------------------------------------------------
     # KEYWORD SEARCH
@@ -156,7 +159,7 @@ def get_audit_logs(
     # FILTER BY USER
     # -----------------------------------------------------
 
-    if user_id and role == "Administrator":
+    if user_id:
         query = query.filter(
             AuditLog.user_id == user_id
         )
@@ -205,6 +208,7 @@ def get_audit_logs(
 
 # =========================================================
 # GET ENTITY AUDIT HISTORY
+# ADMINISTRATOR ONLY
 # =========================================================
 
 @router.get("/entity/{entity_type}/{entity_id}")
@@ -214,6 +218,18 @@ def get_entity_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # -----------------------------------------------------
+    # ROLE-BASED ACCESS
+    # -----------------------------------------------------
+
+    role = get_user_role(current_user)
+
+    if role != "Administrator":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Administrators can access audit history"
+        )
+
     # -----------------------------------------------------
     # VALIDATE ENTITY TYPE
     # -----------------------------------------------------
@@ -235,17 +251,6 @@ def get_entity_history(
         AuditLog.entity_type == entity_type,
         AuditLog.entity_id == entity_id
     )
-
-    # -----------------------------------------------------
-    # ROLE-BASED ACCESS
-    # -----------------------------------------------------
-
-    role = get_user_role(current_user)
-
-    if role != "Administrator":
-        query = query.filter(
-            AuditLog.user_id == current_user.id
-        )
 
     # -----------------------------------------------------
     # GET HISTORY
