@@ -5,29 +5,54 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
+from app.models.role import UserRole
 from app.core.security import hash_password, get_current_user
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
-    UserResponse
+    UserResponse,
 )
 
 router = APIRouter(
     prefix="/users",
-    tags=["Users"]
+    tags=["Users"],
 )
+
+
+def require_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role != UserRole.ADMINISTRATOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required.",
+        )
+
+    return current_user
 
 
 # CREATE USER
+# Administrator only
 @router.post(
     "",
     response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED
+    status_code=status.HTTP_201_CREATED,
 )
 def create_user(
     user: UserCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ):
+    existing_user = (
+        db.query(User)
+        .filter(User.email == user.email)
+        .first()
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email already exists.",
+        )
+
     new_user = User(
         full_name=user.full_name,
         email=user.email,
@@ -36,7 +61,7 @@ def create_user(
         employee_id=user.employee_id,
         department=user.department,
         designation=user.designation,
-        phone_number=user.phone_number
+        phone_number=user.phone_number,
     )
 
     db.add(new_user)
@@ -49,11 +74,11 @@ def create_user(
 # GET ALL USERS
 @router.get(
     "",
-    response_model=List[UserResponse]
+    response_model=List[UserResponse],
 )
 def get_users(
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     return db.query(User).all()
 
@@ -61,19 +86,19 @@ def get_users(
 # GET USER BY ID
 @router.get(
     "/{user_id}",
-    response_model=UserResponse
+    response_model=UserResponse,
 )
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
         raise HTTPException(
             status_code=404,
-            detail="User not found"
+            detail="User not found",
         )
 
     return user
@@ -82,20 +107,20 @@ def get_user(
 # UPDATE USER
 @router.put(
     "/{user_id}",
-    response_model=UserResponse
+    response_model=UserResponse,
 )
 def update_user(
     user_id: int,
     user_data: UserUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(require_admin),
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
         raise HTTPException(
             status_code=404,
-            detail="User not found"
+            detail="User not found",
         )
 
     if user_data.full_name is not None:
@@ -127,24 +152,24 @@ def update_user(
 
 # DELETE USER
 @router.delete(
-    "/{user_id}"
+    "/{user_id}",
 )
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(require_admin),
 ):
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
         raise HTTPException(
             status_code=404,
-            detail="User not found"
+            detail="User not found",
         )
 
     db.delete(user)
     db.commit()
 
     return {
-        "message": "User deleted successfully"
+        "message": "User deleted successfully",
     }

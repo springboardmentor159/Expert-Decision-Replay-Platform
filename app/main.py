@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.users import router as user_router
 from app.routers.auth import router as auth_router
@@ -22,8 +23,37 @@ app = FastAPI(
 )
 
 
+# --------------------------------------------------
+# CORS Configuration
+# --------------------------------------------------
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# --------------------------------------------------
+# API Routers
+# --------------------------------------------------
+
 app.include_router(user_router)
-app.include_router(auth_router)
+
+# Authentication routes:
+# /auth/login
+# /auth/register
+# /auth/logout
+app.include_router(
+    auth_router,
+    prefix="/auth",
+)
+
 app.include_router(decision_router)
 app.include_router(alternative_router)
 app.include_router(comment_router)
