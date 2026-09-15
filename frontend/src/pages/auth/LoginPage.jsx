@@ -238,29 +238,6 @@ export function LoginPage({ onNavigateRegister }) {
           </div>
         </div>
 
-        {/* Bottom Status / Trust Badges */}
-        <div style={{
-          position: 'relative',
-          zIndex: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          fontSize: '0.75rem',
-          color: 'var(--text-muted)',
-          paddingTop: '1rem',
-          borderTop: '1px solid var(--border-color)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 8px #10B981' }} />
-            <span>All Governance Services Operational</span>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <span>SOC-2 Type II</span>
-            <span>•</span>
-            <span>Argon2id Encrypted</span>
-            <span>•</span>
-            <span>v2.4 Enterprise</span>
-          </div>
         </div>
       </div>
 
@@ -445,18 +422,15 @@ export function LoginPage({ onNavigateRegister }) {
           </div>
         </div>
 
-        {/* Bottom copyright / security footer */}
+        {/* Bottom footer */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          textAlign: 'center',
           fontSize: '0.75rem',
           color: 'var(--text-muted)',
           paddingTop: '1.5rem',
           borderTop: '1px solid var(--border-color)',
         }}>
-          <span>© 2026 Expert Decision Replay Platform</span>
-          <span>🔒 256-bit TLS Encrypted</span>
+          <span>Expert Decision Replay</span>
         </div>
       </div>
     </div>
