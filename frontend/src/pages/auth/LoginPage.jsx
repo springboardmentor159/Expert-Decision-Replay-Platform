@@ -2,17 +2,14 @@ import React, { useState } from 'react';
 import {
   Lock,
   Mail,
-  Shield,
   ArrowRight,
   Eye,
   EyeOff,
   Sparkles,
   Layers,
   GitCommit,
-  CheckCircle2,
-  Clock,
-  User,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ThemeToggle } from '../../components/layout/ThemeToggle';
@@ -23,59 +20,15 @@ export function LoginPage({ onNavigateRegister }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [selectedPersona, setSelectedPersona] = useState(null);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState('');
-
-  const demoPersonas = [
-    {
-      id: 'employee',
-      name: 'Alex Chen',
-      role: 'Employee',
-      designation: 'Staff Software Engineer',
-      email: 'employee@example.com',
-      password: 'password123',
-      color: 'var(--primary, #3B82F6)',
-      badgeClass: 'badge-role',
-    },
-    {
-      id: 'reviewer',
-      name: 'Raftaar Singh',
-      role: 'Reviewer',
-      designation: 'Principal Architect (Stage 1)',
-      email: 'reviewer@example.com',
-      password: 'password123',
-      color: 'var(--info, #06B6D4)',
-      badgeClass: 'badge-info',
-    },
-    {
-      id: 'manager',
-      name: 'Sarah Jenkins',
-      role: 'Manager',
-      designation: 'Engineering Director (Stage 2)',
-      email: 'manager@example.com',
-      password: 'password123',
-      color: 'var(--purple, #8B5CF6)',
-      badgeClass: 'badge-purple',
-    },
-    {
-      id: 'admin',
-      name: 'John Doe',
-      role: 'Admin',
-      designation: 'Platform Administrator',
-      email: 'admin@example.com',
-      password: 'password123',
-      color: 'var(--warning, #F59E0B)',
-      badgeClass: 'badge-warning',
-    },
-  ];
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     setFormError('');
 
     if (!email.trim()) {
-      setFormError('Please enter your email address');
+      setFormError('Please enter your corporate email address');
       return;
     }
     if (!password) {
@@ -93,13 +46,6 @@ export function LoginPage({ onNavigateRegister }) {
     }
   };
 
-  const handleSelectPersona = (persona) => {
-    setSelectedPersona(persona.id);
-    setEmail(persona.email);
-    setPassword(persona.password);
-    setFormError('');
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -110,7 +56,7 @@ export function LoginPage({ onNavigateRegister }) {
     }}>
       {/* LEFT SIDE: Showcase & Visual Brand Experience */}
       <div style={{
-        flex: '1.15',
+        flex: '1.2',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -159,8 +105,8 @@ export function LoginPage({ onNavigateRegister }) {
           </div>
         </div>
 
-        {/* Center: Showcase Illustration & Value Proposition */}
-        <div style={{ position: 'relative', zIndex: 2, margin: '2.5rem 0' }}>
+        {/* Center: Realistic Photography & Value Proposition */}
+        <div style={{ position: 'relative', zIndex: 2, margin: '2rem 0' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -178,7 +124,7 @@ export function LoginPage({ onNavigateRegister }) {
           </div>
 
           <h1 style={{
-            fontSize: '2.4rem',
+            fontSize: '2.35rem',
             fontWeight: 800,
             lineHeight: 1.2,
             letterSpacing: '-0.03em',
@@ -190,11 +136,11 @@ export function LoginPage({ onNavigateRegister }) {
             Reconstruct, Deliberate & Govern Technical Decisions
           </h1>
 
-          <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '580px', marginBottom: '1.75rem' }}>
+          <p style={{ fontSize: '0.975rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '560px', marginBottom: '1.75rem' }}>
             Capture engineering consensus, benchmark candidate trade-offs, and playback historical decision evolution step-by-step with interactive scrubbers.
           </p>
 
-          {/* Embedded Visual 3D Showcase Image */}
+          {/* Embedded Realistic Architecture Team Photograph */}
           <div style={{
             borderRadius: '16px',
             overflow: 'hidden',
@@ -204,14 +150,15 @@ export function LoginPage({ onNavigateRegister }) {
             background: '#0B1120',
           }}>
             <img
-              src="/decision_replay_showcase.jpg"
-              alt="Decision Evolution Replay Engine"
+              src="/architecture_team_realistic.jpg"
+              alt="Architecture Review Board and Engineering Team Collaboration"
               style={{
                 width: '100%',
                 height: 'auto',
                 display: 'block',
-                transform: 'scale(1.01)',
-                transition: 'transform 0.5s ease',
+                maxHeight: '340px',
+                objectFit: 'cover',
+                objectPosition: 'center',
               }}
             />
             <div style={{
@@ -226,7 +173,7 @@ export function LoginPage({ onNavigateRegister }) {
               alignItems: 'center',
             }}>
               <span style={{ fontSize: '0.78rem', color: '#E2E8F0', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clock size={13} style={{ color: 'var(--primary)' }} /> Live Evolution Timeline & Consensus Scrubber
+                <Users size={14} style={{ color: 'var(--primary)' }} /> Architecture Review Board & Engineering Deliberation
               </span>
               <span style={{
                 fontSize: '0.68rem',
@@ -237,7 +184,7 @@ export function LoginPage({ onNavigateRegister }) {
                 borderRadius: '10px',
                 fontWeight: 700,
               }}>
-                16 MILESTONES ACTIVE
+                SOC-2 CERTIFIED
               </span>
             </div>
           </div>
@@ -308,7 +255,7 @@ export function LoginPage({ onNavigateRegister }) {
             <span>All Governance Services Operational</span>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <span>SOC-2 Type II Certified</span>
+            <span>SOC-2 Type II</span>
             <span>•</span>
             <span>Argon2id Encrypted</span>
             <span>•</span>
@@ -317,15 +264,15 @@ export function LoginPage({ onNavigateRegister }) {
         </div>
       </div>
 
-      {/* RIGHT SIDE: Authentication Form & 1-Click Persona Cards */}
+      {/* RIGHT SIDE: Clean, Focused Corporate Login Form */}
       <div style={{
         flex: '1',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '2.5rem 3.5rem',
+        padding: '3rem 4rem',
         background: 'var(--bg-app)',
-        maxWidth: '620px',
+        maxWidth: '560px',
         width: '100%',
       }}>
         {/* Top bar with Theme Toggle */}
@@ -333,14 +280,14 @@ export function LoginPage({ onNavigateRegister }) {
           <ThemeToggle />
         </div>
 
-        {/* Center: Login Card */}
+        {/* Center: Sleek Form Card */}
         <div style={{ margin: 'auto 0', width: '100%' }}>
-          <div style={{ marginBottom: '1.75rem' }}>
-            <h2 style={{ fontSize: '1.85rem', fontWeight: 800, marginBottom: '0.4rem', fontFamily: 'Outfit, sans-serif' }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem', fontFamily: 'Outfit, sans-serif' }}>
               Sign In to Your Workspace
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Access architectural proposals, evaluations, and decision timelines.
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem', lineHeight: 1.5 }}>
+              Enter your corporate credentials to access architecture records, evaluations, and decision timelines.
             </p>
           </div>
 
@@ -349,10 +296,10 @@ export function LoginPage({ onNavigateRegister }) {
               background: 'var(--danger-light, rgba(239, 68, 68, 0.12))',
               border: '1px solid var(--danger, #EF4444)',
               borderRadius: '8px',
-              padding: '0.75rem 1rem',
+              padding: '0.85rem 1rem',
               color: 'var(--danger, #EF4444)',
-              fontSize: '0.85rem',
-              marginBottom: '1.25rem',
+              fontSize: '0.875rem',
+              marginBottom: '1.5rem',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -363,14 +310,14 @@ export function LoginPage({ onNavigateRegister }) {
 
           <form onSubmit={handleSubmit}>
             {/* Email Field */}
-            <div className="form-group" style={{ marginBottom: '1.1rem' }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem', display: 'block' }}>
                 Corporate Email Address
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail size={18} style={{
                   position: 'absolute',
-                  left: '12px',
+                  left: '14px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   color: 'var(--text-muted)',
@@ -378,30 +325,28 @@ export function LoginPage({ onNavigateRegister }) {
                 <input
                   type="email"
                   className="form-input"
-                  style={{ paddingLeft: '2.4rem', height: '42px', fontSize: '0.9rem' }}
+                  style={{ paddingLeft: '2.5rem', height: '44px', fontSize: '0.925rem', width: '100%' }}
                   placeholder="name@example.com"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setSelectedPersona(null);
-                  }}
+                  onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
                   autoComplete="email"
+                  required
                 />
               </div>
             </div>
 
             {/* Password Field with Show/Hide Toggle */}
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', margin: 0 }}>
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label className="form-label" style={{ fontWeight: 600, fontSize: '0.875rem', margin: 0 }}>
                   Password
                 </label>
               </div>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} style={{
                   position: 'absolute',
-                  left: '12px',
+                  left: '14px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   color: 'var(--text-muted)',
@@ -409,22 +354,20 @@ export function LoginPage({ onNavigateRegister }) {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   className="form-input"
-                  style={{ paddingLeft: '2.4rem', paddingRight: '2.5rem', height: '42px', fontSize: '0.9rem' }}
+                  style={{ paddingLeft: '2.5rem', paddingRight: '2.75rem', height: '44px', fontSize: '0.925rem', width: '100%' }}
                   placeholder="Enter your security credentials"
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setSelectedPersona(null);
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
                   autoComplete="current-password"
+                  required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   style={{
                     position: 'absolute',
-                    right: '10px',
+                    right: '12px',
                     top: '50%',
                     transform: 'translateY(-50%)',
                     background: 'transparent',
@@ -443,19 +386,16 @@ export function LoginPage({ onNavigateRegister }) {
             </div>
 
             {/* Remember Me */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.825rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   style={{ accentColor: 'var(--primary)' }}
                 />
-                Remember me on this browser
+                Remember me on this device
               </label>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Demo Password: <code style={{ color: 'var(--primary)' }}>password123</code>
-              </span>
             </div>
 
             {/* Submit Button */}
@@ -464,14 +404,15 @@ export function LoginPage({ onNavigateRegister }) {
               className="btn btn-primary"
               style={{
                 width: '100%',
-                padding: '0.8rem',
-                fontSize: '0.95rem',
+                padding: '0.85rem',
+                fontSize: '1rem',
                 fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
                 borderRadius: '8px',
+                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)',
               }}
               disabled={loading}
             >
@@ -485,79 +426,8 @@ export function LoginPage({ onNavigateRegister }) {
             </button>
           </form>
 
-          {/* QUICK DEMO PERSONAS CARDS */}
-          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-              <span style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-              }}>
-                Instant Demo Access (1-Click Fill)
-              </span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                Select persona to inspect role
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              {demoPersonas.map((persona) => {
-                const isSelected = selectedPersona === persona.id;
-
-                return (
-                  <div
-                    key={persona.id}
-                    onClick={() => handleSelectPersona(persona)}
-                    style={{
-                      padding: '0.75rem 0.85rem',
-                      borderRadius: '10px',
-                      background: isSelected ? 'var(--bg-active, rgba(59, 130, 246, 0.12))' : 'var(--bg-card)',
-                      border: isSelected ? `2px solid ${persona.color}` : '1px solid var(--border-color)',
-                      boxShadow: isSelected ? `0 0 12px ${persona.color}33` : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '4px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: persona.color,
-                          color: '#fff',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}>
-                          {persona.name.charAt(0)}
-                        </span>
-                        <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                          {persona.name}
-                        </strong>
-                      </div>
-                      <span className={`badge ${persona.badgeClass}`} style={{ fontSize: '0.65rem', textTransform: 'uppercase', padding: '1px 6px' }}>
-                        {persona.role}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: '30px' }}>
-                      {persona.designation}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Registration Link */}
-          <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
             Need a new organizational account?{' '}
             <button
               onClick={onNavigateRegister}
@@ -580,13 +450,13 @@ export function LoginPage({ onNavigateRegister }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontSize: '0.72rem',
+          fontSize: '0.75rem',
           color: 'var(--text-muted)',
-          paddingTop: '1.25rem',
+          paddingTop: '1.5rem',
           borderTop: '1px solid var(--border-color)',
         }}>
           <span>© 2026 Expert Decision Replay Platform</span>
-          <span>Security Verified</span>
+          <span>🔒 256-bit TLS Encrypted</span>
         </div>
       </div>
     </div>
