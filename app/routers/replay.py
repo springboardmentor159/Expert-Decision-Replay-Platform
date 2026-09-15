@@ -137,32 +137,91 @@ def get_decision_replay(
     notes = db.query(MeetingNote).filter(MeetingNote.decision_id == decision_id).all()
     for note in notes:
         n_user = note.user.full_name if note.user else "User"
+        note_text = note.content if note.content else ""
         milestones.append(
             ReplayMilestone(
                 id=f"note-{note.id}",
                 timestamp=note.created_at,
                 event_type="MEETING_NOTE",
                 title=f"Meeting Note: {note.title}",
-                description=note.notes[:160] + ("..." if len(note.notes) > 160 else ""),
+                description=note_text[:160] + ("..." if len(note_text) > 160 else ""),
                 actor_name=n_user,
                 badge_color="accent",
             )
         )
 
-    # 6. Audit Logs (Status changes & versions)
+    # 6. Discussion Threads
+    threads = db.query(DiscussionThread).filter(DiscussionThread.decision_id == decision_id).all()
+    for th in threads:
+        th_user = th.user.full_name if th.user else "User"
+        milestones.append(
+            ReplayMilestone(
+                id=f"thread-{th.id}",
+                timestamp=th.created_at,
+                event_type="THREAD",
+                title=f"Discussion Thread: {th.title}",
+                description=f"Thread started by {th_user}.",
+                actor_name=th_user,
+                badge_color="primary",
+            )
+        )
+
+    # 7. Comments & Feedback
+    comments = db.query(Comment).filter(Comment.decision_id == decision_id).all()
+    for c in comments:
+        c_user = c.user.full_name if c.user else "User"
+        c_text = c.content if c.content else ""
+        milestones.append(
+            ReplayMilestone(
+                id=f"comment-{c.id}",
+                timestamp=c.created_at,
+                event_type="COMMENT",
+                title=f"Feedback by {c_user}",
+                description=c_text[:160] + ("..." if len(c_text) > 160 else ""),
+                actor_name=c_user,
+                badge_color="info",
+            )
+        )
+
+    # 8. Decision Versions
+    versions = db.query(DecisionVersion).filter(DecisionVersion.decision_id == decision_id).all()
+    for v in versions:
+        v_user = v.user.full_name if v.user else "User"
+        milestones.append(
+            ReplayMilestone(
+                id=f"version-{v.id}",
+                timestamp=v.created_at,
+                event_type="VERSION",
+                title=f"Version v{v.version_number} Created",
+                description=f"Snapshot by {v_user} with title '{v.title}'.",
+                actor_name=v_user,
+                badge_color="warning",
+            )
+        )
+
+    # 9. Audit Logs (Status changes)
     status_logs = (
         db.query(AuditLog)
         .filter(AuditLog.decision_id == decision_id, AuditLog.action == "STATUS_CHANGE")
         .all()
     )
     for log in status_logs:
+        display_status = log.new_value or "Updated"
+        if display_status and "status" in display_status:
+            try:
+                import json
+                parsed = json.loads(display_status)
+                display_status = parsed.get("status", display_status)
+            except Exception:
+                pass
+
         milestones.append(
             ReplayMilestone(
                 id=f"status-{log.id}",
                 timestamp=log.created_at,
                 event_type="STATUS_CHANGE",
-                title=f"Status Changed: {log.new_value}",
-                description=log.description,
+                title=f"Status Changed to {display_status}",
+                description=log.description or f"Decision status transitioned to {display_status}.",
                 badge_color="purple",
             )
         )
@@ -170,11 +229,18 @@ def get_decision_replay(
     # Sort all milestones chronologically
     milestones.sort(key=lambda m: m.timestamp)
 
+    status_str = decision.status.value if hasattr(decision.status, "value") else str(decision.status)
+    impl_status_str = (
+        decision.implementation_status.value
+        if hasattr(decision.implementation_status, "value")
+        else str(decision.implementation_status)
+    )
+
     return DecisionReplayResponse(
         decision_id=decision.id,
         title=decision.title,
-        current_status=decision.status.value,
-        implementation_status=decision.implementation_status.value,
+        current_status=status_str,
+        implementation_status=impl_status_str,
         final_outcomes=decision.final_outcomes,
         evaluation_criteria=decision.evaluation_criteria,
         total_milestones=len(milestones),
