@@ -593,6 +593,87 @@ function Alternatives() {
               text-align: center;
             }
           }
+            /* Responsive overflow fix */
+.alternatives-page {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.alternatives-page * {
+  box-sizing: border-box;
+}
+
+.alternatives-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(320px, 1fr)
+  );
+  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.alternatives-header,
+.alternatives-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+.alternatives-header > *,
+.alternatives-page-header > * {
+  max-width: 100%;
+}
+
+.alternatives-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.alternatives-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.comparison-section,
+.comparison-table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .alternatives-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .alternatives-header,
+  .alternatives-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .alternatives-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .alternatives-actions button,
+  .alternatives-actions a {
+    width: 100%;
+  }
+}
         `}
       </style>
 

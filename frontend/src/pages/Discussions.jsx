@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   MessageSquare,
@@ -15,9 +15,14 @@ import {
   Save,
   Loader2,
   AlertCircle,
+  Search,
+  ExternalLink,
 } from "lucide-react";
 
-import { getDecision } from "../api/decisionApi";
+import {
+  getDecision,
+  getDecisions,
+} from "../api/decisionApi";
 
 import {
   getThreads,
@@ -44,42 +49,166 @@ function formatDate(dateValue) {
   return date.toLocaleString();
 }
 
+function getErrorMessage(err, fallback) {
+  if (err.response?.status === 401) {
+    return "Your session has expired. Please log in again.";
+  }
+
+  if (err.response?.status === 403) {
+    return (
+      err.response?.data?.detail ||
+      "You do not have permission to perform this action."
+    );
+  }
+
+  if (err.response?.status === 404) {
+    return (
+      err.response?.data?.detail ||
+      "The requested resource was not found."
+    );
+  }
+
+  if (err.response?.status === 422) {
+    const detail = err.response?.data?.detail;
+
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item.msg).join(" ");
+    }
+
+    return (
+      detail ||
+      "Please check the information entered."
+    );
+  }
+
+  if (err.response?.status >= 500) {
+    return "The server encountered an error. Please try again.";
+  }
+
+  return fallback;
+}
+
+function extractDecisionList(data) {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+
+  if (Array.isArray(data?.decisions)) {
+    return data.decisions;
+  }
+
+  if (Array.isArray(data?.results)) {
+    return data.results;
+  }
+
+  return [];
+}
+
 function Discussions() {
   const { decisionId } = useParams();
+  const navigate = useNavigate();
+
+  const hasDecisionId = Boolean(decisionId);
 
   const [decision, setDecision] = useState(null);
+  const [decisions, setDecisions] = useState([]);
+
   const [threads, setThreads] = useState([]);
   const [comments, setComments] = useState([]);
   const [threadReplies, setThreadReplies] = useState({});
 
   const [loading, setLoading] = useState(true);
+  const [loadingDecisions, setLoadingDecisions] = useState(false);
   const [error, setError] = useState("");
 
-  const [threadTitle, setThreadTitle] = useState("");
-  const [threadDescription, setThreadDescription] = useState("");
+  const [decisionSearch, setDecisionSearch] = useState("");
 
-  const [commentContent, setCommentContent] = useState("");
+  const [threadTitle, setThreadTitle] = useState("");
+  const [threadDescription, setThreadDescription] =
+    useState("");
+
+  const [commentContent, setCommentContent] =
+    useState("");
 
   const [replyContent, setReplyContent] = useState({});
 
-  const [creatingThread, setCreatingThread] = useState(false);
-  const [creatingComment, setCreatingComment] = useState(false);
-  const [creatingReply, setCreatingReply] = useState({});
+  const [creatingThread, setCreatingThread] =
+    useState(false);
 
-  const [editingThreadId, setEditingThreadId] = useState(null);
-  const [editingThreadTitle, setEditingThreadTitle] = useState("");
-  const [editingThreadDescription, setEditingThreadDescription] =
+  const [creatingComment, setCreatingComment] =
+    useState(false);
+
+  const [creatingReply, setCreatingReply] =
+    useState({});
+
+  const [editingThreadId, setEditingThreadId] =
+    useState(null);
+
+  const [editingThreadTitle, setEditingThreadTitle] =
     useState("");
 
-  const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editingCommentContent, setEditingCommentContent] = useState("");
+  const [
+    editingThreadDescription,
+    setEditingThreadDescription,
+  ] = useState("");
 
-  const [deletingThreadId, setDeletingThreadId] = useState(null);
-  const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const [editingCommentId, setEditingCommentId] =
+    useState(null);
+
+  const [
+    editingCommentContent,
+    setEditingCommentContent,
+  ] = useState("");
+
+  const [deletingThreadId, setDeletingThreadId] =
+    useState(null);
+
+  const [deletingCommentId, setDeletingCommentId] =
+    useState(null);
 
   useEffect(() => {
-    loadDiscussionPage();
+    if (hasDecisionId) {
+      loadDiscussionPage();
+    } else {
+      loadDecisionList();
+    }
   }, [decisionId]);
+
+  async function loadDecisionList() {
+    try {
+      setLoading(true);
+      setLoadingDecisions(true);
+      setError("");
+
+      const data = await getDecisions({
+        page: 1,
+        page_size: 100,
+      });
+
+      const list = extractDecisionList(data);
+
+      setDecisions(list);
+    } catch (err) {
+      console.error(
+        "Failed to load decisions:",
+        err
+      );
+
+      setError(
+        getErrorMessage(
+          err,
+          "Unable to load decisions."
+        )
+      );
+    } finally {
+      setLoading(false);
+      setLoadingDecisions(false);
+    }
+  }
 
   async function loadDiscussionPage() {
     try {
@@ -105,7 +234,9 @@ function Discussions() {
       await Promise.all(
         (threadData || []).map(async (thread) => {
           try {
-            const data = await getThreadReplies(thread.id);
+            const data =
+              await getThreadReplies(thread.id);
+
             replies[thread.id] = data || [];
           } catch (err) {
             console.error(
@@ -120,25 +251,17 @@ function Discussions() {
 
       setThreadReplies(replies);
     } catch (err) {
-      console.error("Failed to load discussions:", err);
+      console.error(
+        "Failed to load discussions:",
+        err
+      );
 
-      if (err.response?.status === 401) {
-        setError(
-          "Your session has expired. Please log in again."
-        );
-      } else if (err.response?.status === 403) {
-        setError(
-          "You do not have permission to view discussions."
-        );
-      } else if (err.response?.status === 404) {
-        setError("The decision could not be found.");
-      } else if (err.response?.status >= 500) {
-        setError(
-          "The server encountered an error. Please try again."
-        );
-      } else {
-        setError("Unable to load discussions.");
-      }
+      setError(
+        getErrorMessage(
+          err,
+          "Unable to load discussions."
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -155,12 +278,19 @@ function Discussions() {
       setCreatingThread(true);
       setError("");
 
-      const newThread = await createThread(decisionId, {
-        title: threadTitle.trim(),
-        description: threadDescription.trim(),
-      });
+      const newThread = await createThread(
+        decisionId,
+        {
+          title: threadTitle.trim(),
+          description:
+            threadDescription.trim(),
+        }
+      );
 
-      setThreads((current) => [...current, newThread]);
+      setThreads((current) => [
+        ...current,
+        newThread,
+      ]);
 
       setThreadReplies((current) => ({
         ...current,
@@ -170,7 +300,10 @@ function Discussions() {
       setThreadTitle("");
       setThreadDescription("");
     } catch (err) {
-      console.error("Failed to create thread:", err);
+      console.error(
+        "Failed to create thread:",
+        err
+      );
 
       setError(
         getErrorMessage(
@@ -194,12 +327,14 @@ function Discussions() {
       setCreatingComment(true);
       setError("");
 
-      const newComment = await createDecisionComment(
-        decisionId,
-        {
-          content: commentContent.trim(),
-        }
-      );
+      const newComment =
+        await createDecisionComment(
+          decisionId,
+          {
+            content:
+              commentContent.trim(),
+          }
+        );
 
       setComments((current) => [
         ...current,
@@ -208,7 +343,10 @@ function Discussions() {
 
       setCommentContent("");
     } catch (err) {
-      console.error("Failed to create comment:", err);
+      console.error(
+        "Failed to create comment:",
+        err
+      );
 
       setError(
         getErrorMessage(
@@ -222,7 +360,8 @@ function Discussions() {
   }
 
   async function handleCreateReply(threadId) {
-    const content = replyContent[threadId] || "";
+    const content =
+      replyContent[threadId] || "";
 
     if (!content.trim()) {
       return;
@@ -236,12 +375,13 @@ function Discussions() {
 
       setError("");
 
-      const newReply = await createThreadReply(
-        threadId,
-        {
-          content: content.trim(),
-        }
-      );
+      const newReply =
+        await createThreadReply(
+          threadId,
+          {
+            content: content.trim(),
+          }
+        );
 
       setThreadReplies((current) => ({
         ...current,
@@ -256,7 +396,10 @@ function Discussions() {
         [threadId]: "",
       }));
     } catch (err) {
-      console.error("Failed to create reply:", err);
+      console.error(
+        "Failed to create reply:",
+        err
+      );
 
       setError(
         getErrorMessage(
@@ -274,26 +417,32 @@ function Discussions() {
 
   function startThreadEdit(thread) {
     setEditingThreadId(thread.id);
-    setEditingThreadTitle(thread.title || "");
+    setEditingThreadTitle(
+      thread.title || ""
+    );
     setEditingThreadDescription(
       thread.description || ""
     );
   }
 
-  async function handleSaveThreadEdit(threadId) {
+  async function handleSaveThreadEdit(
+    threadId
+  ) {
     if (!editingThreadTitle.trim()) {
       return;
     }
 
     try {
-      const updatedThread = await updateThread(
-        threadId,
-        {
-          title: editingThreadTitle.trim(),
-          description:
-            editingThreadDescription.trim(),
-        }
-      );
+      const updatedThread =
+        await updateThread(
+          threadId,
+          {
+            title:
+              editingThreadTitle.trim(),
+            description:
+              editingThreadDescription.trim(),
+          }
+        );
 
       setThreads((current) =>
         current.map((thread) =>
@@ -307,7 +456,10 @@ function Discussions() {
       setEditingThreadTitle("");
       setEditingThreadDescription("");
     } catch (err) {
-      console.error("Failed to update thread:", err);
+      console.error(
+        "Failed to update thread:",
+        err
+      );
 
       setError(
         getErrorMessage(
@@ -318,7 +470,9 @@ function Discussions() {
     }
   }
 
-  async function handleDeleteThread(threadId) {
+  async function handleDeleteThread(
+    threadId
+  ) {
     const confirmed = window.confirm(
       "Are you sure you want to delete this discussion thread?"
     );
@@ -335,7 +489,8 @@ function Discussions() {
 
       setThreads((current) =>
         current.filter(
-          (thread) => thread.id !== threadId
+          (thread) =>
+            thread.id !== threadId
         )
       );
 
@@ -349,7 +504,10 @@ function Discussions() {
         return next;
       });
     } catch (err) {
-      console.error("Failed to delete thread:", err);
+      console.error(
+        "Failed to delete thread:",
+        err
+      );
 
       setError(
         getErrorMessage(
@@ -369,19 +527,22 @@ function Discussions() {
     );
   }
 
-  async function handleSaveCommentEdit(commentId) {
+  async function handleSaveCommentEdit(
+    commentId
+  ) {
     if (!editingCommentContent.trim()) {
       return;
     }
 
     try {
-      const updatedComment = await updateComment(
-        commentId,
-        {
-          content:
-            editingCommentContent.trim(),
-        }
-      );
+      const updatedComment =
+        await updateComment(
+          commentId,
+          {
+            content:
+              editingCommentContent.trim(),
+          }
+        );
 
       setComments((current) =>
         current.map((comment) =>
@@ -396,14 +557,17 @@ function Discussions() {
           ...current,
         };
 
-        Object.keys(next).forEach((threadId) => {
-          next[threadId] =
-            next[threadId].map((reply) =>
-              reply.id === commentId
-                ? updatedComment
-                : reply
-            );
-        });
+        Object.keys(next).forEach(
+          (threadId) => {
+            next[threadId] =
+              next[threadId].map(
+                (reply) =>
+                  reply.id === commentId
+                    ? updatedComment
+                    : reply
+              );
+          }
+        );
 
         return next;
       });
@@ -411,7 +575,10 @@ function Discussions() {
       setEditingCommentId(null);
       setEditingCommentContent("");
     } catch (err) {
-      console.error("Failed to update comment:", err);
+      console.error(
+        "Failed to update comment:",
+        err
+      );
 
       setError(
         getErrorMessage(
@@ -422,7 +589,9 @@ function Discussions() {
     }
   }
 
-  async function handleDeleteComment(commentId) {
+  async function handleDeleteComment(
+    commentId
+  ) {
     const confirmed = window.confirm(
       "Are you sure you want to delete this comment?"
     );
@@ -439,7 +608,8 @@ function Discussions() {
 
       setComments((current) =>
         current.filter(
-          (comment) => comment.id !== commentId
+          (comment) =>
+            comment.id !== commentId
         )
       );
 
@@ -448,18 +618,23 @@ function Discussions() {
           ...current,
         };
 
-        Object.keys(next).forEach((threadId) => {
-          next[threadId] =
-            next[threadId].filter(
-              (reply) =>
-                reply.id !== commentId
-            );
-        });
+        Object.keys(next).forEach(
+          (threadId) => {
+            next[threadId] =
+              next[threadId].filter(
+                (reply) =>
+                  reply.id !== commentId
+              );
+          }
+        );
 
         return next;
       });
     } catch (err) {
-      console.error("Failed to delete comment:", err);
+      console.error(
+        "Failed to delete comment:",
+        err
+      );
 
       setError(
         getErrorMessage(
@@ -472,55 +647,230 @@ function Discussions() {
     }
   }
 
-  function getErrorMessage(err, fallback) {
-    if (err.response?.status === 401) {
-      return "Your session has expired. Please log in again.";
-    }
+  const filteredDecisions =
+    decisions.filter((item) => {
+      const search =
+        decisionSearch
+          .trim()
+          .toLowerCase();
 
-    if (err.response?.status === 403) {
-      return (
-        err.response?.data?.detail ||
-        "You do not have permission to perform this action."
-      );
-    }
-
-    if (err.response?.status === 404) {
-      return (
-        err.response?.data?.detail ||
-        "The requested resource was not found."
-      );
-    }
-
-    if (err.response?.status === 422) {
-      const detail = err.response?.data?.detail;
-
-      if (Array.isArray(detail)) {
-        return detail
-          .map((item) => item.msg)
-          .join(" ");
+      if (!search) {
+        return true;
       }
 
       return (
-        detail ||
-        "Please check the information entered."
+        String(item.id || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(item.title || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(item.category || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(item.status || "")
+          .toLowerCase()
+          .includes(search)
       );
-    }
+    });
 
-    if (err.response?.status >= 500) {
-      return "The server encountered an error. Please try again.";
-    }
+  if (loading && !hasDecisionId) {
+    return (
+      <div className="discussion-page">
+        <style>{styles}</style>
 
-    return fallback;
+        <div className="discussion-loading">
+          <Loader2
+            size={24}
+            className="discussion-spin"
+          />
+          <span>
+            Loading decisions...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasDecisionId) {
+    return (
+      <div className="discussion-page">
+        <style>{styles}</style>
+
+        <div className="discussion-header">
+          <div className="discussion-header-left">
+            <div className="discussion-header-icon">
+              <MessageSquare size={24} />
+            </div>
+
+            <div>
+              <div className="discussion-eyebrow">
+                Decision Collaboration
+              </div>
+
+              <h1>Discussions</h1>
+
+              <p>
+                Select a decision to view and
+                manage its discussions.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="discussion-error">
+            <AlertCircle size={19} />
+            <p>{error}</p>
+          </div>
+        )}
+
+        <div className="discussion-card">
+          <div className="discussion-card-header">
+            <div className="discussion-card-title">
+              <div className="discussion-card-title-icon">
+                <Search size={18} />
+              </div>
+
+              <div>
+                <h2>
+                  Select a Decision
+                </h2>
+
+                <p>
+                  Choose a decision to open its
+                  discussion workspace.
+                </p>
+              </div>
+            </div>
+
+            <span className="discussion-count">
+              {decisions.length} decisions
+            </span>
+          </div>
+
+          <div className="discussion-card-body">
+            <div className="decision-search">
+              <Search size={17} />
+
+              <input
+                type="text"
+                placeholder="Search decisions by title, category or status..."
+                value={decisionSearch}
+                onChange={(event) =>
+                  setDecisionSearch(
+                    event.target.value
+                  )
+                }
+              />
+            </div>
+
+            {loadingDecisions ? (
+              <div className="discussion-loading">
+                <Loader2
+                  size={22}
+                  className="discussion-spin"
+                />
+                Loading decisions...
+              </div>
+            ) : filteredDecisions.length === 0 ? (
+              <div className="discussion-empty">
+                <div className="discussion-empty-icon">
+                  <MessageSquare size={23} />
+                </div>
+
+                <h3>
+                  No Decisions Found
+                </h3>
+
+                <p>
+                  Try another search term.
+                </p>
+              </div>
+            ) : (
+              <div className="decision-picker-list">
+                {filteredDecisions.map(
+                  (item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="decision-picker-item"
+                      onClick={() =>
+                        navigate(
+                          `/decisions/${item.id}/discussions`
+                        )
+                      }
+                    >
+                      <div className="decision-picker-icon">
+                        <MessageSquare
+                          size={18}
+                        />
+                      </div>
+
+                      <div className="decision-picker-content">
+                        <div className="decision-picker-title">
+                          {item.title ||
+                            "Untitled Decision"}
+                        </div>
+
+                        <div className="decision-picker-meta">
+                          <span>
+                            Decision #{item.id}
+                          </span>
+
+                          {item.category && (
+                            <span>
+                              {item.category}
+                            </span>
+                          )}
+
+                          {item.status && (
+                            <span>
+                              {item.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <ExternalLink
+                        size={17}
+                        className="decision-picker-arrow"
+                      />
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="discussion-footer">
+          <Link
+            to="/decisions"
+            className="discussion-secondary"
+          >
+            <ArrowLeft size={15} />
+            Back to Decisions
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
     return (
-      <div className="discussion-page-loading">
-        <Loader2
-          size={24}
-          className="discussion-spin"
-        />
-        <span>Loading discussions...</span>
+      <div className="discussion-page">
+        <style>{styles}</style>
+
+        <div className="discussion-loading">
+          <Loader2
+            size={24}
+            className="discussion-spin"
+          />
+          <span>
+            Loading discussions...
+          </span>
+        </div>
       </div>
     );
   }
@@ -528,10 +878,14 @@ function Discussions() {
   if (error && !decision) {
     return (
       <div className="discussion-page">
+        <style>{styles}</style>
+
         <div className="discussion-error-page">
           <AlertCircle size={28} />
 
-          <h2>Unable to Load Discussions</h2>
+          <h2>
+            Unable to Load Discussions
+          </h2>
 
           <p>{error}</p>
 
@@ -549,595 +903,10 @@ function Discussions() {
 
   return (
     <div className="discussion-page">
+      <style>{styles}</style>
 
-      <style>{`
-        .discussion-page {
-          max-width: 1120px;
-          margin: 0 auto;
-          padding: 4px 0 40px;
-        }
-
-        .discussion-page-loading {
-          min-height: 400px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          color: #64748b;
-          font-size: 14px;
-        }
-
-        .discussion-spin {
-          animation: discussionSpin 1s linear infinite;
-        }
-
-        @keyframes discussionSpin {
-          from {
-            transform: rotate(0deg);
-          }
-
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        .discussion-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 20px;
-          margin-bottom: 25px;
-        }
-
-        .discussion-header-left {
-          display: flex;
-          gap: 15px;
-          align-items: flex-start;
-        }
-
-        .discussion-header-icon {
-          width: 50px;
-          height: 50px;
-          min-width: 50px;
-          border-radius: 14px;
-          background: #eaf2ff;
-          color: #2563eb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .discussion-back {
-          display: inline-flex;
-          align-items: center;
-          gap: 7px;
-          color: #64748b;
-          text-decoration: none;
-          font-size: 13px;
-          font-weight: 650;
-          margin-bottom: 8px;
-        }
-
-        .discussion-back:hover {
-          color: #2563eb;
-        }
-
-        .discussion-eyebrow {
-          color: #64748b;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-          margin-bottom: 5px;
-        }
-
-        .discussion-header h1 {
-          margin: 0;
-          color: #0f172a;
-          font-size: 29px;
-        }
-
-        .discussion-header p {
-          margin: 7px 0 0;
-          color: #64748b;
-          font-size: 14px;
-        }
-
-        .discussion-header strong {
-          color: #334155;
-        }
-
-        .discussion-card {
-          background: #fff;
-          border: 1px solid #e2e8f0;
-          border-radius: 17px;
-          box-shadow: 0 7px 25px rgba(15, 23, 42, .05);
-          margin-bottom: 20px;
-          overflow: hidden;
-        }
-
-        .discussion-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 15px;
-          padding: 20px 23px;
-          border-bottom: 1px solid #e2e8f0;
-          background: #f8fafc;
-        }
-
-        .discussion-card-title {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .discussion-card-title-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          background: #dbeafe;
-          color: #2563eb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .discussion-card-header h2 {
-          margin: 0;
-          color: #0f172a;
-          font-size: 17px;
-        }
-
-        .discussion-card-header p {
-          margin: 4px 0 0;
-          color: #64748b;
-          font-size: 12px;
-        }
-
-        .discussion-count {
-          padding: 5px 10px;
-          border-radius: 20px;
-          background: #e2e8f0;
-          color: #475569;
-          font-size: 11px;
-          font-weight: 750;
-        }
-
-        .discussion-card-body {
-          padding: 23px;
-        }
-
-        .discussion-form-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 18px;
-        }
-
-        .discussion-full {
-          grid-column: 1 / -1;
-        }
-
-        .discussion-field {
-          display: flex;
-          flex-direction: column;
-          gap: 7px;
-        }
-
-        .discussion-field label {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: #334155;
-          font-size: 13px;
-          font-weight: 750;
-        }
-
-        .discussion-required {
-          color: #dc2626;
-        }
-
-        .discussion-field input,
-        .discussion-field textarea,
-        .discussion-reply-form textarea,
-        .discussion-edit textarea {
-          width: 100%;
-          box-sizing: border-box;
-          border: 1px solid #cbd5e1;
-          border-radius: 10px;
-          padding: 11px 13px;
-          background: #fff;
-          color: #0f172a;
-          font-family: inherit;
-          font-size: 13px;
-          outline: none;
-          resize: vertical;
-          transition: border-color .2s, box-shadow .2s;
-        }
-
-        .discussion-field input {
-          min-height: 44px;
-        }
-
-        .discussion-field textarea {
-          min-height: 110px;
-        }
-
-        .discussion-field input:focus,
-        .discussion-field textarea:focus,
-        .discussion-reply-form textarea:focus,
-        .discussion-edit textarea:focus {
-          border-color: #2563eb;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
-        }
-
-        .discussion-field input::placeholder,
-        .discussion-field textarea::placeholder,
-        .discussion-reply-form textarea::placeholder {
-          color: #94a3b8;
-        }
-
-        .discussion-primary,
-        .discussion-secondary,
-        .discussion-danger {
-          min-height: 40px;
-          padding: 0 14px;
-          border-radius: 8px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
-          font-family: inherit;
-          font-size: 12px;
-          font-weight: 750;
-          cursor: pointer;
-          border: 1px solid transparent;
-          transition: .15s ease;
-        }
-
-        .discussion-primary {
-          background: #2563eb;
-          color: #fff;
-        }
-
-        .discussion-primary:hover:not(:disabled) {
-          background: #1d4ed8;
-          box-shadow: 0 4px 12px rgba(37, 99, 235, .18);
-        }
-
-        .discussion-secondary {
-          background: #fff;
-          border-color: #cbd5e1;
-          color: #475569;
-        }
-
-        .discussion-secondary:hover:not(:disabled) {
-          background: #f8fafc;
-        }
-
-        .discussion-danger {
-          background: #fff;
-          border-color: #fecaca;
-          color: #dc2626;
-        }
-
-        .discussion-danger:hover:not(:disabled) {
-          background: #fef2f2;
-        }
-
-        .discussion-primary:disabled,
-        .discussion-secondary:disabled,
-        .discussion-danger:disabled {
-          opacity: .55;
-          cursor: not-allowed;
-        }
-
-        .discussion-form-action {
-          margin-top: 18px;
-          display: flex;
-          justify-content: flex-end;
-        }
-
-        .discussion-error {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          margin-bottom: 20px;
-          padding: 14px 16px;
-          border: 1px solid #fecaca;
-          border-radius: 11px;
-          background: #fef2f2;
-          color: #991b1b;
-          font-size: 13px;
-        }
-
-        .discussion-error p {
-          margin: 0;
-          line-height: 1.5;
-        }
-
-        .discussion-error-page {
-          min-height: 400px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-          color: #64748b;
-        }
-
-        .discussion-error-page h2 {
-          margin: 12px 0 5px;
-          color: #334155;
-        }
-
-        .discussion-error-page p {
-          margin: 0 0 18px;
-        }
-
-        .discussion-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .discussion-thread {
-          border: 1px solid #e2e8f0;
-          border-radius: 13px;
-          overflow: hidden;
-          background: #fff;
-        }
-
-        .discussion-thread-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 15px;
-          padding: 18px 20px;
-          background: #f8fafc;
-          border-bottom: 1px solid #e2e8f0;
-        }
-
-        .discussion-thread-header h3 {
-          margin: 0 0 5px;
-          color: #0f172a;
-          font-size: 16px;
-        }
-
-        .discussion-thread-meta {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-          color: #94a3b8;
-          font-size: 11px;
-        }
-
-        .discussion-thread-meta span {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .discussion-thread-actions {
-          display: flex;
-          gap: 7px;
-        }
-
-        .discussion-thread-description {
-          padding: 17px 20px;
-          color: #64748b;
-          font-size: 13px;
-          line-height: 1.6;
-        }
-
-        .discussion-edit {
-          padding: 20px;
-        }
-
-        .discussion-edit-actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: 8px;
-          margin-top: 14px;
-        }
-
-        .discussion-replies {
-          border-top: 1px solid #e2e8f0;
-          padding: 18px 20px;
-          background: #fcfdff;
-        }
-
-        .discussion-replies-title {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          margin-bottom: 13px;
-          color: #475569;
-          font-size: 12px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: .04em;
-        }
-
-        .discussion-reply {
-          padding: 14px;
-          margin-bottom: 10px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          background: #fff;
-        }
-
-        .discussion-comment-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .discussion-comment-user {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          color: #334155;
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .discussion-comment-date {
-          color: #94a3b8;
-          font-size: 10px;
-        }
-
-        .discussion-comment-content {
-          margin: 8px 0 10px;
-          color: #475569;
-          font-size: 13px;
-          line-height: 1.6;
-          white-space: pre-wrap;
-        }
-
-        .discussion-comment-actions {
-          display: flex;
-          gap: 7px;
-        }
-
-        .discussion-reply-form {
-          display: flex;
-          gap: 9px;
-          align-items: flex-end;
-          margin-top: 13px;
-        }
-
-        .discussion-reply-form textarea {
-          min-height: 42px;
-          max-height: 130px;
-        }
-
-        .discussion-reply-form button {
-          flex-shrink: 0;
-        }
-
-        .discussion-no-replies {
-          color: #94a3b8;
-          font-size: 12px;
-          margin-bottom: 12px;
-        }
-
-        .discussion-comments-list {
-          margin-top: 22px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .discussion-comment {
-          padding: 16px;
-          border: 1px solid #e2e8f0;
-          border-radius: 11px;
-          background: #fff;
-        }
-
-        .discussion-empty {
-          padding: 45px 20px;
-          text-align: center;
-          color: #94a3b8;
-        }
-
-        .discussion-empty-icon {
-          width: 50px;
-          height: 50px;
-          margin: 0 auto 12px;
-          border-radius: 13px;
-          background: #f1f5f9;
-          color: #64748b;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .discussion-empty h3 {
-          margin: 0 0 5px;
-          color: #475569;
-          font-size: 15px;
-        }
-
-        .discussion-empty p {
-          margin: 0;
-          font-size: 12px;
-        }
-
-        .discussion-footer {
-          display: flex;
-          justify-content: flex-start;
-          margin-top: 5px;
-        }
-
-        @media (max-width: 760px) {
-          .discussion-header {
-            flex-direction: column;
-          }
-
-          .discussion-form-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .discussion-full {
-            grid-column: auto;
-          }
-
-          .discussion-thread-header {
-            flex-direction: column;
-          }
-
-          .discussion-thread-actions {
-            width: 100%;
-          }
-
-          .discussion-thread-actions button {
-            flex: 1;
-          }
-        }
-
-        @media (max-width: 550px) {
-          .discussion-page {
-            padding-bottom: 25px;
-          }
-
-          .discussion-header h1 {
-            font-size: 24px;
-          }
-
-          .discussion-card-body,
-          .discussion-thread-header,
-          .discussion-thread-description,
-          .discussion-replies {
-            padding: 16px;
-          }
-
-          .discussion-reply-form {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .discussion-reply-form button {
-            width: 100%;
-          }
-
-          .discussion-form-action {
-            justify-content: stretch;
-          }
-
-          .discussion-form-action button {
-            width: 100%;
-          }
-        }
-      `}</style>
-
-      {/* HEADER */}
       <div className="discussion-header">
         <div className="discussion-header-left">
-
           <div className="discussion-header-icon">
             <MessageSquare size={24} />
           </div>
@@ -1160,26 +929,23 @@ function Discussions() {
             <p>
               Decision #{decisionId}:{" "}
               <strong>
-                {decision?.title || "Untitled Decision"}
+                {decision?.title ||
+                  "Untitled Decision"}
               </strong>
             </p>
           </div>
-
         </div>
       </div>
 
-      {/* ERROR */}
       {error && (
         <div className="discussion-error">
           <AlertCircle size={19} />
-
           <p>{error}</p>
         </div>
       )}
 
       {/* CREATE THREAD */}
       <div className="discussion-card">
-
         <div className="discussion-card-header">
           <div className="discussion-card-title">
             <div className="discussion-card-title-icon">
@@ -1187,7 +953,9 @@ function Discussions() {
             </div>
 
             <div>
-              <h2>Start a Discussion</h2>
+              <h2>
+                Start a Discussion
+              </h2>
 
               <p>
                 Create a focused discussion thread
@@ -1198,11 +966,10 @@ function Discussions() {
         </div>
 
         <div className="discussion-card-body">
-
-          <form onSubmit={handleCreateThread}>
-
+          <form
+            onSubmit={handleCreateThread}
+          >
             <div className="discussion-form-grid">
-
               <div className="discussion-field">
                 <label htmlFor="thread-title">
                   <MessageSquare size={14} />
@@ -1232,15 +999,7 @@ function Discussions() {
                   Discussion Purpose
                 </label>
 
-                <div
-                  style={{
-                    minHeight: "44px",
-                    display: "flex",
-                    alignItems: "center",
-                    color: "#64748b",
-                    fontSize: "12px",
-                  }}
-                >
+                <div className="discussion-purpose">
                   Discuss options, concerns and
                   supporting information.
                 </div>
@@ -1264,7 +1023,6 @@ function Discussions() {
                   disabled={creatingThread}
                 />
               </div>
-
             </div>
 
             <div className="discussion-form-action">
@@ -1292,32 +1050,28 @@ function Discussions() {
                 )}
               </button>
             </div>
-
           </form>
-
         </div>
       </div>
 
       {/* THREADS */}
       <div className="discussion-card">
-
         <div className="discussion-card-header">
-
           <div className="discussion-card-title">
-
             <div className="discussion-card-title-icon">
               <MessageCircle size={18} />
             </div>
 
             <div>
-              <h2>Discussion Threads</h2>
+              <h2>
+                Discussion Threads
+              </h2>
 
               <p>
                 Topics and conversations related
                 to this decision.
               </p>
             </div>
-
           </div>
 
           <span className="discussion-count">
@@ -1326,14 +1080,11 @@ function Discussions() {
               ? "thread"
               : "threads"}
           </span>
-
         </div>
 
         <div className="discussion-card-body">
-
           {threads.length === 0 ? (
             <div className="discussion-empty">
-
               <div className="discussion-empty-icon">
                 <MessageSquare size={23} />
               </div>
@@ -1346,26 +1097,23 @@ function Discussions() {
                 Start the first discussion for
                 this decision.
               </p>
-
             </div>
           ) : (
             <div className="discussion-list">
-
               {threads.map((thread) => {
-
                 const replies =
-                  threadReplies[thread.id] || [];
+                  threadReplies[
+                    thread.id
+                  ] || [];
 
                 return (
                   <div
                     key={thread.id}
                     className="discussion-thread"
                   >
-
                     {editingThreadId ===
                     thread.id ? (
                       <div className="discussion-edit">
-
                         <div className="discussion-field">
                           <label>
                             Discussion Title
@@ -1378,7 +1126,8 @@ function Discussions() {
                             }
                             onChange={(event) =>
                               setEditingThreadTitle(
-                                event.target.value
+                                event.target
+                                  .value
                               )
                             }
                           />
@@ -1401,14 +1150,14 @@ function Discussions() {
                             }
                             onChange={(event) =>
                               setEditingThreadDescription(
-                                event.target.value
+                                event.target
+                                  .value
                               )
                             }
                           />
                         </div>
 
                         <div className="discussion-edit-actions">
-
                           <button
                             type="button"
                             className="discussion-secondary"
@@ -1434,27 +1183,23 @@ function Discussions() {
                             <Save size={14} />
                             Save Changes
                           </button>
-
                         </div>
-
                       </div>
                     ) : (
                       <>
                         <div className="discussion-thread-header">
-
                           <div>
-
                             <h3>
                               {thread.title}
                             </h3>
 
                             <div className="discussion-thread-meta">
-
                               <span>
                                 <MessageSquare
                                   size={12}
                                 />
-                                Thread #{thread.id}
+                                Thread #
+                                {thread.id}
                               </span>
 
                               <span>•</span>
@@ -1462,7 +1207,9 @@ function Discussions() {
                               <span>
                                 <User size={12} />
                                 User{" "}
-                                {thread.created_by}
+                                {
+                                  thread.created_by
+                                }
                               </span>
 
                               <span>•</span>
@@ -1475,13 +1222,10 @@ function Discussions() {
                                   thread.created_at
                                 )}
                               </span>
-
                             </div>
-
                           </div>
 
                           <div className="discussion-thread-actions">
-
                             <button
                               type="button"
                               className="discussion-secondary"
@@ -1515,7 +1259,9 @@ function Discussions() {
                                   className="discussion-spin"
                                 />
                               ) : (
-                                <Trash2 size={13} />
+                                <Trash2
+                                  size={13}
+                                />
                               )}
 
                               {deletingThreadId ===
@@ -1523,9 +1269,7 @@ function Discussions() {
                                 ? "Deleting..."
                                 : "Delete"}
                             </button>
-
                           </div>
-
                         </div>
 
                         <div className="discussion-thread-description">
@@ -1537,7 +1281,6 @@ function Discussions() {
 
                     {/* REPLIES */}
                     <div className="discussion-replies">
-
                       <div className="discussion-replies-title">
                         <Reply size={14} />
                         Replies
@@ -1546,130 +1289,135 @@ function Discussions() {
                         </span>
                       </div>
 
-                      {replies.length === 0 ? (
+                      {replies.length ===
+                      0 ? (
                         <div className="discussion-no-replies">
                           No replies yet. Start the
                           conversation below.
                         </div>
                       ) : (
-                        replies.map((reply) => (
-                          <div
-                            key={reply.id}
-                            className="discussion-reply"
-                          >
-
-                            {editingCommentId ===
-                            reply.id ? (
-                              <div className="discussion-edit">
-
-                                <textarea
-                                  rows="4"
-                                  value={
-                                    editingCommentContent
-                                  }
-                                  onChange={(event) =>
-                                    setEditingCommentContent(
-                                      event.target.value
-                                    )
-                                  }
-                                />
-
-                                <div className="discussion-edit-actions">
-
-                                  <button
-                                    type="button"
-                                    className="discussion-secondary"
-                                    onClick={() =>
-                                      setEditingCommentId(
-                                        null
+                        replies.map(
+                          (reply) => (
+                            <div
+                              key={reply.id}
+                              className="discussion-reply"
+                            >
+                              {editingCommentId ===
+                              reply.id ? (
+                                <div className="discussion-edit">
+                                  <textarea
+                                    rows="4"
+                                    value={
+                                      editingCommentContent
+                                    }
+                                    onChange={(
+                                      event
+                                    ) =>
+                                      setEditingCommentContent(
+                                        event
+                                          .target
+                                          .value
                                       )
                                     }
-                                  >
-                                    <X size={14} />
-                                    Cancel
-                                  </button>
+                                  />
 
-                                  <button
-                                    type="button"
-                                    className="discussion-primary"
-                                    onClick={() =>
-                                      handleSaveCommentEdit(
-                                        reply.id
-                                      )
-                                    }
-                                  >
-                                    <Save size={14} />
-                                    Save
-                                  </button>
+                                  <div className="discussion-edit-actions">
+                                    <button
+                                      type="button"
+                                      className="discussion-secondary"
+                                      onClick={() =>
+                                        setEditingCommentId(
+                                          null
+                                        )
+                                      }
+                                    >
+                                      <X size={14} />
+                                      Cancel
+                                    </button>
 
+                                    <button
+                                      type="button"
+                                      className="discussion-primary"
+                                      onClick={() =>
+                                        handleSaveCommentEdit(
+                                          reply.id
+                                        )
+                                      }
+                                    >
+                                      <Save size={14} />
+                                      Save
+                                    </button>
+                                  </div>
                                 </div>
+                              ) : (
+                                <>
+                                  <div className="discussion-comment-header">
+                                    <div className="discussion-comment-user">
+                                      <User
+                                        size={13}
+                                      />
+                                      User{" "}
+                                      {
+                                        reply.user_id
+                                      }
+                                    </div>
 
-                              </div>
-                            ) : (
-                              <>
-                                <div className="discussion-comment-header">
-
-                                  <div className="discussion-comment-user">
-                                    <User size={13} />
-                                    User{" "}
-                                    {reply.user_id}
+                                    <span className="discussion-comment-date">
+                                      {formatDate(
+                                        reply.created_at
+                                      )}
+                                    </span>
                                   </div>
 
-                                  <span className="discussion-comment-date">
-                                    {formatDate(
-                                      reply.created_at
-                                    )}
-                                  </span>
-
-                                </div>
-
-                                <div className="discussion-comment-content">
-                                  {reply.content}
-                                </div>
-
-                                <div className="discussion-comment-actions">
-
-                                  <button
-                                    type="button"
-                                    className="discussion-secondary"
-                                    onClick={() =>
-                                      startCommentEdit(
-                                        reply
-                                      )
+                                  <div className="discussion-comment-content">
+                                    {
+                                      reply.content
                                     }
-                                  >
-                                    <Pencil size={12} />
-                                    Edit
-                                  </button>
+                                  </div>
 
-                                  <button
-                                    type="button"
-                                    className="discussion-danger"
-                                    onClick={() =>
-                                      handleDeleteComment(
+                                  <div className="discussion-comment-actions">
+                                    <button
+                                      type="button"
+                                      className="discussion-secondary"
+                                      onClick={() =>
+                                        startCommentEdit(
+                                          reply
+                                        )
+                                      }
+                                    >
+                                      <Pencil
+                                        size={12}
+                                      />
+                                      Edit
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="discussion-danger"
+                                      onClick={() =>
+                                        handleDeleteComment(
+                                          reply.id
+                                        )
+                                      }
+                                      disabled={
+                                        deletingCommentId ===
                                         reply.id
-                                      )
-                                    }
-                                    disabled={
-                                      deletingCommentId ===
-                                      reply.id
-                                    }
-                                  >
-                                    <Trash2 size={12} />
-                                    Delete
-                                  </button>
-
-                                </div>
-                              </>
-                            )}
-
-                          </div>
-                        ))
+                                      }
+                                    >
+                                      <Trash2
+                                        size={12}
+                                      />
+                                      Delete
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )
+                        )
                       )}
 
-                      {/* REPLY FORM */}
                       <div className="discussion-reply-form">
-
                         <textarea
                           rows="2"
                           placeholder="Write a reply..."
@@ -1683,7 +1431,8 @@ function Discussions() {
                               (current) => ({
                                 ...current,
                                 [thread.id]:
-                                  event.target.value,
+                                  event.target
+                                    .value,
                               })
                             )
                           }
@@ -1725,41 +1474,34 @@ function Discussions() {
                             </>
                           )}
                         </button>
-
                       </div>
-
                     </div>
-
                   </div>
                 );
               })}
-
             </div>
           )}
-
         </div>
       </div>
 
       {/* COMMENTS */}
       <div className="discussion-card">
-
         <div className="discussion-card-header">
-
           <div className="discussion-card-title">
-
             <div className="discussion-card-title-icon">
               <MessageCircle size={18} />
             </div>
 
             <div>
-              <h2>Decision Comments</h2>
+              <h2>
+                Decision Comments
+              </h2>
 
               <p>
                 General comments directly associated
                 with this decision.
               </p>
             </div>
-
           </div>
 
           <span className="discussion-count">
@@ -1768,15 +1510,13 @@ function Discussions() {
               ? "comment"
               : "comments"}
           </span>
-
         </div>
 
         <div className="discussion-card-body">
-
-          <form onSubmit={handleCreateComment}>
-
+          <form
+            onSubmit={handleCreateComment}
+          >
             <div className="discussion-field">
-
               <label htmlFor="decision-comment">
                 <MessageCircle size={14} />
                 Add Comment
@@ -1794,11 +1534,9 @@ function Discussions() {
                 }
                 disabled={creatingComment}
               />
-
             </div>
 
             <div className="discussion-form-action">
-
               <button
                 type="submit"
                 className="discussion-primary"
@@ -1822,27 +1560,24 @@ function Discussions() {
                   </>
                 )}
               </button>
-
             </div>
-
           </form>
 
           <div className="discussion-comments-list">
-
             {comments.length === 0 ? (
               <div className="discussion-empty">
-
                 <div className="discussion-empty-icon">
                   <MessageCircle size={22} />
                 </div>
 
-                <h3>No Comments Yet</h3>
+                <h3>
+                  No Comments Yet
+                </h3>
 
                 <p>
                   Be the first to add a comment
                   to this decision.
                 </p>
-
               </div>
             ) : (
               comments.map((comment) => (
@@ -1850,11 +1585,9 @@ function Discussions() {
                   key={comment.id}
                   className="discussion-comment"
                 >
-
                   {editingCommentId ===
                   comment.id ? (
                     <div className="discussion-edit">
-
                       <textarea
                         rows="4"
                         value={
@@ -1868,7 +1601,6 @@ function Discussions() {
                       />
 
                       <div className="discussion-edit-actions">
-
                         <button
                           type="button"
                           className="discussion-secondary"
@@ -1894,14 +1626,11 @@ function Discussions() {
                           <Save size={14} />
                           Save
                         </button>
-
                       </div>
-
                     </div>
                   ) : (
                     <>
                       <div className="discussion-comment-header">
-
                         <div className="discussion-comment-user">
                           <User size={13} />
                           User{" "}
@@ -1913,7 +1642,6 @@ function Discussions() {
                             comment.created_at
                           )}
                         </span>
-
                       </div>
 
                       <div className="discussion-comment-content">
@@ -1921,7 +1649,6 @@ function Discussions() {
                       </div>
 
                       <div className="discussion-comment-actions">
-
                         <button
                           type="button"
                           className="discussion-secondary"
@@ -1963,22 +1690,17 @@ function Discussions() {
                             ? "Deleting..."
                             : "Delete"}
                         </button>
-
                       </div>
                     </>
                   )}
-
                 </div>
               ))
             )}
-
           </div>
         </div>
       </div>
 
-      {/* FOOTER */}
       <div className="discussion-footer">
-
         <Link
           to={`/decisions/${decisionId}`}
           className="discussion-secondary"
@@ -1986,11 +1708,695 @@ function Discussions() {
           <ArrowLeft size={15} />
           Back to Decision
         </Link>
-
       </div>
-
     </div>
   );
 }
+
+const styles = `
+.discussion-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 4px 0 40px;
+}
+
+.discussion-loading {
+  min-height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.discussion-spin {
+  animation: discussionSpin 1s linear infinite;
+}
+
+@keyframes discussionSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.discussion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.discussion-header-left {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.discussion-header-icon {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  border-radius: 14px;
+  background: #eaf2ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discussion-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+
+.discussion-back:hover {
+  color: #2563eb;
+}
+
+.discussion-eyebrow {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.discussion-header h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 29px;
+}
+
+.discussion-header p {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.discussion-header strong {
+  color: #334155;
+}
+
+.discussion-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 17px;
+  box-shadow: 0 7px 25px rgba(15, 23, 42, .05);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.discussion-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 20px 23px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.discussion-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.discussion-card-title-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discussion-card-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+}
+
+.discussion-card-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.discussion-count {
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.discussion-card-body {
+  padding: 23px;
+}
+
+.decision-search {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  color: #94a3b8;
+}
+
+.decision-search:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+}
+
+.decision-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  color: #0f172a;
+  background: transparent;
+}
+
+.decision-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.decision-picker-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: .15s ease;
+}
+
+.decision-picker-item:hover {
+  border-color: #93c5fd;
+  background: #f8fbff;
+  transform: translateY(-1px);
+}
+
+.decision-picker-icon {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.decision-picker-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.decision-picker-title {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decision-picker-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.decision-picker-meta span {
+  padding-right: 8px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.decision-picker-meta span:last-child {
+  border-right: 0;
+}
+
+.decision-picker-arrow {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.discussion-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.discussion-full {
+  grid-column: 1 / -1;
+}
+
+.discussion-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.discussion-field label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.discussion-required {
+  color: #dc2626;
+}
+
+.discussion-field input,
+.discussion-field textarea,
+.discussion-reply-form textarea,
+.discussion-edit textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: #fff;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  resize: vertical;
+}
+
+.discussion-field input {
+  min-height: 44px;
+}
+
+.discussion-field textarea {
+  min-height: 110px;
+}
+
+.discussion-field input:focus,
+.discussion-field textarea:focus,
+.discussion-reply-form textarea:focus,
+.discussion-edit textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+}
+
+.discussion-purpose {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.discussion-primary,
+.discussion-secondary,
+.discussion-danger {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: .15s ease;
+}
+
+.discussion-primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.discussion-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, .18);
+}
+
+.discussion-secondary {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #475569;
+  text-decoration: none;
+}
+
+.discussion-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.discussion-danger {
+  background: #fff;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.discussion-danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.discussion-primary:disabled,
+.discussion-secondary:disabled,
+.discussion-danger:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.discussion-form-action {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.discussion-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid #fecaca;
+  border-radius: 11px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+.discussion-error p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.discussion-error-page {
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #64748b;
+}
+
+.discussion-error-page h2 {
+  margin: 12px 0 5px;
+  color: #334155;
+}
+
+.discussion-error-page p {
+  margin: 0 0 18px;
+}
+
+.discussion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.discussion-thread {
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.discussion-thread-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 18px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.discussion-thread-header h3 {
+  margin: 0 0 5px;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.discussion-thread-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.discussion-thread-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.discussion-thread-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.discussion-thread-description {
+  padding: 17px 20px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.discussion-edit {
+  padding: 20px;
+}
+
+.discussion-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.discussion-replies {
+  border-top: 1px solid #e2e8f0;
+  padding: 18px 20px;
+  background: #fcfdff;
+}
+
+.discussion-replies-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 13px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.discussion-reply {
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.discussion-comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.discussion-comment-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.discussion-comment-date {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.discussion-comment-content {
+  margin: 8px 0 10px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.discussion-comment-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.discussion-reply-form {
+  display: flex;
+  gap: 9px;
+  align-items: flex-end;
+  margin-top: 13px;
+}
+
+.discussion-reply-form textarea {
+  min-height: 42px;
+  max-height: 130px;
+}
+
+.discussion-reply-form button {
+  flex-shrink: 0;
+}
+
+.discussion-no-replies {
+  color: #94a3b8;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.discussion-comments-list {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.discussion-comment {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.discussion-empty {
+  padding: 45px 20px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.discussion-empty-icon {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 12px;
+  border-radius: 13px;
+  background: #f1f5f9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discussion-empty h3 {
+  margin: 0 0 5px;
+  color: #475569;
+  font-size: 15px;
+}
+
+.discussion-empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.discussion-footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 5px;
+}
+
+@media (max-width: 760px) {
+  .discussion-header {
+    flex-direction: column;
+  }
+
+  .discussion-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .discussion-full {
+    grid-column: auto;
+  }
+
+  .discussion-thread-header {
+    flex-direction: column;
+  }
+
+  .discussion-thread-actions {
+    width: 100%;
+  }
+
+  .discussion-thread-actions button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 550px) {
+  .discussion-page {
+    padding-bottom: 25px;
+  }
+
+  .discussion-header h1 {
+    font-size: 24px;
+  }
+
+  .discussion-card-body,
+  .discussion-thread-header,
+  .discussion-thread-description,
+  .discussion-replies {
+    padding: 16px;
+  }
+
+  .discussion-reply-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .discussion-reply-form button {
+    width: 100%;
+  }
+
+  .discussion-form-action {
+    justify-content: stretch;
+  }
+
+  .discussion-form-action button {
+    width: 100%;
+  }
+
+  .decision-picker-title {
+    white-space: normal;
+  }
+}
+`;
 
 export default Discussions;
