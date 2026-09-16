@@ -4,10 +4,11 @@ import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import apiClient from "../api/apiClient";
 
-
 function Dashboard() {
-  const { user, loading: authLoading } =
-    useContext(AuthContext);
+  const {
+    user,
+    loading: authLoading,
+  } = useContext(AuthContext);
 
   const [dashboardData, setDashboardData] =
     useState(null);
@@ -18,9 +19,13 @@ function Dashboard() {
   const [error, setError] =
     useState("");
 
-
   const role = user?.role || "";
 
+  const displayName =
+    user?.name ||
+    user?.full_name ||
+    user?.email ||
+    "User";
 
   const getErrorMessage = (requestError) => {
     const status =
@@ -76,7 +81,6 @@ function Dashboard() {
     );
   };
 
-
   useEffect(() => {
     if (authLoading || !user) {
       return;
@@ -96,13 +100,6 @@ function Dashboard() {
         } else if (role === "Administrator") {
           endpoint = "/dashboard/admin";
         } else if (role === "Reviewer") {
-          /*
-           * There is no dedicated reviewer dashboard
-           * endpoint in the backend.
-           *
-           * Reviewer work is handled through the
-           * approval/review workflow.
-           */
           setDashboardData({
             reviewer: true,
           });
@@ -142,60 +139,59 @@ function Dashboard() {
     role,
   ]);
 
-
   if (authLoading) {
     return (
       <div className="page-container">
         <div className="loading-state">
-          <p>Checking your session...</p>
+          Checking your session...
         </div>
       </div>
     );
   }
-
 
   if (!user) {
     return null;
   }
 
-
   if (loading) {
     return (
       <div className="page-container">
-        <div className="page-header">
+        <div className="dashboard-welcome">
           <div>
+            <div className="dashboard-eyebrow">
+              EXPERT DECISION REPLAY
+            </div>
+
             <h1>Dashboard</h1>
 
             <p>
-              Loading your dashboard...
+              Preparing your decision workspace...
             </p>
           </div>
         </div>
 
-        <div className="card">
+        <div className="dashboard-loading-card">
           <div className="loading-state">
-            <p>
-              Loading dashboard information...
-            </p>
+            Loading dashboard information...
           </div>
         </div>
       </div>
     );
   }
 
-
   if (error) {
     return (
       <div className="page-container">
-        <div className="page-header">
+        <div className="dashboard-welcome">
           <div>
+            <div className="dashboard-eyebrow">
+              EXPERT DECISION REPLAY
+            </div>
+
             <h1>Dashboard</h1>
 
             <p>
-              Welcome back,{" "}
-              {user.name ||
-                user.full_name ||
-                user.email}
+              Welcome back, {displayName}.
             </p>
           </div>
         </div>
@@ -221,7 +217,6 @@ function Dashboard() {
     );
   }
 
-
   /*
    * ========================================================
    * REVIEWER DASHBOARD
@@ -232,42 +227,74 @@ function Dashboard() {
     return (
       <div className="page-container">
 
-        <div className="page-header">
+        <div className="dashboard-welcome">
+
           <div>
-            <h1>Reviewer Dashboard</h1>
+            <div className="dashboard-eyebrow">
+              REVIEW WORKSPACE
+            </div>
+
+            <h1>
+              Welcome, {displayName}
+            </h1>
 
             <p>
-              Welcome back,{" "}
-              {user.name ||
-                user.full_name ||
-                user.email}
-              .
+              Review assigned decisions and
+              complete approval actions.
             </p>
           </div>
-        </div>
 
-
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <h2>Review Workspace</h2>
-
-              <p>
-                Review decisions assigned to you
-                and complete approval actions.
-              </p>
-            </div>
+          <div className="dashboard-role-badge">
+            REVIEWER
           </div>
 
+        </div>
 
-          <div className="dashboard-actions">
+        <div className="dashboard-feature-grid">
+
+          <div className="dashboard-feature-card dashboard-feature-primary">
+
+            <div className="feature-icon">
+              ✓
+            </div>
+
+            <div>
+              <h2>
+                Assigned Reviews
+              </h2>
+
+              <p>
+                Review decisions assigned to
+                you and complete approval
+                actions.
+              </p>
+            </div>
 
             <Link
               to="/approvals"
               className="primary-button"
             >
-              View Assigned Reviews
+              Open Reviews
             </Link>
+
+          </div>
+
+          <div className="dashboard-feature-card">
+
+            <div className="feature-icon">
+              ▣
+            </div>
+
+            <div>
+              <h2>
+                Decision Library
+              </h2>
+
+              <p>
+                Browse decisions and inspect
+                their complete context.
+              </p>
+            </div>
 
             <Link
               to="/decisions"
@@ -277,35 +304,49 @@ function Dashboard() {
             </Link>
 
           </div>
-        </div>
 
+          <div className="dashboard-feature-card">
 
-        <div className="dashboard-grid">
+            <div className="feature-icon">
+              ◌
+            </div>
 
-          <div className="card">
-            <h3>Assigned Reviews</h3>
+            <div>
+              <h2>
+                Discussions
+              </h2>
 
-            <p>
-              View decisions currently assigned
-              for review.
-            </p>
+              <p>
+                Participate in discussions and
+                review decision comments.
+              </p>
+            </div>
 
             <Link
-              to="/approvals"
+              to="/discussions"
               className="secondary-button"
             >
-              Open Reviews
+              Open Discussions
             </Link>
+
           </div>
 
+          <div className="dashboard-feature-card">
 
-          <div className="card">
-            <h3>Knowledge Repository</h3>
+            <div className="feature-icon">
+              ▤
+            </div>
 
-            <p>
-              Search previous organizational
-              decisions.
-            </p>
+            <div>
+              <h2>
+                Knowledge Repository
+              </h2>
+
+              <p>
+                Search previous organizational
+                decisions.
+              </p>
+            </div>
 
             <Link
               to="/knowledge-repository"
@@ -313,6 +354,7 @@ function Dashboard() {
             >
               Browse Repository
             </Link>
+
           </div>
 
         </div>
@@ -321,16 +363,14 @@ function Dashboard() {
     );
   }
 
-
   /*
    * ========================================================
-   * GENERIC DASHBOARD DATA EXTRACTION
+   * DASHBOARD DATA
    * ========================================================
    */
 
   const data =
     dashboardData || {};
-
 
   const getValue = (
     keys,
@@ -348,80 +388,136 @@ function Dashboard() {
     return fallback;
   };
 
+  const totalDecisions = getValue([
+    "total_decisions",
+    "total",
+    "decision_count",
+  ]);
 
-  const totalDecisions = getValue(
-    [
-      "total_decisions",
-      "total",
-      "decision_count",
-    ]
-  );
+  const draftDecisions = getValue([
+    "draft_decisions",
+    "draft_count",
+  ]);
 
+  const approvedDecisions = getValue([
+    "approved_decisions",
+    "approved_count",
+  ]);
 
-  const draftDecisions = getValue(
-    [
-      "draft_decisions",
-      "draft_count",
-    ]
-  );
+  const pendingDecisions = getValue([
+    "pending_decisions",
+    "pending_count",
+    "under_review_decisions",
+  ]);
 
-
-  const approvedDecisions = getValue(
-    [
-      "approved_decisions",
-      "approved_count",
-    ]
-  );
-
-
-  const pendingDecisions = getValue(
-    [
-      "pending_decisions",
-      "pending_count",
-      "under_review_decisions",
-    ]
-  );
-
-
-  const rejectedDecisions = getValue(
-    [
-      "rejected_decisions",
-      "rejected_count",
-    ]
-  );
-
+  const rejectedDecisions = getValue([
+    "rejected_decisions",
+    "rejected_count",
+  ]);
 
   /*
    * ========================================================
-   * MAIN DASHBOARD
+   * STATUS PERCENTAGES
    * ========================================================
    */
+
+  const getPercentage = (value) => {
+    const total = Number(totalDecisions);
+
+    if (!total || total <= 0) {
+      return 0;
+    }
+
+    return Math.min(
+      100,
+      Math.round(
+        (Number(value) / total) * 100
+      )
+    );
+  };
+
+  const draftPercentage =
+    getPercentage(draftDecisions);
+
+  const approvedPercentage =
+    getPercentage(approvedDecisions);
+
+  const pendingPercentage =
+    getPercentage(pendingDecisions);
+
+  const rejectedPercentage =
+    getPercentage(rejectedDecisions);
+
+  /*
+   * ========================================================
+   * STAT CARD
+   * ========================================================
+   */
+
+  const StatCard = ({
+    icon,
+    label,
+    value,
+    description,
+    className = "",
+  }) => {
+    return (
+      <div
+        className={`dashboard-stat-card ${className}`}
+      >
+        <div className="dashboard-stat-top">
+
+          <div className="dashboard-stat-icon">
+            {icon}
+          </div>
+
+        </div>
+
+        <div className="dashboard-stat-value">
+          {value}
+        </div>
+
+        <div className="dashboard-stat-label">
+          {label}
+        </div>
+
+        <div className="dashboard-stat-description">
+          {description}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="page-container">
 
-      {/* =========================
-          HEADER
-      ========================== */}
+      {/* ==================================================
+          WELCOME HEADER
+      =================================================== */}
 
-      <div className="page-header">
+      <div className="dashboard-welcome">
 
         <div>
+          <div className="dashboard-eyebrow">
+            EXPERT DECISION REPLAY
+          </div>
+
           <h1>
-            {role} Dashboard
+            Welcome back, {displayName}
           </h1>
 
           <p>
-            Welcome back,{" "}
-            {user.name ||
-              user.full_name ||
-              user.email}
-            .
+            Here's an overview of your
+            decision management workspace.
           </p>
         </div>
 
         <div className="dashboard-header-actions">
 
+          <div className="dashboard-role-badge">
+            {role.toUpperCase()}
+          </div>
+
           <Link
             to="/decisions"
             className="secondary-button"
@@ -434,7 +530,7 @@ function Dashboard() {
               to="/decisions/create"
               className="primary-button"
             >
-              Create Decision
+              + Create Decision
             </Link>
           )}
 
@@ -443,272 +539,653 @@ function Dashboard() {
       </div>
 
 
-      {/* =========================
+      {/* ==================================================
           STATISTICS
-      ========================== */}
+      =================================================== */}
 
-      <div className="dashboard-grid">
+      <div className="dashboard-stats-grid">
 
-        <div className="card dashboard-stat-card">
-          <div className="dashboard-stat-label">
-            Total Decisions
-          </div>
+        <StatCard
+          icon="▣"
+          label="Total Decisions"
+          value={totalDecisions}
+          description="Decisions tracked"
+          className="stat-blue"
+        />
 
-          <div className="dashboard-stat-value">
-            {totalDecisions}
-          </div>
-        </div>
+        <StatCard
+          icon="○"
+          label="Draft Decisions"
+          value={draftDecisions}
+          description="Currently being prepared"
+          className="stat-slate"
+        />
 
+        <StatCard
+          icon="✓"
+          label="Approved Decisions"
+          value={approvedDecisions}
+          description="Successfully approved"
+          className="stat-green"
+        />
 
-        <div className="card dashboard-stat-card">
-          <div className="dashboard-stat-label">
-            Draft Decisions
-          </div>
+        <StatCard
+          icon="◷"
+          label="Under Review"
+          value={pendingDecisions}
+          description="Awaiting review or action"
+          className="stat-orange"
+        />
 
-          <div className="dashboard-stat-value">
-            {draftDecisions}
-          </div>
-        </div>
-
-
-        <div className="card dashboard-stat-card">
-          <div className="dashboard-stat-label">
-            Approved Decisions
-          </div>
-
-          <div className="dashboard-stat-value">
-            {approvedDecisions}
-          </div>
-        </div>
-
-
-        <div className="card dashboard-stat-card">
-          <div className="dashboard-stat-label">
-            Pending / Under Review
-          </div>
-
-          <div className="dashboard-stat-value">
-            {pendingDecisions}
-          </div>
-        </div>
-
-
-        <div className="card dashboard-stat-card">
-          <div className="dashboard-stat-label">
-            Rejected Decisions
-          </div>
-
-          <div className="dashboard-stat-value">
-            {rejectedDecisions}
-          </div>
-        </div>
+        <StatCard
+          icon="!"
+          label="Rejected Decisions"
+          value={rejectedDecisions}
+          description="Decisions requiring attention"
+          className="stat-red"
+        />
 
       </div>
 
 
-      {/* =========================
-          QUICK ACTIONS
-      ========================== */}
+      {/* ==================================================
+          MAIN DASHBOARD GRID
+      =================================================== */}
 
-      <div className="card">
+      <div className="dashboard-content-grid">
 
-        <div className="card-header">
+        {/* ---------- Decision Overview ---------- */}
 
-          <div>
-            <h2>Quick Actions</h2>
+        <div className="dashboard-panel">
 
-            <p>
-              Access the most common decision
-              management tasks.
-            </p>
-          </div>
+          <div className="dashboard-panel-header">
 
-        </div>
+            <div>
+              <h2>
+                Decision Overview
+              </h2>
 
-
-        <div className="dashboard-actions">
-
-          <Link
-            to="/decisions"
-            className="secondary-button"
-          >
-            View Decisions
-          </Link>
-
-
-          {role === "Employee" && (
-            <Link
-              to="/decisions/create"
-              className="primary-button"
-            >
-              Create Decision
-            </Link>
-          )}
-
-
-          <Link
-            to="/knowledge-repository"
-            className="secondary-button"
-          >
-            Knowledge Repository
-          </Link>
-
-
-          {role === "Manager" && (
-            <Link
-              to="/approvals"
-              className="secondary-button"
-            >
-              Pending Approvals
-            </Link>
-          )}
-
-
-          {role === "Administrator" && (
-            <Link
-              to="/audit"
-              className="secondary-button"
-            >
-              Audit Logs
-            </Link>
-          )}
-
-        </div>
-
-      </div>
-
-
-      {/* =========================
-          ROLE INFORMATION
-      ========================== */}
-
-      <div className="card">
-
-        <div className="card-header">
-
-          <div>
-            <h2>
-              Your Workspace
-            </h2>
-
-            <p>
-              Available features based on
-              your role.
-            </p>
-          </div>
-
-        </div>
-
-
-        <div className="dashboard-grid">
-
-          <div>
-            <h3>
-              Decision Management
-            </h3>
-
-            <p>
-              Create, view, edit, and explore
-              organizational decisions.
-            </p>
+              <p>
+                Current distribution of decisions
+              </p>
+            </div>
 
             <Link
               to="/decisions"
-              className="secondary-button"
+              className="text-link"
             >
-              Open Decisions
+              View all →
             </Link>
+
           </div>
 
 
-          <div>
-            <h3>
-              Knowledge Repository
-            </h3>
+          <div className="decision-overview">
 
-            <p>
-              Search and explore previous
-              organizational decisions.
-            </p>
+            <div className="overview-row">
 
-            <Link
-              to="/knowledge-repository"
-              className="secondary-button"
-            >
-              Open Repository
-            </Link>
+              <div className="overview-label">
+                <span className="status-dot dot-green" />
+                Approved
+              </div>
+
+              <strong>
+                {approvedDecisions}
+              </strong>
+
+              <div className="overview-bar">
+                <div
+                  className="overview-fill fill-green"
+                  style={{
+                    width:
+                      `${approvedPercentage}%`,
+                  }}
+                />
+              </div>
+
+            </div>
+
+
+            <div className="overview-row">
+
+              <div className="overview-label">
+                <span className="status-dot dot-blue" />
+                Under Review
+              </div>
+
+              <strong>
+                {pendingDecisions}
+              </strong>
+
+              <div className="overview-bar">
+                <div
+                  className="overview-fill fill-blue"
+                  style={{
+                    width:
+                      `${pendingPercentage}%`,
+                  }}
+                />
+              </div>
+
+            </div>
+
+
+            <div className="overview-row">
+
+              <div className="overview-label">
+                <span className="status-dot dot-slate" />
+                Draft
+              </div>
+
+              <strong>
+                {draftDecisions}
+              </strong>
+
+              <div className="overview-bar">
+                <div
+                  className="overview-fill fill-slate"
+                  style={{
+                    width:
+                      `${draftPercentage}%`,
+                  }}
+                />
+              </div>
+
+            </div>
+
+
+            <div className="overview-row">
+
+              <div className="overview-label">
+                <span className="status-dot dot-red" />
+                Rejected
+              </div>
+
+              <strong>
+                {rejectedDecisions}
+              </strong>
+
+              <div className="overview-bar">
+                <div
+                  className="overview-fill fill-red"
+                  style={{
+                    width:
+                      `${rejectedPercentage}%`,
+                  }}
+                />
+              </div>
+
+            </div>
+
           </div>
-
-
-          {role === "Employee" && (
-            <div>
-              <h3>
-                Discussions
-              </h3>
-
-              <p>
-                Collaborate with other users
-                around decision discussions.
-              </p>
-
-              <Link
-                to="/decisions"
-                className="secondary-button"
-              >
-                View Decisions
-              </Link>
-            </div>
-          )}
-
-
-          {role === "Manager" && (
-            <div>
-              <h3>
-                Approvals
-              </h3>
-
-              <p>
-                Manage the approval workflow
-                for organizational decisions.
-              </p>
-
-              <Link
-                to="/approvals"
-                className="secondary-button"
-              >
-                Open Approvals
-              </Link>
-            </div>
-          )}
-
-
-          {role === "Administrator" && (
-            <div>
-              <h3>
-                Administration
-              </h3>
-
-              <p>
-                Manage users, audit information,
-                reports, and system functions.
-              </p>
-
-              <Link
-                to="/users"
-                className="secondary-button"
-              >
-                Administration
-              </Link>
-            </div>
-          )}
 
         </div>
 
+
+        {/* ---------- Quick Actions ---------- */}
+
+        <div className="dashboard-panel">
+
+          <div className="dashboard-panel-header">
+
+            <div>
+              <h2>
+                Quick Actions
+              </h2>
+
+              <p>
+                Frequently used features
+              </p>
+            </div>
+
+          </div>
+
+
+          <div className="quick-actions-list">
+
+            {role === "Employee" && (
+              <Link
+                to="/decisions/create"
+                className="quick-action"
+              >
+                <span className="quick-action-icon">
+                  +
+                </span>
+
+                <span>
+                  <strong>
+                    Create Decision
+                  </strong>
+
+                  <small>
+                    Start a new decision
+                  </small>
+                </span>
+
+                <span className="quick-action-arrow">
+                  →
+                </span>
+              </Link>
+            )}
+
+            <Link
+              to="/decisions"
+              className="quick-action"
+            >
+              <span className="quick-action-icon">
+                ▣
+              </span>
+
+              <span>
+                <strong>
+                  View Decisions
+                </strong>
+
+                <small>
+                  Browse decision records
+                </small>
+              </span>
+
+              <span className="quick-action-arrow">
+                →
+              </span>
+            </Link>
+
+
+            <Link
+              to="/knowledge-repository"
+              className="quick-action"
+            >
+              <span className="quick-action-icon">
+                ▤
+              </span>
+
+              <span>
+                <strong>
+                  Knowledge Repository
+                </strong>
+
+                <small>
+                  Search previous decisions
+                </small>
+              </span>
+
+              <span className="quick-action-arrow">
+                →
+              </span>
+            </Link>
+
+
+            {role === "Manager" && (
+              <Link
+                to="/approvals"
+                className="quick-action"
+              >
+                <span className="quick-action-icon">
+                  ✓
+                </span>
+
+                <span>
+                  <strong>
+                    Pending Approvals
+                  </strong>
+
+                  <small>
+                    Review approval requests
+                  </small>
+                </span>
+
+                <span className="quick-action-arrow">
+                  →
+                </span>
+              </Link>
+            )}
+
+
+            {role === "Reviewer" && (
+              <Link
+                to="/approvals"
+                className="quick-action"
+              >
+                <span className="quick-action-icon">
+                  ✓
+                </span>
+
+                <span>
+                  <strong>
+                    Assigned Reviews
+                  </strong>
+
+                  <small>
+                    Complete assigned reviews
+                  </small>
+                </span>
+
+                <span className="quick-action-arrow">
+                  →
+                </span>
+              </Link>
+            )}
+
+
+            {role === "Administrator" && (
+              <Link
+                to="/users"
+                className="quick-action"
+              >
+                <span className="quick-action-icon">
+                  ♙
+                </span>
+
+                <span>
+                  <strong>
+                    User Management
+                  </strong>
+
+                  <small>
+                    Manage platform users
+                  </small>
+                </span>
+
+                <span className="quick-action-arrow">
+                  →
+                </span>
+              </Link>
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      {/* ==================================================
+          WORKSPACE SECTION
+      =================================================== */}
+
+      <div className="dashboard-workspace">
+
+        <div className="dashboard-panel workspace-main">
+
+          <div className="dashboard-panel-header">
+
+            <div>
+              <h2>
+                Decision Management
+              </h2>
+
+              <p>
+                Manage and explore the complete
+                decision lifecycle.
+              </p>
+            </div>
+
+          </div>
+
+
+          <div className="workspace-feature-grid">
+
+            <div className="workspace-feature">
+
+              <div className="workspace-feature-icon">
+                01
+              </div>
+
+              <div>
+                <h3>
+                  Evaluate Alternatives
+                </h3>
+
+                <p>
+                  Compare options using cost,
+                  feasibility, risk, pros and cons.
+                </p>
+
+                <Link
+                  to="/decisions"
+                  className="text-link"
+                >
+                  Explore decisions →
+                </Link>
+              </div>
+
+            </div>
+
+
+            <div className="workspace-feature">
+
+              <div className="workspace-feature-icon">
+                02
+              </div>
+
+              <div>
+                <h3>
+                  Review & Approve
+                </h3>
+
+                <p>
+                  Track reviews and approval
+                  actions through the workflow.
+                </p>
+
+                <Link
+                  to="/approvals"
+                  className="text-link"
+                >
+                  Open approvals →
+                </Link>
+              </div>
+
+            </div>
+
+
+            <div className="workspace-feature">
+
+              <div className="workspace-feature-icon">
+                03
+              </div>
+
+              <div>
+                <h3>
+                  Replay Decision History
+                </h3>
+
+                <p>
+                  Understand how decisions changed
+                  through versions, timeline and audit.
+                </p>
+
+                <Link
+                  to="/decisions"
+                  className="text-link"
+                >
+                  View history →
+                </Link>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* ---------- Admin / Manager Panel ---------- */}
+
+        {(role === "Administrator" ||
+          role === "Manager") && (
+          <div className="dashboard-panel workspace-side">
+
+            <div className="dashboard-panel-header">
+
+              <div>
+                <h2>
+                  Management
+                </h2>
+
+                <p>
+                  Administrative tools
+                </p>
+              </div>
+
+            </div>
+
+
+            {role === "Administrator" && (
+              <>
+                <Link
+                  to="/users"
+                  className="management-link"
+                >
+                  <span>
+                    ♙
+                  </span>
+
+                  <div>
+                    <strong>
+                      User Management
+                    </strong>
+
+                    <small>
+                      Manage platform accounts
+                    </small>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/audit"
+                  className="management-link"
+                >
+                  <span>
+                    ◫
+                  </span>
+
+                  <div>
+                    <strong>
+                      Audit Logs
+                    </strong>
+
+                    <small>
+                      Review system activity
+                    </small>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/reports"
+                  className="management-link"
+                >
+                  <span>
+                    ▤
+                  </span>
+
+                  <div>
+                    <strong>
+                      Reports
+                    </strong>
+
+                    <small>
+                      Generate platform reports
+                    </small>
+                  </div>
+                </Link>
+              </>
+            )}
+
+
+            {role === "Manager" && (
+              <>
+                <Link
+                  to="/approvals"
+                  className="management-link"
+                >
+                  <span>
+                    ✓
+                  </span>
+
+                  <div>
+                    <strong>
+                      Pending Approvals
+                    </strong>
+
+                    <small>
+                      Manage approval workflow
+                    </small>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/analytics"
+                  className="management-link"
+                >
+                  <span>
+                    ▥
+                  </span>
+
+                  <div>
+                    <strong>
+                      Decision Analytics
+                    </strong>
+
+                    <small>
+                      Review decision statistics
+                    </small>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/reports"
+                  className="management-link"
+                >
+                  <span>
+                    ▤
+                  </span>
+
+                  <div>
+                    <strong>
+                      Reports
+                    </strong>
+
+                    <small>
+                      Generate team reports
+                    </small>
+                  </div>
+                </Link>
+              </>
+            )}
+
+          </div>
+        )}
+
+      </div>
+
+
+      {/* ==================================================
+          FOOTER
+      =================================================== */}
+
+      <div className="dashboard-footer-note">
+        <span>
+          ●
+        </span>
+
+        <span>
+          Decision Replay Platform
+        </span>
+
+        <span className="footer-separator">
+          •
+        </span>
+
+        <span>
+          {role} Workspace
+        </span>
       </div>
 
     </div>
   );
 }
-
 
 export default Dashboard;

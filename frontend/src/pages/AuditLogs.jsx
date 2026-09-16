@@ -76,7 +76,10 @@ function AuditLogs() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  async function loadActivities(filters = appliedFilters, pageNumber = page) {
+  async function loadActivities(
+    filters = appliedFilters,
+    pageNumber = page
+  ) {
     try {
       setLoading(true);
       setError("");
@@ -125,6 +128,17 @@ function AuditLogs() {
   function handleApplyFilters(event) {
     event.preventDefault();
 
+    if (
+      startDate &&
+      endDate &&
+      startDate > endDate
+    ) {
+      setError(
+        "Start date cannot be after end date."
+      );
+      return;
+    }
+
     const filters = {
       user_id: userId.trim(),
       action: action.trim(),
@@ -168,7 +182,10 @@ function AuditLogs() {
     const nextPage = page - 1;
 
     setPage(nextPage);
-    loadActivities(appliedFilters, nextPage);
+    loadActivities(
+      appliedFilters,
+      nextPage
+    );
   }
 
   function handleNextPage() {
@@ -183,7 +200,10 @@ function AuditLogs() {
     const nextPage = page + 1;
 
     setPage(nextPage);
-    loadActivities(appliedFilters, nextPage);
+    loadActivities(
+      appliedFilters,
+      nextPage
+    );
   }
 
   const totalPages = Math.max(
@@ -192,385 +212,609 @@ function AuditLogs() {
   );
 
   return (
-    <div className="page-container">
+    <>
+      <style>
+        {`
+          .audit-page {
+            width: 100%;
+          }
 
-      {/* HEADER */}
-      <div className="page-header">
+          .audit-filter-card {
+            margin-top: 24px;
+          }
 
-        <div>
-          <Link
-            to="/dashboard"
-            className="back-link"
-          >
-            ← Back to Dashboard
-          </Link>
+          .audit-filter-form {
+            display: grid;
+            grid-template-columns:
+              repeat(3, minmax(0, 1fr));
+            gap: 20px;
+            margin-top: 24px;
+            width: 100%;
+          }
 
-          <h1>Audit Logs</h1>
+          .audit-filter-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+          }
 
-          <p>
-            Review recorded user activity and
-            system actions across the platform.
-          </p>
-        </div>
+          .audit-filter-field label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #172554;
+            line-height: 1.4;
+          }
 
-        <div className="page-header-actions">
+          .audit-filter-field input {
+            width: 100%;
+            min-width: 0;
+            height: 44px;
+            padding: 0 13px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #172033;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+            transition:
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+          }
 
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() =>
-              loadActivities(
-                appliedFilters,
-                page
-              )
+          .audit-filter-field input::placeholder {
+            color: #94a3b8;
+          }
+
+          .audit-filter-field input:focus {
+            border-color: #2563eb;
+            box-shadow:
+              0 0 0 3px
+              rgba(37, 99, 235, 0.12);
+          }
+
+          .audit-filter-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-top: 4px;
+          }
+
+          .audit-filter-actions button {
+            min-width: 130px;
+            height: 44px;
+          }
+
+          .audit-results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+          }
+
+          .audit-results-count {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 14px;
+          }
+
+          .audit-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+          }
+
+          .audit-table {
+            width: 100%;
+            min-width: 950px;
+            border-collapse: collapse;
+          }
+
+          .audit-table th {
+            white-space: nowrap;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: left;
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+          }
+
+          .audit-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #eef2f7;
+            color: #334155;
+            font-size: 14px;
+            vertical-align: top;
+          }
+
+          .audit-table tbody tr:last-child td {
+            border-bottom: none;
+          }
+
+          .audit-table tbody tr:hover {
+            background: #f8fafc;
+          }
+
+          .audit-description {
+            min-width: 220px;
+            max-width: 360px;
+            line-height: 1.5;
+          }
+
+          .audit-entity {
+            font-weight: 600;
+            color: #1e293b;
+          }
+
+          .audit-id {
+            color: #64748b;
+            font-weight: 600;
+          }
+
+          .audit-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+          }
+
+          .audit-pagination button {
+            min-width: 120px;
+          }
+
+          .audit-pagination-info {
+            min-width: 110px;
+            text-align: center;
+            color: #475569;
+            font-size: 14px;
+            font-weight: 600;
+          }
+
+          @media (max-width: 900px) {
+            .audit-filter-form {
+              grid-template-columns:
+                repeat(2, minmax(0, 1fr));
             }
-            disabled={loading}
-          >
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
+          }
 
-        </div>
+          @media (max-width: 600px) {
+            .audit-filter-form {
+              grid-template-columns: 1fr;
+              gap: 16px;
+            }
 
-      </div>
+            .audit-filter-actions {
+              grid-column: auto;
+              flex-direction: column;
+              align-items: stretch;
+            }
 
-      {/* FILTERS */}
-      <div className="card">
+            .audit-filter-actions button {
+              width: 100%;
+            }
 
-        <div className="section-header">
+            .audit-results-header {
+              align-items: flex-start;
+              flex-direction: column;
+            }
+
+            .audit-pagination {
+              flex-wrap: wrap;
+            }
+
+            .audit-pagination button {
+              min-width: 110px;
+            }
+          }
+        `}
+      </style>
+
+      <div className="page-container audit-page">
+
+        {/* HEADER */}
+        <div className="page-header">
 
           <div>
-            <h2>Filter Activity</h2>
+            <Link
+              to="/dashboard"
+              className="back-link"
+            >
+              ← Back to Dashboard
+            </Link>
+
+            <h1>Audit Logs</h1>
 
             <p>
-              Narrow the audit records using
-              one or more filters.
+              Review recorded user activity and
+              system actions across the platform.
             </p>
           </div>
 
-        </div>
-
-        <form
-          onSubmit={handleApplyFilters}
-          className="filter-form"
-        >
-
-          <div className="form-group">
-
-            <label htmlFor="audit-user-id">
-              User ID
-            </label>
-
-            <input
-              id="audit-user-id"
-              type="number"
-              min="1"
-              value={userId}
-              onChange={(event) =>
-                setUserId(event.target.value)
-              }
-              placeholder="e.g. 13"
-            />
-
-          </div>
-
-          <div className="form-group">
-
-            <label htmlFor="audit-action">
-              Action
-            </label>
-
-            <input
-              id="audit-action"
-              type="text"
-              value={action}
-              onChange={(event) =>
-                setAction(event.target.value)
-              }
-              placeholder="e.g. create"
-            />
-
-          </div>
-
-          <div className="form-group">
-
-            <label htmlFor="audit-entity-type">
-              Entity Type
-            </label>
-
-            <input
-              id="audit-entity-type"
-              type="text"
-              value={entityType}
-              onChange={(event) =>
-                setEntityType(
-                  event.target.value
-                )
-              }
-              placeholder="e.g. decision"
-            />
-
-          </div>
-
-          <div className="form-group">
-
-            <label htmlFor="audit-start-date">
-              Start Date
-            </label>
-
-            <input
-              id="audit-start-date"
-              type="date"
-              value={startDate}
-              onChange={(event) =>
-                setStartDate(
-                  event.target.value
-                )
-              }
-            />
-
-          </div>
-
-          <div className="form-group">
-
-            <label htmlFor="audit-end-date">
-              End Date
-            </label>
-
-            <input
-              id="audit-end-date"
-              type="date"
-              value={endDate}
-              onChange={(event) =>
-                setEndDate(
-                  event.target.value
-                )
-              }
-            />
-
-          </div>
-
-          <div className="filter-actions">
-
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={loading}
-            >
-              Apply Filters
-            </button>
+          <div className="page-header-actions">
 
             <button
               type="button"
               className="secondary-button"
-              onClick={handleResetFilters}
+              onClick={() =>
+                loadActivities(
+                  appliedFilters,
+                  page
+                )
+              }
               disabled={loading}
             >
-              Reset
+              {loading
+                ? "Refreshing..."
+                : "Refresh"}
             </button>
 
           </div>
 
-        </form>
-
-      </div>
-
-      {/* ERROR */}
-      {error && (
-        <div className="error-state">
-
-          <h2>Unable to Load Audit Logs</h2>
-
-          <p>{error}</p>
-
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() =>
-              loadActivities(
-                appliedFilters,
-                page
-              )
-            }
-          >
-            Try Again
-          </button>
-
         </div>
-      )}
 
-      {/* RESULTS */}
-      {!error && (
-        <div className="card">
+        {/* FILTER CARD */}
+        <div className="card audit-filter-card">
 
           <div className="section-header">
-
             <div>
-              <h2>Activity Records</h2>
+              <h2>Filter Activity</h2>
 
               <p>
-                {total} record
-                {total !== 1 ? "s" : ""} found
+                Narrow the audit records using
+                one or more filters.
               </p>
             </div>
-
           </div>
 
-          {loading ? (
-            <div className="loading-state">
-              Loading audit logs...
+          <form
+            onSubmit={handleApplyFilters}
+            className="audit-filter-form"
+          >
+
+            {/* USER ID */}
+            <div className="audit-filter-field">
+
+              <label htmlFor="audit-user-id">
+                User ID
+              </label>
+
+              <input
+                id="audit-user-id"
+                type="number"
+                min="1"
+                value={userId}
+                onChange={(event) =>
+                  setUserId(
+                    event.target.value
+                  )
+                }
+                placeholder="e.g. 13"
+              />
+
             </div>
-          ) : activities.length === 0 ? (
-            <div className="empty-state">
 
-              <h3>No Audit Records Found</h3>
+            {/* ACTION */}
+            <div className="audit-filter-field">
 
-              <p>
-                There are no activity records
-                matching the selected filters.
-              </p>
+              <label htmlFor="audit-action">
+                Action
+              </label>
+
+              <input
+                id="audit-action"
+                type="text"
+                value={action}
+                onChange={(event) =>
+                  setAction(
+                    event.target.value
+                  )
+                }
+                placeholder="e.g. create"
+              />
 
             </div>
-          ) : (
-            <div className="table-container">
 
-              <table className="data-table">
+            {/* ENTITY TYPE */}
+            <div className="audit-filter-field">
 
-                <thead>
-                  <tr>
+              <label htmlFor="audit-entity-type">
+                Entity Type
+              </label>
 
-                    <th>ID</th>
+              <input
+                id="audit-entity-type"
+                type="text"
+                value={entityType}
+                onChange={(event) =>
+                  setEntityType(
+                    event.target.value
+                  )
+                }
+                placeholder="e.g. Decision"
+              />
 
-                    <th>Action</th>
+            </div>
 
-                    <th>Entity</th>
+            {/* START DATE */}
+            <div className="audit-filter-field">
 
-                    <th>Entity ID</th>
+              <label htmlFor="audit-start-date">
+                Start Date
+              </label>
 
-                    <th>User</th>
+              <input
+                id="audit-start-date"
+                type="date"
+                value={startDate}
+                onChange={(event) =>
+                  setStartDate(
+                    event.target.value
+                  )
+                }
+              />
 
-                    <th>Description</th>
+            </div>
 
-                    <th>Date & Time</th>
+            {/* END DATE */}
+            <div className="audit-filter-field">
 
-                  </tr>
-                </thead>
+              <label htmlFor="audit-end-date">
+                End Date
+              </label>
 
-                <tbody>
+              <input
+                id="audit-end-date"
+                type="date"
+                value={endDate}
+                onChange={(event) =>
+                  setEndDate(
+                    event.target.value
+                  )
+                }
+              />
 
-                  {activities.map(
-                    (activity, index) => (
-                      <tr
-                        key={
-                          activity.id ??
-                          `activity-${index}`
-                        }
-                      >
+            </div>
 
-                        <td>
-                          {activity.id ?? "—"}
-                        </td>
+            {/* BUTTONS */}
+            <div className="audit-filter-actions">
 
-                        <td>
-                          <span
-                            className={`status-badge ${getActionClass(
-                              activity.action
-                            )}`}
-                          >
-                            {activity.action ||
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={loading}
+              >
+                Apply Filters
+              </button>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  handleResetFilters
+                }
+                disabled={loading}
+              >
+                Reset
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
+
+        {/* ERROR */}
+        {error && (
+          <div className="error-state">
+
+            <h2>
+              Unable to Load Audit Logs
+            </h2>
+
+            <p>{error}</p>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                loadActivities(
+                  appliedFilters,
+                  page
+                )
+              }
+            >
+              Try Again
+            </button>
+
+          </div>
+        )}
+
+        {/* RESULTS */}
+        {!error && (
+          <div className="card">
+
+            <div className="audit-results-header">
+
+              <div>
+                <h2>Activity Records</h2>
+
+                <p className="audit-results-count">
+                  {total} record
+                  {total !== 1
+                    ? "s"
+                    : ""}{" "}
+                  found
+                </p>
+              </div>
+
+            </div>
+
+            {loading ? (
+              <div className="loading-state">
+                Loading audit logs...
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="empty-state">
+
+                <h3>
+                  No Audit Records Found
+                </h3>
+
+                <p>
+                  There are no activity
+                  records matching the
+                  selected filters.
+                </p>
+
+              </div>
+            ) : (
+              <div className="audit-table-wrapper">
+
+                <table className="audit-table">
+
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Action</th>
+                      <th>Entity</th>
+                      <th>Entity ID</th>
+                      <th>User</th>
+                      <th>Description</th>
+                      <th>Date & Time</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    {activities.map(
+                      (activity, index) => (
+                        <tr
+                          key={
+                            activity.id ??
+                            `activity-${index}`
+                          }
+                        >
+
+                          <td className="audit-id">
+                            {activity.id ??
                               "—"}
-                          </span>
-                        </td>
+                          </td>
 
-                        <td>
-                          {activity.entity_type ||
-                            activity.entity ||
-                            "—"}
-                        </td>
+                          <td>
+                            <span
+                              className={`status-badge ${getActionClass(
+                                activity.action
+                              )}`}
+                            >
+                              {activity.action ||
+                                "—"}
+                            </span>
+                          </td>
 
-                        <td>
-                          {activity.entity_id ??
-                            "—"}
-                        </td>
+                          <td className="audit-entity">
+                            {activity.entity_type ||
+                              activity.entity ||
+                              "—"}
+                          </td>
 
-                        <td>
-                          {activity.user_id ??
-                            "—"}
-                        </td>
+                          <td className="audit-id">
+                            {activity.entity_id ??
+                              "—"}
+                          </td>
 
-                        <td>
-                          {activity.description ||
-                            activity.details ||
-                            "—"}
-                        </td>
+                          <td className="audit-id">
+                            {activity.user_id ??
+                              "—"}
+                          </td>
 
-                        <td>
-                          {formatDate(
-                            activity.created_at ||
-                              activity.timestamp ||
-                              activity.occurred_at
-                          )}
-                        </td>
+                          <td className="audit-description">
+                            {activity.description ||
+                              activity.details ||
+                              "—"}
+                          </td>
 
-                      </tr>
-                    )
-                  )}
+                          <td>
+                            {formatDate(
+                              activity.created_at ||
+                                activity.timestamp ||
+                                activity.occurred_at
+                            )}
+                          </td>
 
-                </tbody>
+                        </tr>
+                      )
+                    )}
 
-              </table>
+                  </tbody>
 
-            </div>
-          )}
-
-          {/* PAGINATION */}
-          {!loading &&
-            activities.length > 0 && (
-              <div className="pagination">
-
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handlePreviousPage}
-                  disabled={page <= 1}
-                >
-                  ← Previous
-                </button>
-
-                <span className="pagination-info">
-                  Page {page} of{" "}
-                  {totalPages}
-                </span>
-
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleNextPage}
-                  disabled={
-                    page >= totalPages
-                  }
-                >
-                  Next →
-                </button>
+                </table>
 
               </div>
             )}
 
+            {/* PAGINATION */}
+            {!loading &&
+              activities.length > 0 && (
+                <div className="audit-pagination">
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={
+                      handlePreviousPage
+                    }
+                    disabled={page <= 1}
+                  >
+                    ← Previous
+                  </button>
+
+                  <span className="audit-pagination-info">
+                    Page {page} of{" "}
+                    {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={
+                      handleNextPage
+                    }
+                    disabled={
+                      page >= totalPages
+                    }
+                  >
+                    Next →
+                  </button>
+
+                </div>
+              )}
+
+          </div>
+        )}
+
+        {/* FOOTER */}
+        <div className="page-footer-actions">
+
+          <Link
+            to="/dashboard"
+            className="secondary-button"
+          >
+            ← Back to Dashboard
+          </Link>
+
         </div>
-      )}
-
-      {/* FOOTER */}
-      <div className="page-footer-actions">
-
-        <Link
-          to="/dashboard"
-          className="secondary-button"
-        >
-          ← Back to Dashboard
-        </Link>
 
       </div>
-
-    </div>
+    </>
   );
 }
 
