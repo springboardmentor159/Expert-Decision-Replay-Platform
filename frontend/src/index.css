@@ -1,6 +1,312 @@
-/* =========================================
+/* =========================================================
+   EXPERT DECISION REPLAY PLATFORM
+   GLOBAL UI + AUDIT & ACTIVITY STYLES
+   ========================================================= */
+
+
+/* =========================================================
+   GLOBAL THEME
+   ========================================================= */
+
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-hover: #f8fafc;
+
+  --text-h: #172033;
+  --text: #64748b;
+  --text-light: #94a3b8;
+
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-bg: #eef2ff;
+
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+
+  --success: #16a34a;
+  --success-bg: #dcfce7;
+
+  --warning: #d97706;
+  --warning-bg: #fef3c7;
+
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+
+  --info: #2563eb;
+  --info-bg: #dbeafe;
+
+  --code-bg: #f1f5f9;
+  --social-bg: #f8fafc;
+
+  --shadow:
+    0 4px 16px rgba(15, 23, 42, 0.06);
+
+  --shadow-lg:
+    0 12px 30px rgba(15, 23, 42, 0.10);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+
+/* =========================================================
+   RESET
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+
+/* =========================================================
+   HEADINGS
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-h);
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 23px;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 18px;
+}
+
+
+/* =========================================================
+   FORM ELEMENTS
+   ========================================================= */
+
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-h);
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-light);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+button,
+.primary-button,
+.secondary-button {
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+button:hover:not(:disabled),
+.primary-button:hover:not(:disabled),
+.secondary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.primary-button {
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.20);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.25);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+}
+
+.secondary-button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-h);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: #cbd5e1;
+}
+
+
+/* =========================================================
+   CARDS / PANELS
+   ========================================================= */
+
+.card,
+.dashboard-card,
+.panel,
+.section-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+th {
+  padding: 13px 16px;
+  background: var(--surface-hover);
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 14px 16px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-light);
+}
+
+tbody tr {
+  transition: background 0.15s ease;
+}
+
+tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+
+/* =========================================================
+   STATUS BADGES
+   ========================================================= */
+
+.status-badge,
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+/* =========================================================
    AUDIT & ACTIVITY PAGE
-   ========================================= */
+   ========================================================= */
 
 .audit-page {
   min-height: 100vh;
@@ -15,6 +321,11 @@
   width: 100%;
 }
 
+
+/* =========================================================
+   AUDIT HEADER
+   ========================================================= */
+
 .audit-header {
   display: flex;
   align-items: center;
@@ -27,6 +338,8 @@
 .audit-header h1 {
   margin: 0;
   font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
 }
 
 .audit-header p {
@@ -40,15 +353,22 @@
   align-items: center;
 }
 
+
+/* =========================================================
+   AUDIT BANNER
+   ========================================================= */
+
 .audit-banner {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 22px;
   margin-bottom: 28px;
+
   border-radius: 16px;
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--border);
+
   box-shadow: var(--shadow);
   text-align: left;
 }
@@ -56,18 +376,23 @@
 .audit-banner-icon {
   width: 52px;
   height: 52px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   border-radius: 14px;
+
   background: var(--accent-bg);
   color: var(--accent);
+
   flex-shrink: 0;
 }
 
 .audit-banner h2 {
   margin: 0;
   font-size: 20px;
+  font-weight: 700;
 }
 
 .audit-banner p {
@@ -75,12 +400,20 @@
   color: var(--text);
 }
 
+
+/* =========================================================
+   AUDIT LIST SECTION
+   ========================================================= */
+
 .audit-list-section {
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
+
   padding: 24px;
+
   box-shadow: var(--shadow);
+
   text-align: left;
 }
 
@@ -88,12 +421,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   margin-bottom: 20px;
 }
 
 .audit-list-header h2 {
   margin: 0;
   font-size: 22px;
+  font-weight: 700;
 }
 
 .audit-list-header span {
@@ -101,34 +436,60 @@
   font-size: 14px;
 }
 
+
+/* =========================================================
+   AUDIT LIST
+   ========================================================= */
+
 .audit-list {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
+
+/* =========================================================
+   AUDIT CARD
+   ========================================================= */
+
 .audit-card {
   display: flex;
   gap: 16px;
+
   padding: 18px;
+
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--social-bg);
-  transition: 0.2s ease;
+
+  background: var(--surface-hover);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .audit-card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow);
+  border-color: #cbd5e1;
 }
+
+
+/* =========================================================
+   AUDIT ICON
+   ========================================================= */
 
 .audit-icon {
   flex-shrink: 0;
+
   width: 42px;
   height: 42px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   border-radius: 12px;
   font-size: 20px;
 }
@@ -158,6 +519,11 @@
   color: var(--text-h);
 }
 
+
+/* =========================================================
+   AUDIT CONTENT
+   ========================================================= */
+
 .audit-content {
   flex: 1;
   min-width: 0;
@@ -167,6 +533,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: 16px;
   margin-bottom: 6px;
 }
@@ -189,6 +556,11 @@
   line-height: 1.5;
 }
 
+
+/* =========================================================
+   AUDIT META
+   ========================================================= */
+
 .audit-meta {
   display: flex;
   flex-wrap: wrap;
@@ -197,11 +569,19 @@
 
 .audit-meta span {
   padding: 4px 9px;
+
   border-radius: 999px;
+
   background: var(--code-bg);
   color: var(--text);
+
   font-size: 12px;
 }
+
+
+/* =========================================================
+   AUDIT STATES
+   ========================================================= */
 
 .audit-empty {
   padding: 50px 20px;
@@ -230,41 +610,53 @@
   text-align: left;
 }
 
-.secondary-button,
-.primary-button {
+
+/* =========================================================
+   AUDIT BUTTONS
+   ========================================================= */
+
+.audit-page .secondary-button,
+.audit-page .primary-button {
   padding: 10px 16px;
   border-radius: 10px;
+
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
 }
 
-.secondary-button {
+.audit-page .secondary-button {
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-h);
 }
 
-.secondary-button:hover {
-  background: var(--code-bg);
+.audit-page .secondary-button:hover {
+  background: var(--surface-hover);
 }
 
-.primary-button {
+.audit-page .primary-button {
   border: none;
   background: var(--accent);
-  color: white;
+  color: #ffffff;
 }
 
-.primary-button:hover {
-  opacity: 0.9;
+.audit-page .primary-button:hover {
+  background: var(--accent-hover);
 }
 
-.primary-button:disabled {
+.audit-page .primary-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
 @media (max-width: 768px) {
+
   .audit-page {
     padding: 20px;
   }
@@ -276,6 +668,11 @@
 
   .audit-header-actions {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .audit-header-actions button {
+    flex: 1;
   }
 
   .audit-top {
@@ -286,5 +683,52 @@
 
   .audit-time {
     white-space: normal;
+  }
+
+  .audit-banner {
+    align-items: flex-start;
+  }
+
+  .audit-list-section {
+    padding: 18px;
+  }
+
+  .audit-card {
+    padding: 15px;
+  }
+}
+
+
+/* =========================================================
+   SMALL SCREEN
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  .audit-page {
+    padding: 14px;
+  }
+
+  .audit-header h1 {
+    font-size: 26px;
+  }
+
+  .audit-banner {
+    padding: 17px;
+  }
+
+  .audit-banner-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .audit-card {
+    gap: 12px;
+  }
+
+  .audit-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
   }
 }
