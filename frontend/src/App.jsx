@@ -12,7 +12,15 @@ import Discussions from "./pages/Discussions";
 import Reports from "./pages/Reports";
 import Profile from "./pages/Profile";
 import KnowledgeRepository from "./pages/KnowledgeRepository";
-
+import EmployeeManagement from "./pages/EmployeeManagement";
+import TeamDecisions from "./pages/TeamDecisions";
+import Activity from "./pages/Activity";
+import UserManagement from "./pages/UserManagement";
+import AuditLogs from "./pages/AuditLogs";
+import AssignedReviews from "./pages/AssignedReviews";
+import ReviewActions from "./pages/ReviewActions";
+import PendingApprovals from "./pages/PendingApprovals";
+import DecisionStatistics from "./pages/DecisionStatistics";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import MainLayout from "./layouts/MainLayout";
 
@@ -53,7 +61,7 @@ function App() {
               path="/decisions"
               element={<MyDecisions />}
             />
-            
+
             <Route
               path="/create-decision"
               element={<CreateDecision />}
@@ -81,6 +89,24 @@ function App() {
             <Route path="/profile" element={<Profile />} />
 
             <Route path="/knowledge" element={<KnowledgeRepository />} />
+
+            <Route path="/employees" element={<EmployeeManagement />} />
+
+            <Route path="/team-decisions" element={<TeamDecisions />} />
+
+            <Route path="/activity" element={<Activity />} />
+
+            <Route path="/users" element={<UserManagement />} />
+
+            <Route path="/audit-logs" element={<AuditLogs />} />
+
+            <Route path="/reviews" element={<AssignedReviews />} />
+
+            <Route path="/reviews/actions" element={<ReviewActions />} />
+
+            <Route path="/approvals"  element={<PendingApprovals />} />
+
+            <Route path="/statistics" element={<DecisionStatistics />} />
           </Route>
         </Route>
 
