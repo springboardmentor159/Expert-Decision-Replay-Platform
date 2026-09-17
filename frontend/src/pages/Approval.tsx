@@ -176,10 +176,11 @@ export default function Approval() {
       );
 
       if (id) {
-        const decisionApprovals = response.data.filter(
-          (approval) =>
-            approval.decision_id === Number(id),
-        );
+        const decisionApprovals =
+          response.data.filter(
+            (approval) =>
+              approval.decision_id === Number(id),
+          );
 
         setApprovals(decisionApprovals);
       } else {
@@ -198,7 +199,9 @@ export default function Approval() {
             "Only Reviewers and Managers can view pending approvals.",
           );
         } else if (status === 404) {
-          setError("Approval information not found.");
+          setError(
+            "Approval information not found.",
+          );
         } else if (status && status >= 500) {
           setError(
             "Server error. Please try again later.",
@@ -208,10 +211,14 @@ export default function Approval() {
             "Unable to connect to the server. Make sure FastAPI is running.",
           );
         } else {
-          setError("Unable to load approvals.");
+          setError(
+            "Unable to load approvals.",
+          );
         }
       } else {
-        setError("Unable to load approvals.");
+        setError(
+          "Unable to load approvals.",
+        );
       }
     } finally {
       setIsLoading(false);
@@ -220,7 +227,8 @@ export default function Approval() {
 
   const loadUsers = async () => {
     try {
-      const response = await api.get<User[]>("/users");
+      const response =
+        await api.get<User[]>("/users");
 
       setUsers(response.data);
     } catch {
@@ -229,8 +237,14 @@ export default function Approval() {
   };
 
   useEffect(() => {
-    void loadApprovals();
-    void loadUsers();
+    const timer = window.setTimeout(() => {
+      void loadApprovals();
+      void loadUsers();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [id]);
 
   const handleAssign = async (
@@ -241,7 +255,9 @@ export default function Approval() {
     setFormError("");
 
     if (!id) {
-      setFormError("Invalid decision ID.");
+      setFormError(
+        "Invalid decision ID.",
+      );
       return;
     }
 
@@ -260,7 +276,9 @@ export default function Approval() {
         assigned_reviewer_id: Number(
           form.assigned_reviewer_id,
         ),
-        approval_level: Number(form.approval_level),
+        approval_level: Number(
+          form.approval_level,
+        ),
       });
 
       setForm(emptyForm);
@@ -269,7 +287,8 @@ export default function Approval() {
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         const status = err.response?.status;
-        const detail = err.response?.data?.detail;
+        const detail =
+          err.response?.data?.detail;
 
         if (status === 400) {
           setFormError(
@@ -294,7 +313,10 @@ export default function Approval() {
             detail ||
               "Please check the approval details.",
           );
-        } else if (status && status >= 500) {
+        } else if (
+          status &&
+          status >= 500
+        ) {
           setFormError(
             "Server error. Please try again later.",
           );
@@ -334,15 +356,20 @@ export default function Approval() {
       setActionId(approvalId);
       setError("");
 
-      await api.patch(`/approvals/${approvalId}`, {
-        status: action,
-      });
+      await api.patch(
+        `/approvals/${approvalId}`,
+        {
+          status: action,
+        },
+      );
 
       await loadApprovals();
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        const status = err.response?.status;
-        const detail = err.response?.data?.detail;
+        const status =
+          err.response?.status;
+        const detail =
+          err.response?.data?.detail;
 
         if (status === 400) {
           setError(
@@ -355,13 +382,18 @@ export default function Approval() {
               "You are not authorized to complete this approval.",
           );
         } else if (status === 404) {
-          setError("Approval not found.");
+          setError(
+            "Approval not found.",
+          );
         } else if (status === 409) {
           setError(
             detail ||
               "This approval cannot be completed because the required workflow step is not finished.",
           );
-        } else if (status && status >= 500) {
+        } else if (
+          status &&
+          status >= 500
+        ) {
           setError(
             "Server error. Please try again later.",
           );
@@ -384,11 +416,17 @@ export default function Approval() {
     }
   };
 
-  const getLevelName = (level: number) => {
-    return level === 1 ? "Reviewer" : "Manager";
+  const getLevelName = (
+    level: number,
+  ) => {
+    return level === 1
+      ? "Reviewer"
+      : "Manager";
   };
 
-  const getUserName = (userId: number) => {
+  const getUserName = (
+    userId: number,
+  ) => {
     const user = users.find(
       (item) => item.id === userId,
     );
@@ -406,7 +444,9 @@ export default function Approval() {
             Expert Decision Replay Platform
           </p>
 
-          <h1>Approval Workflow</h1>
+          <h1>
+            Approval Workflow
+          </h1>
 
           <p>
             Manage approval stages for Decision #{id}.
@@ -418,7 +458,9 @@ export default function Approval() {
           className="secondary-button"
           style={backButtonStyle}
           onClick={() =>
-            navigate(`/decisions/${id}`)
+            navigate(
+              `/decisions/${id}`,
+            )
           }
         >
           <ArrowLeft size={18} />
@@ -431,7 +473,9 @@ export default function Approval() {
           className="decision-error"
           role="alert"
         >
-          <strong>Approval Error</strong>
+          <strong>
+            Approval Error
+          </strong>
 
           <p>{error}</p>
 
@@ -455,34 +499,43 @@ export default function Approval() {
           </div>
 
           <div>
-            <h2>Approval Workflow</h2>
+            <h2>
+              Approval Workflow
+            </h2>
 
             <p>
-              Reviewer approval is required before final
-              Manager approval.
+              Reviewer approval is required before final Manager approval.
             </p>
           </div>
         </div>
 
         <div className="workspace-grid">
           <div className="workspace-item">
-            <h3>Level 1</h3>
+            <h3>
+              Level 1
+            </h3>
 
             <p>
               Reviewer reviews and approves the decision.
             </p>
 
-            <span>Reviewer Approval</span>
+            <span>
+              Reviewer Approval
+            </span>
           </div>
 
           <div className="workspace-item">
-            <h3>Level 2</h3>
+            <h3>
+              Level 2
+            </h3>
 
             <p>
               Manager provides the final approval.
             </p>
 
-            <span>Manager Approval</span>
+            <span>
+              Manager Approval
+            </span>
           </div>
         </div>
       </section>
@@ -494,11 +547,12 @@ export default function Approval() {
           </div>
 
           <div>
-            <h2>Assign Approval</h2>
+            <h2>
+              Assign Approval
+            </h2>
 
             <p>
-              Assign the next approval stage to a
-              Reviewer or Manager.
+              Assign the next approval stage to a Reviewer or Manager.
             </p>
           </div>
         </div>
@@ -517,11 +571,15 @@ export default function Approval() {
               name="approval_level"
               value={form.approval_level}
               onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  approval_level: event.target.value,
-                  assigned_reviewer_id: "",
-                }))
+                setForm(
+                  (current) => ({
+                    ...current,
+                    approval_level:
+                      event.target.value,
+                    assigned_reviewer_id:
+                      "",
+                  }),
+                )
               }
               disabled={isSubmitting}
             >
@@ -543,13 +601,17 @@ export default function Approval() {
             <select
               id="assigned_reviewer_id"
               name="assigned_reviewer_id"
-              value={form.assigned_reviewer_id}
+              value={
+                form.assigned_reviewer_id
+              }
               onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  assigned_reviewer_id:
-                    event.target.value,
-                }))
+                setForm(
+                  (current) => ({
+                    ...current,
+                    assigned_reviewer_id:
+                      event.target.value,
+                  }),
+                )
               }
               disabled={isSubmitting}
             >
@@ -560,19 +622,27 @@ export default function Approval() {
               {users
                 .filter((user) => {
                   if (
-                    form.approval_level === "1"
+                    form.approval_level ===
+                    "1"
                   ) {
-                    return user.role === "Reviewer";
+                    return (
+                      user.role ===
+                      "Reviewer"
+                    );
                   }
 
-                  return user.role === "Manager";
+                  return (
+                    user.role ===
+                    "Manager"
+                  );
                 })
                 .map((user) => (
                   <option
                     key={user.id}
                     value={user.id}
                   >
-                    {user.full_name} - {user.role} #
+                    {user.full_name} -{" "}
+                    {user.role} #
                     {user.id}
                   </option>
                 ))}
@@ -608,7 +678,9 @@ export default function Approval() {
       <section className="alternative-list-section">
         <div className="page-section-header">
           <div>
-            <h2>Pending Approvals</h2>
+            <h2>
+              Pending Approvals
+            </h2>
 
             <p>
               {approvals.length} pending approval
@@ -635,125 +707,146 @@ export default function Approval() {
           <section className="decision-loading">
             <div className="loading-spinner" />
 
-            <p>Loading approvals...</p>
+            <p>
+              Loading approvals...
+            </p>
           </section>
-        ) : approvals.length === 0 ? (
+        ) : approvals.length ===
+          0 ? (
           <section className="decision-empty">
             <ClipboardCheck size={42} />
 
-            <h2>No pending approvals</h2>
+            <h2>
+              No pending approvals
+            </h2>
 
             <p>
-              There are currently no pending approvals for
-              this decision.
+              There are currently no pending approvals for this decision.
             </p>
           </section>
         ) : (
           <div className="alternative-grid">
-            {approvals.map((approval) => (
-              <article
-                key={approval.id}
-                className="alternative-card"
-              >
-                <div className="alternative-card-header">
-                  <div>
-                    <h3>
-                      {getLevelName(
-                        approval.approval_level,
-                      )}{" "}
-                      Approval
-                    </h3>
+            {approvals.map(
+              (approval) => (
+                <article
+                  key={approval.id}
+                  className="alternative-card"
+                >
+                  <div className="alternative-card-header">
+                    <div>
+                      <h3>
+                        {getLevelName(
+                          approval.approval_level,
+                        )}{" "}
+                        Approval
+                      </h3>
 
-                    <span>
-                      Approval #{approval.id}
+                      <span>
+                        Approval #{approval.id}
+                      </span>
+                    </div>
+
+                    <span className="status-badge under-review">
+                      {approval.status}
                     </span>
                   </div>
 
-                  <span className="status-badge under-review">
-                    {approval.status}
-                  </span>
-                </div>
+                  <div className="alternative-metrics">
+                    <div>
+                      <span>
+                        Decision
+                      </span>
 
-                <div className="alternative-metrics">
-                  <div>
-                    <span>Decision</span>
+                      <strong>
+                        #{approval.decision_id}
+                      </strong>
+                    </div>
 
-                    <strong>
-                      #{approval.decision_id}
-                    </strong>
+                    <div>
+                      <span>
+                        Assigned To
+                      </span>
+
+                      <strong>
+                        {getUserName(
+                          approval.assigned_reviewer_id,
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Level
+                      </span>
+
+                      <strong>
+                        {approval.approval_level}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Created
+                      </span>
+
+                      <strong>
+                        {formatDate(
+                          approval.created_at,
+                        )}
+                      </strong>
+                    </div>
                   </div>
 
-                  <div>
-                    <span>Assigned To</span>
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      className="primary-button"
+                      style={
+                        approveButtonStyle
+                      }
+                      onClick={() =>
+                        void handleAction(
+                          approval.id,
+                          "Approved",
+                        )
+                      }
+                      disabled={
+                        actionId ===
+                        approval.id
+                      }
+                    >
+                      <CheckCircle size={17} />
 
-                    <strong>
-                      {getUserName(
-                        approval.assigned_reviewer_id,
-                      )}
-                    </strong>
+                      {actionId ===
+                      approval.id
+                        ? "Processing..."
+                        : "Approve"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="danger-button"
+                      style={
+                        rejectButtonStyle
+                      }
+                      onClick={() =>
+                        void handleAction(
+                          approval.id,
+                          "Rejected",
+                        )
+                      }
+                      disabled={
+                        actionId ===
+                        approval.id
+                      }
+                    >
+                      <XCircle size={17} />
+                      Reject
+                    </button>
                   </div>
-
-                  <div>
-                    <span>Level</span>
-
-                    <strong>
-                      {approval.approval_level}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Created</span>
-
-                    <strong>
-                      {formatDate(
-                        approval.created_at,
-                      )}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="form-actions">
-                  <button
-                    type="button"
-                    className="primary-button"
-                    style={approveButtonStyle}
-                    onClick={() =>
-                      void handleAction(
-                        approval.id,
-                        "Approved",
-                      )
-                    }
-                    disabled={
-                      actionId === approval.id
-                    }
-                  >
-                    <CheckCircle size={17} />
-
-                    {actionId === approval.id
-                      ? "Processing..."
-                      : "Approve"}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="danger-button"
-                    style={rejectButtonStyle}
-                    onClick={() =>
-                      void handleAction(
-                        approval.id,
-                        "Rejected",
-                      )
-                    }
-                    disabled={
-                      actionId === approval.id
-                    }
-                  >
-                    <XCircle size={17} />
-                    Reject
-                  </button>
-                </div>
-              </article>
-            ))}
+                </article>
+              ),
+            )}
           </div>
         )}
       </section>

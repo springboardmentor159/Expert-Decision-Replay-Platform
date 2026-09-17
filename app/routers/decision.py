@@ -1,3 +1,4 @@
+
 from typing import List, Optional
 from datetime import datetime, timezone
 
@@ -451,6 +452,14 @@ def get_decision_timeline(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Decision not found",
         )
+
+    # Apply the same RBAC rules used by
+    # decision versions and decision history.
+    check_decision_history_access(
+        decision=decision,
+        current_user=current_user,
+        db=db,
+    )
 
     timeline = []
 

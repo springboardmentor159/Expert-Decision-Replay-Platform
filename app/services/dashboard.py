@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -12,15 +12,46 @@ from app.models.user import User
 def get_dashboard_data(
     db: Session,
     current_user: User,
+    activity_action: str | None = None,
+    activity_start_date: date | None = None,
+    activity_end_date: date | None = None,
 ):
     role = current_user.role
 
     # ---------------------------------------------------------
-    # COMMON RECENT ACTIVITIES
+    # ACTIVITY FILTERS
     # ---------------------------------------------------------
+    activity_query = db.query(ActivityLog).filter(
+        ActivityLog.user_id == current_user.id
+    )
+
+    if activity_action:
+        activity_query = activity_query.filter(
+            ActivityLog.action == activity_action
+        )
+
+    if activity_start_date:
+        start_datetime = datetime.combine(
+            activity_start_date,
+            datetime.min.time(),
+            tzinfo=timezone.utc,
+        )
+        activity_query = activity_query.filter(
+            ActivityLog.created_at >= start_datetime
+        )
+
+    if activity_end_date:
+        end_datetime = datetime.combine(
+            activity_end_date,
+            datetime.max.time(),
+            tzinfo=timezone.utc,
+        )
+        activity_query = activity_query.filter(
+            ActivityLog.created_at <= end_datetime
+        )
+
     recent_activities = (
-        db.query(ActivityLog)
-        .filter(ActivityLog.user_id == current_user.id)
+        activity_query
         .order_by(ActivityLog.created_at.desc())
         .limit(10)
         .all()
@@ -63,8 +94,6 @@ def get_dashboard_data(
             for decision in my_decisions
         ]
 
-        # Pending reviews for an employee are represented by
-        # their decisions that are currently Under Review.
         pending_reviews = (
             db.query(Decision)
             .filter(
@@ -84,6 +113,32 @@ def get_dashboard_data(
                 "updated_at": decision.updated_at,
             }
             for decision in pending_reviews
+        ]
+
+    # ---------------------------------------------------------
+    # REVIEWER DASHBOARD
+    # ---------------------------------------------------------
+    elif role == "Reviewer":
+        pending_reviews = (
+            db.query(Approval)
+            .filter(
+                Approval.assigned_reviewer_id == current_user.id,
+                Approval.approval_level == 1,
+                Approval.status == "Pending",
+            )
+            .order_by(Approval.created_at.desc())
+            .all()
+        )
+
+        result["pending_reviews"] = [
+            {
+                "id": approval.id,
+                "decision_id": approval.decision_id,
+                "approval_level": approval.approval_level,
+                "status": approval.status,
+                "created_at": approval.created_at,
+            }
+            for approval in pending_reviews
         ]
 
     # ---------------------------------------------------------
@@ -133,7 +188,6 @@ def get_dashboard_data(
             for approval in pending_approvals
         ]
 
-        # Decision statistics for the manager's department
         statistics_query = (
             db.query(
                 Decision.status,
@@ -166,21 +220,15 @@ def get_dashboard_data(
         # ORGANIZATION TOTALS
         # -----------------------------------------------------
         total_users = (
-            db.query(func.count(User.id))
-            .scalar()
-            or 0
+            db.query(func.count(User.id)).scalar() or 0
         )
 
         total_decisions = (
-            db.query(func.count(Decision.id))
-            .scalar()
-            or 0
+            db.query(func.count(Decision.id)).scalar() or 0
         )
 
         total_approvals = (
-            db.query(func.count(Approval.id))
-            .scalar()
-            or 0
+            db.query(func.count(Approval.id)).scalar() or 0
         )
 
         pending_approvals = (
@@ -193,8 +241,6 @@ def get_dashboard_data(
         # -----------------------------------------------------
         # ACTIVE USERS
         # -----------------------------------------------------
-        # Active users are users who performed at least one
-        # platform activity during the last 30 days.
         active_users_since = (
             datetime.now(timezone.utc)
             - timedelta(days=30)
@@ -207,12 +253,174 @@ def get_dashboard_data(
                 )
             )
             .filter(
-                ActivityLog.created_at
-                >= active_users_since
+                ActivityLog.created_at >= active_users_since
             )
             .scalar()
             or 0
         )
+
+        # -----------------------------------------------------
+        # USERS BY ROLE
+        # -----------------------------------------------------
+        users_by_role_query = (
+            db.query(
+                User.role,
+                func.count(User.id),
+            )
+            .group_by(User.role)
+            .all()
+        )
+
+        users_by_role = {}
+
+        for role_name, count in users_by_role_query:
+            users_by_role[str(role_name)] = count
+
+        # -----------------------------------------------------
+        # APPROVAL ANALYTICS
+        # -----------------------------------------------------
+        completed_approvals = (
+            db.query(func.count(Approval.id))
+            .filter(
+                Approval.completed_at.isnot(None)
+            )
+            .scalar()
+            or 0
+        )
+
+        if total_approvals:
+            completion_rate = round(
+                (completed_approvals / total_approvals) * 100,
+                2,
+            )
+        else:
+            completion_rate = 0.0
+
+        completed_approval_rows = (
+            db.query(Approval.created_at, Approval.completed_at)
+            .filter(
+                Approval.completed_at.isnot(None),
+                Approval.created_at.isnot(None),
+            )
+            .all()
+        )
+
+        turnaround_hours = []
+
+        for created_at, completed_at in completed_approval_rows:
+            if created_at and completed_at:
+                duration = (
+                    completed_at - created_at
+                ).total_seconds() / 3600
+
+                turnaround_hours.append(duration)
+
+        if turnaround_hours:
+            average_turnaround_hours = round(
+                sum(turnaround_hours)
+                / len(turnaround_hours),
+                2,
+            )
+        else:
+            average_turnaround_hours = 0.0
+
+        # -----------------------------------------------------
+        # DECISION CREATION STATISTICS
+        # -----------------------------------------------------
+        now = datetime.now(timezone.utc)
+
+        daily_start = now - timedelta(days=7)
+        weekly_start = now - timedelta(weeks=12)
+        monthly_start = now - timedelta(days=365)
+
+        daily_query = (
+            db.query(
+                func.date(Decision.created_at),
+                func.count(Decision.id),
+            )
+            .filter(
+                Decision.created_at >= daily_start
+            )
+            .group_by(func.date(Decision.created_at))
+            .order_by(func.date(Decision.created_at))
+            .all()
+        )
+
+        weekly_query = (
+            db.query(
+                func.date_trunc(
+                    "week",
+                    Decision.created_at,
+                ),
+                func.count(Decision.id),
+            )
+            .filter(
+                Decision.created_at >= weekly_start
+            )
+            .group_by(
+                func.date_trunc(
+                    "week",
+                    Decision.created_at,
+                )
+            )
+            .order_by(
+                func.date_trunc(
+                    "week",
+                    Decision.created_at,
+                )
+            )
+            .all()
+        )
+
+        monthly_query = (
+            db.query(
+                func.date_trunc(
+                    "month",
+                    Decision.created_at,
+                ),
+                func.count(Decision.id),
+            )
+            .filter(
+                Decision.created_at >= monthly_start
+            )
+            .group_by(
+                func.date_trunc(
+                    "month",
+                    Decision.created_at,
+                )
+            )
+            .order_by(
+                func.date_trunc(
+                    "month",
+                    Decision.created_at,
+                )
+            )
+            .all()
+        )
+
+        decision_creation_statistics = {
+            "daily": [
+                {
+                    "date": str(period),
+                    "count": count,
+                }
+                for period, count in daily_query
+            ],
+            "weekly": [
+                {
+                    "week": str(period),
+                    "count": count,
+                }
+                for period, count in weekly_query
+            ],
+            "monthly": [
+                {
+                    "month": str(period),
+                    "count": count,
+                }
+                for period, count in monthly_query
+            ],
+        }
 
         result["system_analytics"] = {
             "total_users": total_users,
@@ -220,13 +428,53 @@ def get_dashboard_data(
             "total_decisions": total_decisions,
             "total_approvals": total_approvals,
             "pending_approvals": pending_approvals,
+            "completed_approvals": completed_approvals,
+            "approval_completion_rate": completion_rate,
+            "average_approval_turnaround_hours": average_turnaround_hours,
+            "users_by_role": users_by_role,
+            "decision_creation_statistics": decision_creation_statistics,
         }
 
         # -----------------------------------------------------
-        # RECENT ACTIVITY ACROSS THE ORGANIZATION
+        # ORGANIZATION ACTIVITY WITH FILTERS
         # -----------------------------------------------------
+        organization_activity_query = db.query(ActivityLog)
+
+        if activity_action:
+            organization_activity_query = (
+                organization_activity_query.filter(
+                    ActivityLog.action == activity_action
+                )
+            )
+
+        if activity_start_date:
+            start_datetime = datetime.combine(
+                activity_start_date,
+                datetime.min.time(),
+                tzinfo=timezone.utc,
+            )
+
+            organization_activity_query = (
+                organization_activity_query.filter(
+                    ActivityLog.created_at >= start_datetime
+                )
+            )
+
+        if activity_end_date:
+            end_datetime = datetime.combine(
+                activity_end_date,
+                datetime.max.time(),
+                tzinfo=timezone.utc,
+            )
+
+            organization_activity_query = (
+                organization_activity_query.filter(
+                    ActivityLog.created_at <= end_datetime
+                )
+            )
+
         organization_activity = (
-            db.query(ActivityLog)
+            organization_activity_query
             .order_by(ActivityLog.created_at.desc())
             .limit(20)
             .all()
@@ -273,6 +521,10 @@ def get_dashboard_data(
             "total_users": total_users,
             "total_decisions": total_decisions,
             "total_approvals": total_approvals,
+            "users_by_role": users_by_role,
+            "approval_completion_rate": completion_rate,
+            "average_approval_turnaround_hours": average_turnaround_hours,
+            "decision_creation_statistics": decision_creation_statistics,
         }
 
     return result

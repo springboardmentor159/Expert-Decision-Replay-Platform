@@ -50,6 +50,34 @@ interface ApprovalItem {
   created_at: string;
 }
 
+interface DecisionCreationStatistics {
+  daily: {
+    date: string;
+    count: number;
+  }[];
+  weekly: {
+    week: string;
+    count: number;
+  }[];
+  monthly: {
+    month: string;
+    count: number;
+  }[];
+}
+
+interface SystemAnalytics {
+  total_users: number;
+  active_users: number;
+  total_decisions: number;
+  total_approvals: number;
+  pending_approvals: number;
+  completed_approvals: number;
+  approval_completion_rate: number;
+  average_approval_turnaround_hours: number;
+  users_by_role: Record<string, number>;
+  decision_creation_statistics: DecisionCreationStatistics;
+}
+
 interface DashboardData {
   role: string;
   my_decisions: DecisionItem[];
@@ -58,13 +86,17 @@ interface DashboardData {
   team_decisions: DecisionItem[];
   pending_approvals: ApprovalItem[];
   decision_statistics: Record<string, number>;
-  system_analytics: Record<string, number>;
+  system_analytics: SystemAnalytics;
   user_activity: DashboardActivity[];
   organization_reports: {
     decision_statistics?: Record<string, number>;
     total_users?: number;
     total_decisions?: number;
     total_approvals?: number;
+    users_by_role?: Record<string, number>;
+    approval_completion_rate?: number;
+    average_approval_turnaround_hours?: number;
+    decision_creation_statistics?: DecisionCreationStatistics;
   };
 }
 
@@ -687,6 +719,287 @@ export default function Dashboard() {
                   .pending_approvals ?? 0
               }
             />
+
+            <StatCard
+              icon={<CheckCircle2 size={22} />}
+              title="Completed Approvals"
+              value={
+                dashboard
+                  .system_analytics
+                  .completed_approvals ?? 0
+              }
+            />
+          </section>
+
+          <section className="dashboard-section">
+            <div className="section-heading">
+              <div>
+                <h2>
+                  Approval Performance
+                </h2>
+
+                <p>
+                  Organization-wide approval workflow performance.
+                </p>
+              </div>
+
+              <CheckCircle2 size={22} />
+            </div>
+
+            <div className="stats-grid compact">
+              <StatCard
+                icon={<CheckCircle2 size={20} />}
+                title="Approval Completion Rate (%)"
+                value={
+                  dashboard
+                    .system_analytics
+                    .approval_completion_rate ?? 0
+                }
+              />
+
+              <StatCard
+                icon={<Clock3 size={20} />}
+                title="Avg. Turnaround (Hours)"
+                value={
+                  dashboard
+                    .system_analytics
+                    .average_approval_turnaround_hours ?? 0
+                }
+              />
+            </div>
+          </section>
+
+          <section className="dashboard-section">
+            <div className="section-heading">
+              <div>
+                <h2>
+                  Users by Role
+                </h2>
+
+                <p>
+                  Current users grouped by system role.
+                </p>
+              </div>
+
+              <Users size={22} />
+            </div>
+
+            <div className="stats-grid compact">
+              {Object.entries(
+                dashboard
+                  .system_analytics
+                  .users_by_role ?? {},
+              ).map(([roleName, count]) => (
+                <StatCard
+                  key={roleName}
+                  icon={<Users size={20} />}
+                  title={roleName}
+                  value={count}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="dashboard-section">
+            <div className="section-heading">
+              <div>
+                <h2>
+                  Decision Creation Statistics
+                </h2>
+
+                <p>
+                  Decision creation trends by day, week, and month.
+                </p>
+              </div>
+
+              <BarChart3 size={22} />
+            </div>
+
+            <div className="dashboard-section">
+              <div className="section-heading">
+                <div>
+                  <h3>
+                    Daily
+                  </h3>
+
+                  <p>
+                    Decisions created during recent days.
+                  </p>
+                </div>
+              </div>
+
+              <div className="simple-list">
+                {dashboard
+                  .system_analytics
+                  .decision_creation_statistics
+                  ?.daily?.length === 0 ? (
+                  <div className="empty-state">
+                    <BarChart3 size={32} />
+
+                    <p>
+                      No daily decision data available.
+                    </p>
+                  </div>
+                ) : (
+                  dashboard
+                    .system_analytics
+                    .decision_creation_statistics
+                    ?.daily?.map((item) => (
+                      <div
+                        className="list-row"
+                        key={item.date}
+                      >
+                        <div>
+                          <strong>
+                            {new Date(
+                              item.date,
+                            ).toLocaleDateString(
+                              "en-IN",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                          </strong>
+
+                          <span>
+                            Decisions created
+                          </span>
+                        </div>
+
+                        <strong>
+                          {item.count}
+                        </strong>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+
+            <div className="dashboard-section">
+              <div className="section-heading">
+                <div>
+                  <h3>
+                    Weekly
+                  </h3>
+
+                  <p>
+                    Decisions created by week.
+                  </p>
+                </div>
+              </div>
+
+              <div className="simple-list">
+                {dashboard
+                  .system_analytics
+                  .decision_creation_statistics
+                  ?.weekly?.length === 0 ? (
+                  <div className="empty-state">
+                    <BarChart3 size={32} />
+
+                    <p>
+                      No weekly decision data available.
+                    </p>
+                  </div>
+                ) : (
+                  dashboard
+                    .system_analytics
+                    .decision_creation_statistics
+                    ?.weekly?.map((item) => (
+                      <div
+                        className="list-row"
+                        key={item.week}
+                      >
+                        <div>
+                          <strong>
+                            Week starting{" "}
+                            {new Date(
+                              item.week,
+                            ).toLocaleDateString(
+                              "en-IN",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                          </strong>
+
+                          <span>
+                            Decisions created
+                          </span>
+                        </div>
+
+                        <strong>
+                          {item.count}
+                        </strong>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+
+            <div className="dashboard-section">
+              <div className="section-heading">
+                <div>
+                  <h3>
+                    Monthly
+                  </h3>
+
+                  <p>
+                    Decisions created by month.
+                  </p>
+                </div>
+              </div>
+
+              <div className="simple-list">
+                {dashboard
+                  .system_analytics
+                  .decision_creation_statistics
+                  ?.monthly?.length === 0 ? (
+                  <div className="empty-state">
+                    <BarChart3 size={32} />
+
+                    <p>
+                      No monthly decision data available.
+                    </p>
+                  </div>
+                ) : (
+                  dashboard
+                    .system_analytics
+                    .decision_creation_statistics
+                    ?.monthly?.map((item) => (
+                      <div
+                        className="list-row"
+                        key={item.month}
+                      >
+                        <div>
+                          <strong>
+                            {new Date(
+                              item.month,
+                            ).toLocaleDateString(
+                              "en-IN",
+                              {
+                                month: "long",
+                                year: "numeric",
+                              },
+                            )}
+                          </strong>
+
+                          <span>
+                            Decisions created
+                          </span>
+                        </div>
+
+                        <strong>
+                          {item.count}
+                        </strong>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
           </section>
 
           <section className="dashboard-section">
