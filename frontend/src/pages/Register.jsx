@@ -59,14 +59,14 @@ const Register = () => {
       setLoading(true);
 
       const userData = {
-        full_name: formData.full_name,
-        email: formData.email,
+        full_name: formData.full_name.trim(),
+        email: formData.email.trim(),
         password: formData.password,
         role: formData.role,
-        employee_id: formData.employee_id || null,
-        department: formData.department || null,
-        designation: formData.designation || null,
-        phone_number: formData.phone_number || null,
+        employee_id: formData.employee_id.trim() || null,
+        department: formData.department.trim() || null,
+        designation: formData.designation.trim() || null,
+        phone_number: formData.phone_number.trim() || null,
       };
 
       await register(userData);
@@ -98,145 +98,238 @@ const Register = () => {
   };
 
   return (
-    <div>
-      <h1>Expert Decision Replay Platform</h1>
+    <div className="auth-page">
+      <div className="register-card">
 
-      <h2>Register</h2>
+        {/* Header */}
+        <div className="register-header">
+          <div className="register-logo">
+            EDR
+          </div>
 
-      {error && <p>{error}</p>}
-      {success && <p>{success}</p>}
-
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Full Name</label>
-          <br />
-          <input
-            name="full_name"
-            value={formData.full_name}
-            onChange={handleChange}
-            placeholder="Enter full name"
-          />
+          <div>
+            <h1>Expert Decision Replay Platform</h1>
+            <p>Create your account to get started</p>
+          </div>
         </div>
 
-        <br />
-
-        <div>
-          <label>Email</label>
-          <br />
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter email"
-          />
+        {/* Title */}
+        <div className="register-title">
+          <h2>Create Account</h2>
+          <p>Enter your details to register</p>
         </div>
 
-        <br />
+        {/* Messages */}
+        {error && (
+          <div className="register-message register-error">
+            {error}
+          </div>
+        )}
 
-        <div>
-          <label>Password</label>
-          <br />
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="Enter password"
-          />
-        </div>
+        {success && (
+          <div className="register-message register-success">
+            {success}
+          </div>
+        )}
 
-        <br />
+        {/* Form */}
+        <form onSubmit={handleSubmit}>
 
-        <div>
-          <label>Confirm Password</label>
-          <br />
-          <input
-            type="password"
-            name="confirm_password"
-            value={formData.confirm_password}
-            onChange={handleChange}
-            placeholder="Confirm password"
-          />
-        </div>
+          {/* Personal Information */}
+          <div className="register-section">
+            <h3>Personal Information</h3>
 
-        <br />
+            <div className="register-grid">
 
-        <div>
-          <label>Role</label>
-          <br />
-          <select
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
+              <div className="register-field">
+                <label htmlFor="full_name">
+                  Full Name <span>*</span>
+                </label>
+
+                <input
+                  id="full_name"
+                  type="text"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={handleChange}
+                  placeholder="Enter full name"
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="register-field">
+                <label htmlFor="email">
+                  Email <span>*</span>
+                </label>
+
+                <input
+                  id="email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter email address"
+                  autoComplete="email"
+                />
+              </div>
+
+            </div>
+          </div>
+
+          {/* Account Information */}
+          <div className="register-section">
+            <h3>Account Information</h3>
+
+            <div className="register-grid">
+
+              <div className="register-field">
+                <label htmlFor="password">
+                  Password <span>*</span>
+                </label>
+
+                <input
+                  id="password"
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Minimum 6 characters"
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="register-field">
+                <label htmlFor="confirm_password">
+                  Confirm Password <span>*</span>
+                </label>
+
+                <input
+                  id="confirm_password"
+                  type="password"
+                  name="confirm_password"
+                  value={formData.confirm_password}
+                  onChange={handleChange}
+                  placeholder="Confirm your password"
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="register-field register-full-width">
+                <label htmlFor="role">
+                  Role <span>*</span>
+                </label>
+
+                <select
+                  id="role"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                >
+                  <option value="Employee">Employee</option>
+                  <option value="Reviewer">Reviewer</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Administrator">
+                    Administrator
+                  </option>
+                </select>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Professional Information */}
+          <div className="register-section">
+            <h3>Professional Information</h3>
+
+            <div className="register-grid">
+
+              <div className="register-field">
+                <label htmlFor="employee_id">
+                  Employee ID
+                </label>
+
+                <input
+                  id="employee_id"
+                  type="text"
+                  name="employee_id"
+                  value={formData.employee_id}
+                  onChange={handleChange}
+                  placeholder="Enter employee ID"
+                />
+              </div>
+
+              <div className="register-field">
+                <label htmlFor="department">
+                  Department
+                </label>
+
+                <input
+                  id="department"
+                  type="text"
+                  name="department"
+                  value={formData.department}
+                  onChange={handleChange}
+                  placeholder="Enter department"
+                />
+              </div>
+
+              <div className="register-field">
+                <label htmlFor="designation">
+                  Designation
+                </label>
+
+                <input
+                  id="designation"
+                  type="text"
+                  name="designation"
+                  value={formData.designation}
+                  onChange={handleChange}
+                  placeholder="Enter designation"
+                />
+              </div>
+
+              <div className="register-field">
+                <label htmlFor="phone_number">
+                  Phone Number
+                </label>
+
+                <input
+                  id="phone_number"
+                  type="tel"
+                  name="phone_number"
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  placeholder="Enter phone number"
+                />
+              </div>
+
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            className="register-submit"
+            disabled={loading}
           >
-            <option value="Employee">Employee</option>
-            <option value="Reviewer">Reviewer</option>
-            <option value="Manager">Manager</option>
-            <option value="Administrator">Administrator</option>
-          </select>
+            {loading ? "Creating Account..." : "Create Account"}
+          </button>
+
+        </form>
+
+        {/* Login Link */}
+        <div className="register-login">
+          <span>Already have an account?</span>
+
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+          >
+            Login
+          </button>
         </div>
 
-        <br />
-
-        <div>
-          <label>Employee ID</label>
-          <br />
-          <input
-            name="employee_id"
-            value={formData.employee_id}
-            onChange={handleChange}
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>Department</label>
-          <br />
-          <input
-            name="department"
-            value={formData.department}
-            onChange={handleChange}
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>Designation</label>
-          <br />
-          <input
-            name="designation"
-            value={formData.designation}
-            onChange={handleChange}
-          />
-        </div>
-
-        <br />
-
-        <div>
-          <label>Phone Number</label>
-          <br />
-          <input
-            name="phone_number"
-            value={formData.phone_number}
-            onChange={handleChange}
-          />
-        </div>
-
-        <br />
-
-        <button type="submit" disabled={loading}>
-          {loading ? "Registering..." : "Register"}
-        </button>
-      </form>
-
-      <br />
-
-      <button onClick={() => navigate("/login")}>
-        Already have an account? Login
-      </button>
+      </div>
     </div>
   );
 };

@@ -1,6 +1,4 @@
-/* =========================================================
-   GLOBAL
-========================================================= */
+/* GLOBAL */
 
 * {
   box-sizing: border-box;
@@ -28,11 +26,6 @@ a {
   text-decoration: none;
 }
 
-
-/* =========================================================
-   APPLICATION LAYOUT
-========================================================= */
-
 .app-layout {
   min-height: 100vh;
   background: #f4f6f8;
@@ -42,11 +35,6 @@ a {
   display: flex;
   min-height: calc(100vh - 76px);
 }
-
-
-/* =========================================================
-   HEADER
-========================================================= */
 
 .app-header {
   height: 76px;
@@ -141,10 +129,7 @@ a {
   font-size: 12px;
 }
 
-
-/* =========================================================
-   SIDEBAR
-========================================================= */
+/*SIDEBAR*/
 
 .sidebar {
   width: 250px;
@@ -289,12 +274,6 @@ a {
 .logout-button {
   margin-top: 4px;
 }
-
-
-/* =========================================================
-   MAIN CONTENT
-========================================================= */
-
 .main-content {
   flex: 1;
 
@@ -304,11 +283,6 @@ a {
 
   background: #f4f6f8;
 }
-
-
-/* =========================================================
-   PAGE HEADER
-========================================================= */
 
 .page-header {
   display: flex;
@@ -343,9 +317,7 @@ a {
 }
 
 
-/* =========================================================
-   CARDS
-========================================================= */
+/* CARDS */
 
 .app-card {
   background: #ffffff;
@@ -376,10 +348,7 @@ a {
   padding: 20px;
 }
 
-
-/* =========================================================
-   BUTTONS
-========================================================= */
+/* BUTTONS */
 
 .app-button {
   border: none;
@@ -426,11 +395,6 @@ a {
   cursor: not-allowed;
 }
 
-
-/* =========================================================
-   STATUS BADGES
-========================================================= */
-
 .status-badge {
   display: inline-block;
 
@@ -471,11 +435,6 @@ a {
   background: #f3f4f6;
   color: #6b7280;
 }
-
-
-/* =========================================================
-   ALERTS
-========================================================= */
 
 .alert {
   display: flex;
@@ -524,11 +483,6 @@ a {
 
   color: inherit;
 }
-
-
-/* =========================================================
-   EMPTY STATE
-========================================================= */
 
 .empty-state {
   padding: 50px 20px;
@@ -580,11 +534,6 @@ a {
   justify-content: center;
 }
 
-
-/* =========================================================
-   RESPONSIVE
-========================================================= */
-
 @media (max-width: 900px) {
   .sidebar {
     width: 210px;
@@ -626,9 +575,7 @@ a {
   }
 }
 
-/* =========================================================
-   AUTHENTICATION PAGES
-========================================================= */
+/* AUTHENTICATION PAGES */
 
 .auth-page {
   min-height: 100vh;
@@ -808,9 +755,7 @@ a {
 }
 
 
-/* =========================================================
-   AUTH RESPONSIVE
-========================================================= */
+/* AUTH RESPONSIVE */
 
 @media (max-width: 600px) {
   .auth-page {
@@ -821,18 +766,14 @@ a {
     padding: 28px 22px;
   }
 }
-/* =========================================================
-   DASHBOARD
-========================================================= */
+/*  DASHBOARD */
 
 .dashboard-page {
   width: 100%;
 }
 
 
-/* =========================================================
-   WELCOME
-========================================================= */
+/* WELCOME */
 
 .dashboard-welcome {
   display: flex;
@@ -889,9 +830,7 @@ a {
 }
 
 
-/* =========================================================
-   STATISTICS
-========================================================= */
+/* STATISTICS */
 
 .dashboard-stats {
   display: grid;
@@ -958,9 +897,7 @@ a {
 }
 
 
-/* =========================================================
-   DASHBOARD GRID
-========================================================= */
+/* DASHBOARD GRID */
 
 .dashboard-grid {
   display: grid;
@@ -977,9 +914,7 @@ a {
 }
 
 
-/* =========================================================
-   DASHBOARD LIST
-========================================================= */
+/* DASHBOARD LIST */
 
 .dashboard-list {
   display: flex;
@@ -1064,11 +999,6 @@ a {
   white-space: nowrap;
 }
 
-
-/* =========================================================
-   CARD FOOTER
-========================================================= */
-
 .dashboard-card-footer {
   display: flex;
 
@@ -1082,9 +1012,7 @@ a {
 }
 
 
-/* =========================================================
-   ACTIVITY
-========================================================= */
+/* ACTIVITY */
 
 .activity-list {
   display: flex;
@@ -1155,9 +1083,7 @@ a {
 }
 
 
-/* =========================================================
-   QUICK ACTIONS
-========================================================= */
+/* QUICK ACTIONS */
 
 .quick-actions {
   display: flex;
@@ -1168,9 +1094,7 @@ a {
 }
 
 
-/* =========================================================
-   DASHBOARD LOADING
-========================================================= */
+/* DASHBOARD LOADING */
 
 .dashboard-loading {
   min-height: 300px;
@@ -1215,9 +1139,7 @@ a {
 }
 
 
-/* =========================================================
-   DASHBOARD RESPONSIVE
-========================================================= */
+/* DASHBOARD RESPONSIVE */
 
 @media (max-width: 1000px) {
 
@@ -1256,9 +1178,7 @@ a {
     width: 100%;
   }
 }
-/* =========================================================
-   DECISION MANAGEMENT
-========================================================= */
+/* DECISION MANAGEMENT */
 
 .decision-page {
   width: 100%;
@@ -1380,9 +1300,7 @@ a {
     grid-column: auto;
   }
 }
-/* =========================================
-   DECISION TITLE BUTTON
-   ========================================= */
+/* DECISION TITLE BUTTON  */
 
 .decision-title-button {
   border: none;
@@ -1585,11 +1503,6 @@ a {
   width: 100%;
 }
 
-
-/* =========================================
-   HEADER ACTIONS
-   ========================================= */
-
 .decision-details-header-actions {
   display: flex;
   gap: 10px;
@@ -1604,11 +1517,6 @@ a {
 .decision-details-card {
   margin-bottom: 18px;
 }
-
-
-/* =========================================
-   DECISION OVERVIEW
-   ========================================= */
 
 .decision-overview {
   margin-bottom: 22px;
@@ -1634,11 +1542,6 @@ a {
   color: #6b7280;
   font-size: 13px;
 }
-
-
-/* =========================================
-   INFORMATION GRID
-   ========================================= */
 
 .decision-info-grid {
   display: grid;
@@ -1673,11 +1576,6 @@ a {
   color: #1f2937;
   font-size: 13px;
 }
-
-
-/* =========================================
-   TEXT CONTENT
-   ========================================= */
 
 .decision-text-content {
   color: #4b5563;
@@ -1871,11 +1769,6 @@ a {
   margin-bottom: 25px;
 }
 
-
-/* =========================================
-   RESPONSIVE
-   ========================================= */
-
 @media (max-width: 1000px) {
 
   .decision-info-grid {
@@ -1916,7 +1809,7 @@ a {
 
 }
 /* =========================================================
-   CREATE DECISION PAGE - STEP 15
+   CREATE DECISION PAGE
    ========================================================= */
 
 .create-decision-page {
@@ -1972,7 +1865,7 @@ a {
 }
 
 /* =========================================================
-   ALTERNATIVES - STEP 17
+   ALTERNATIVES
    ========================================================= */
 
 .alternatives-page,
@@ -2134,10 +2027,6 @@ a {
   color: #1f3c5b;
 }
 
-/* =========================================================
-   FINAL RESPONSIVE RULES - CREATE + ALTERNATIVES
-   ========================================================= */
-
 @media (max-width: 800px) {
   .alternative-grid {
     grid-template-columns: 1fr;
@@ -2173,7 +2062,7 @@ a {
   }
 }
 /* =========================================================
-   DISCUSSION THREADS - STEP 19A
+   DISCUSSION THREADS 
    ========================================================= */
 
 .threads-page {
@@ -2306,7 +2195,7 @@ a {
   }
 }
 /* =========================================================
-   DISCUSSION MODULE - STEP 19
+   DISCUSSION MODULE 
    ========================================================= */
 
 .discussion-page {
@@ -2685,11 +2574,6 @@ a {
   line-height: 1.6;
   white-space: pre-wrap;
 }
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
 @media (max-width: 800px) {
   .discussion-form-grid {
     grid-template-columns: 1fr;
@@ -2730,7 +2614,7 @@ a {
   }
 }
 /* =========================================================
-   APPROVAL WORKFLOW - STEP 20
+   APPROVAL WORKFLOW
    ========================================================= */
 
 .approval-page {
@@ -3007,7 +2891,7 @@ a {
   }
 }
 /* =========================================================
-   STEP 21 - KNOWLEDGE REPOSITORY
+    KNOWLEDGE REPOSITORY
    ========================================================= */
 
 .repository-page {
@@ -3016,12 +2900,6 @@ a {
   margin: 0 auto;
   padding-bottom: 40px;
 }
-
-
-/* =========================
-   LOADING
-   ========================= */
-
 .repository-loading {
   min-height: 300px;
   display: flex;
@@ -3036,12 +2914,6 @@ a {
   font-size: 16px;
   font-weight: 600;
 }
-
-
-/* =========================
-   FILTER CARD
-   ========================= */
-
 .repository-filter-card {
   background: #ffffff;
   border: 1px solid #e4e7ec;
@@ -3066,12 +2938,6 @@ a {
   color: #667085;
   font-size: 14px;
 }
-
-
-/* =========================
-   FILTER FORM
-   ========================= */
-
 .repository-filter-form {
   display: grid;
   grid-template-columns:
@@ -3131,12 +2997,6 @@ a {
   color: #92400e;
   font-size: 14px;
 }
-
-
-/* =========================
-   ERROR
-   ========================= */
-
 .repository-error-wrapper {
   display: flex;
   flex-direction: column;
@@ -3144,12 +3004,6 @@ a {
   gap: 12px;
   margin-bottom: 24px;
 }
-
-
-/* =========================
-   RESULTS CARD
-   ========================= */
-
 .repository-results-card {
   background: #ffffff;
   border: 1px solid #e4e7ec;
@@ -3188,12 +3042,6 @@ a {
   padding: 7px 12px;
   border-radius: 20px;
 }
-
-
-/* =========================
-   TABLE
-   ========================= */
-
 .repository-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -3231,12 +3079,6 @@ a {
 .repository-table tbody tr:last-child td {
   border-bottom: none;
 }
-
-
-/* =========================
-   TABLE CONTENT
-   ========================= */
-
 .repository-id {
   font-weight: 600;
   color: #667085;
@@ -3270,12 +3112,6 @@ a {
   font-weight: 500;
   color: #475467;
 }
-
-
-/* =========================
-   PAGINATION
-   ========================= */
-
 .repository-pagination {
   display: flex;
   align-items: center;
@@ -3294,11 +3130,6 @@ a {
 .repository-page-number strong {
   color: #101828;
 }
-
-
-/* =========================
-   RESPONSIVE
-   ========================= */
 
 @media (max-width: 1100px) {
   .repository-filter-form {
@@ -3345,7 +3176,7 @@ a {
   }
 }
 /* =========================================================
-   STEP 22 - AUDIT & HISTORY
+    AUDIT & HISTORY
    ========================================================= */
 
 .audit-page {
@@ -3354,12 +3185,6 @@ a {
   margin: 0 auto;
   padding-bottom: 40px;
 }
-
-
-/* =========================
-   LOADING
-   ========================= */
-
 .audit-loading {
   min-height: 250px;
   display: flex;
@@ -3367,12 +3192,6 @@ a {
   justify-content: center;
   color: #667085;
 }
-
-
-/* =========================
-   ERROR
-   ========================= */
-
 .audit-error-wrapper {
   display: flex;
   flex-direction: column;
@@ -3384,12 +3203,6 @@ a {
 .audit-history-error {
   margin-top: 18px;
 }
-
-
-/* =========================
-   CARDS
-   ========================= */
-
 .audit-history-card,
 .audit-logs-card {
   background: #ffffff;
@@ -3434,11 +3247,6 @@ a {
   font-weight: 700;
 }
 
-
-/* =========================
-   DECISION SELECTOR
-   ========================= */
-
 .audit-decision-selector {
   padding: 20px 24px;
   display: flex;
@@ -3469,11 +3277,6 @@ a {
   border-color: #667085;
   box-shadow: 0 0 0 3px rgba(102, 112, 133, 0.12);
 }
-
-
-/* =========================
-   HISTORY CONTENT
-   ========================= */
 
 .audit-history-content {
   padding: 0 24px 24px;
@@ -3512,12 +3315,6 @@ a {
   color: #667085;
   font-size: 13px;
 }
-
-
-/* =========================
-   HISTORY LIST
-   ========================= */
-
 .audit-history-list {
   padding: 8px 18px;
 }
@@ -3572,12 +3369,6 @@ a {
   color: #98a2b3;
   font-size: 12px;
 }
-
-
-/* =========================
-   VERSIONS
-   ========================= */
-
 .audit-version-list {
   padding: 15px 18px;
 }
@@ -3609,11 +3400,6 @@ a {
   font-size: 12px;
 }
 
-
-/* =========================
-   VERSION DETAILS
-   ========================= */
-
 .audit-version-details {
   margin-top: 24px;
   border: 1px solid #eaecf0;
@@ -3637,23 +3423,11 @@ a {
   white-space: pre-wrap;
   word-break: break-word;
 }
-
-
-/* =========================
-   DECISION ACTION
-   ========================= */
-
 .audit-decision-action {
   display: flex;
   justify-content: flex-start;
   margin-top: 20px;
 }
-
-
-/* =========================
-   AUDIT TABLE
-   ========================= */
-
 .audit-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -3691,8 +3465,6 @@ a {
 .audit-table tbody tr:last-child td {
   border-bottom: none;
 }
-
-
 /* =========================
    RESPONSIVE
    ========================= */
@@ -3767,12 +3539,9 @@ a {
   color: #718096;
   font-size: 14px;
 }
-
-
 /* =========================================================
    REPORT CONTROLS
    ========================================================= */
-
 .report-controls {
   display: flex;
   align-items: flex-end;
@@ -3818,8 +3587,6 @@ a {
   gap: 10px;
   flex-wrap: wrap;
 }
-
-
 /* =========================================================
    REPORT SUMMARY
    ========================================================= */
@@ -3853,8 +3620,6 @@ a {
   font-size: 24px;
   font-weight: 700;
 }
-
-
 /* =========================================================
    REPORT TABLE
    ========================================================= */
@@ -3902,8 +3667,6 @@ a {
 .report-table tbody tr:hover {
   background: #f9fbfd;
 }
-
-
 /* =========================================================
    REPORT STATUS
    ========================================================= */
@@ -3947,7 +3710,6 @@ a {
   color: #5f6b78;
 }
 
-
 /* =========================================================
    REPORT PAGINATION
    ========================================================= */
@@ -3966,7 +3728,6 @@ a {
   font-weight: 600;
 }
 
-
 /* =========================================================
    REPORT EMPTY STATE
    ========================================================= */
@@ -3974,8 +3735,6 @@ a {
 .reports-section .empty-state {
   min-height: 220px;
 }
-
-
 /* =========================================================
    AUDIT PAGE
    ========================================================= */
@@ -4013,8 +3772,6 @@ a {
   color: #718096;
   font-size: 14px;
 }
-
-
 /* =========================================================
    AUDIT FILTERS
    ========================================================= */
@@ -4067,12 +3824,9 @@ a {
   display: flex;
   align-items: center;
 }
-
-
 /* =========================================================
    AUDIT TABLE
    ========================================================= */
-
 .audit-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -4116,12 +3870,6 @@ a {
 .audit-table tbody tr:hover {
   background: #f9fbfd;
 }
-
-
-/* =========================================================
-   AUDIT LOADING
-   ========================================================= */
-
 .audit-loading {
   display: flex;
   align-items: center;
@@ -4130,12 +3878,6 @@ a {
   color: #64748b;
   font-size: 15px;
 }
-
-
-/* =========================================================
-   AUDIT PAGINATION
-   ========================================================= */
-
 .audit-pagination {
   display: flex;
   align-items: center;
@@ -4149,12 +3891,6 @@ a {
   font-size: 14px;
   font-weight: 600;
 }
-
-
-/* =========================================================
-   DECISION SELECTOR
-   ========================================================= */
-
 .audit-decision-selector {
   display: flex;
   flex-direction: column;
@@ -4291,12 +4027,6 @@ a {
   font-size: 14px;
   word-break: break-word;
 }
-
-
-/* =========================================================
-   VERSION TEXT
-   ========================================================= */
-
 .audit-version-text {
   margin-bottom: 18px;
   padding: 17px;
@@ -4393,8 +4123,6 @@ a {
   }
 
 }
-
-
 @media (max-width: 480px) {
 
   .report-summary {
@@ -4595,8 +4323,6 @@ a {
   border-top: 1px solid #e5e7eb;
 }
 
-/* RESPONSIVE */
-
 @media (max-width: 768px) {
   .decision-edit-page {
     padding-bottom: 24px;
@@ -4615,10 +4341,6 @@ a {
     width: 100%;
   }
 }
-/* =========================================================
-   DECISION TIMELINE METADATA
-   ========================================================= */
-
 .timeline-meta {
   display: flex;
   align-items: center;
@@ -4650,12 +4372,6 @@ a {
 .teams-page {
   width: 100%;
 }
-
-
-/* ---------------------------------------------------------
-   TEAM SUMMARY
---------------------------------------------------------- */
-
 .teams-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(220px, 1fr));
@@ -4686,8 +4402,6 @@ a {
   font-weight: 700;
   color: #102a43;
 }
-
-
 /* ---------------------------------------------------------
    CREATE TEAM
 --------------------------------------------------------- */
@@ -4711,8 +4425,6 @@ a {
   color: #718096;
   font-size: 15px;
 }
-
-
 .team-create-form {
   display: grid;
   grid-template-columns: 1fr 1.2fr auto;
@@ -4720,8 +4432,6 @@ a {
   align-items: end;
   width: 100%;
 }
-
-
 .team-form-field {
   display: flex;
   flex-direction: column;
@@ -4762,17 +4472,11 @@ a {
   box-shadow: 0 0 0 3px rgba(43, 93, 145, 0.10);
 }
 
-
 .team-create-button {
   display: flex;
   justify-content: flex-end;
   padding-bottom: 1px;
 }
-
-
-/* ---------------------------------------------------------
-   TEAMS TABLE HEADER
---------------------------------------------------------- */
 
 .teams-table-header {
   margin-bottom: 26px;
@@ -4789,7 +4493,6 @@ a {
   color: #718096;
   font-size: 15px;
 }
-
 
 /* ---------------------------------------------------------
    TEAMS TABLE
@@ -4822,10 +4525,6 @@ a {
   border-top: 1px solid #e5eaf0;
   border-bottom: 1px solid #e5eaf0;
 }
-
-
-/* Body */
-
 .teams-table tbody td {
   padding: 19px 20px;
   font-size: 15px;
@@ -4834,8 +4533,6 @@ a {
   vertical-align: middle;
   line-height: 1.5;
 }
-
-
 /* ---------------------------------------------------------
    COLUMN WIDTHS
 --------------------------------------------------------- */
@@ -4844,7 +4541,6 @@ a {
   width: 8%;
   min-width: 70px;
 }
-
 .teams-table .team-name-column {
   width: 23%;
   min-width: 170px;
@@ -4854,7 +4550,6 @@ a {
   width: 34%;
   min-width: 240px;
 }
-
 .teams-table .team-members-column {
   width: 15%;
   min-width: 110px;
@@ -4866,8 +4561,6 @@ a {
   min-width: 150px;
   text-align: center;
 }
-
-
 /* Team name */
 
 .teams-table .team-name-column strong {
@@ -4875,25 +4568,17 @@ a {
   font-weight: 700;
 }
 
-
-/* Description */
-
 .teams-table .team-description-column {
   color: #52667a;
 }
-
-
 /* Member count */
 
 .teams-table .team-members-column {
   font-weight: 600;
 }
-
-
 /* ---------------------------------------------------------
    TABLE ROW HOVER
 --------------------------------------------------------- */
-
 .teams-table tbody tr {
   transition: background 0.15s ease;
 }
@@ -4987,11 +4672,6 @@ a {
   font-size: 18px;
 }
 
-
-/* ---------------------------------------------------------
-   ADMIN ACTIVITY
---------------------------------------------------------- */
-
 .admin-activity-list {
   display: flex;
   flex-direction: column;
@@ -5040,12 +4720,6 @@ a {
 
   text-align: right;
 }
-
-
-/* ---------------------------------------------------------
-   ADMIN ACTIONS
---------------------------------------------------------- */
-
 .admin-actions {
   display: flex;
   flex-wrap: wrap;
@@ -5053,8 +4727,6 @@ a {
 
   margin-top: 10px;
 }
-
-
 /* ---------------------------------------------------------
    RESPONSIVE
 --------------------------------------------------------- */
@@ -5078,7 +4750,6 @@ a {
 /* =========================================================
    MY PROFILE
 ========================================================= */
-
 .profile-card {
   width: 100%;
   max-width: 900px;
@@ -5089,11 +4760,6 @@ a {
   padding: 30px;
   box-sizing: border-box;
 }
-
-
-/* ---------------------------------------------------------
-   PROFILE HEADER
---------------------------------------------------------- */
 
 .profile-header {
   display: flex;
@@ -5132,11 +4798,6 @@ a {
   font-size: 15px;
 }
 
-
-/* ---------------------------------------------------------
-   PROFILE DETAILS
---------------------------------------------------------- */
-
 .profile-details {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5167,11 +4828,6 @@ a {
   word-break: break-word;
 }
 
-
-/* ---------------------------------------------------------
-   RESPONSIVE
---------------------------------------------------------- */
-
 @media (max-width: 700px) {
 
   .profile-card {
@@ -5192,4 +4848,253 @@ a {
     font-size: 24px;
   }
 
+}
+/* =========================================================
+   REGISTER PAGE
+========================================================= */
+
+.auth-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  box-sizing: border-box;
+  background: #f5f8fb;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 850px;
+  background: #ffffff;
+  border: 1px solid #e5ebf1;
+  border-radius: 14px;
+  padding: 36px 40px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 30px rgba(31, 86, 136, 0.08);
+}
+
+.register-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid #e8edf2;
+}
+
+.register-logo {
+  width: 58px;
+  height: 58px;
+  border-radius: 12px;
+  background: #e8f0f8;
+  color: #1f5688;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.register-header h1 {
+  margin: 0 0 5px 0;
+  color: #102a43;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.register-header p {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.register-title {
+  margin: 28px 0 24px 0;
+}
+
+.register-title h2 {
+  margin: 0 0 6px 0;
+  color: #243b53;
+  font-size: 25px;
+}
+
+.register-title p {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.register-message {
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.register-error {
+  background: #fff1f2;
+  color: #b42318;
+  border: 1px solid #fecdd3;
+}
+
+.register-success {
+  background: #ecfdf3;
+  color: #027a48;
+  border: 1px solid #abefc6;
+}
+
+.register-section {
+  margin-bottom: 25px;
+}
+
+.register-section h3 {
+  margin: 0 0 15px 0;
+  color: #243b53;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.register-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 20px;
+}
+
+.register-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.register-field label {
+  color: #52667a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.register-field label span {
+  color: #d92d20;
+}
+
+.register-field input,
+.register-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #243b53;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.register-field input::placeholder {
+  color: #9aa5b1;
+}
+
+.register-field input:focus,
+.register-field select:focus {
+  border-color: #1f5688;
+  box-shadow: 0 0 0 3px rgba(31, 86, 136, 0.1);
+}
+
+.register-field select {
+  cursor: pointer;
+}
+
+.register-full-width {
+  grid-column: 1 / -1;
+}
+
+.register-submit {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 5px;
+  border: none;
+  border-radius: 8px;
+  background: #1f5688;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.register-submit:hover {
+  background: #17466f;
+}
+
+.register-submit:active {
+  transform: translateY(1px);
+}
+
+.register-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.register-login {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid #e8edf2;
+  font-size: 14px;
+  color: #718096;
+}
+
+.register-login button {
+  border: none;
+  background: transparent;
+  color: #1f5688;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.register-login button:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+  .auth-page {
+    padding: 20px 12px;
+    align-items: flex-start;
+  }
+
+  .register-card {
+    padding: 25px 20px;
+    margin-top: 10px;
+  }
+
+  .register-header h1 {
+    font-size: 18px;
+  }
+
+  .register-title h2 {
+    font-size: 22px;
+  }
+
+  .register-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .register-full-width {
+    grid-column: auto;
+  }
+
+  .register-logo {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
 }
