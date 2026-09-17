@@ -5,8 +5,30 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
+
 import axios from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+
+import {
+  ArrowLeft,
+  MessageSquare,
+  Plus,
+  RefreshCw,
+  Trash2,
+  X,
+  User,
+  CalendarDays,
+  CheckCircle2,
+  FileText,
+  Scale,
+  ClipboardCheck,
+  History,
+} from "lucide-react";
+
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
 import api from "../services/api";
 
 interface DiscussionThread {
@@ -18,9 +40,12 @@ interface DiscussionThread {
   created_at: string;
 }
 
-function getApiErrorMessage(error: unknown): string {
+function getApiErrorMessage(
+  error: unknown,
+): string {
   if (axios.isAxiosError(error)) {
-    const detail = error.response?.data?.detail;
+    const detail =
+      error.response?.data?.detail;
 
     if (typeof detail === "string") {
       return detail;
@@ -58,11 +83,17 @@ function getApiErrorMessage(error: unknown): string {
       return "Please check the entered information.";
     }
 
-    if (error.response?.status === 500) {
+    if (
+      error.response?.status !== undefined &&
+      error.response.status >= 500
+    ) {
       return "Server error. Please try again.";
     }
 
-    return error.message || "Request failed.";
+    return (
+      error.message ||
+      "Request failed."
+    );
   }
 
   if (error instanceof Error) {
@@ -72,7 +103,9 @@ function getApiErrorMessage(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-function formatDate(value: string): string {
+function formatDate(
+  value: string,
+): string {
   if (!value) {
     return "Unknown date";
   }
@@ -83,70 +116,103 @@ function formatDate(value: string): string {
     return value;
   }
 
-  return date.toLocaleString();
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getStatusClass(
+  status: string,
+): string {
+  return status
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 }
 
 export default function Discussion() {
-  const { id } = useParams<{ id: string }>();
+  const { id } =
+    useParams<{ id: string }>();
+
   const navigate = useNavigate();
 
-  const [threads, setThreads] = useState<DiscussionThread[]>([]);
+  const [threads, setThreads] =
+    useState<DiscussionThread[]>([]);
+
   const [selectedThread, setSelectedThread] =
-    useState<DiscussionThread | null>(null);
+    useState<DiscussionThread | null>(
+      null,
+    );
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] =
+    useState("");
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [description, setDescription] =
+    useState("");
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] =
+    useState(true);
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
 
-  const loadThreads = useCallback(async () => {
-    if (!id) {
-      return;
-    }
+  const [error, setError] =
+    useState("");
 
-    setIsLoading(true);
-    setError("");
+  const [success, setSuccess] =
+    useState("");
 
-    try {
-      const response = await api.get<DiscussionThread[]>(
-        `/decisions/${id}/threads`,
-      );
+  const [showCreateForm, setShowCreateForm] =
+    useState(false);
 
-      setThreads(response.data);
-    } catch (requestError) {
-      console.error(
-        "Unable to load discussion threads:",
-        requestError,
-      );
-
-      setError(getApiErrorMessage(requestError));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadInitialThreads = async () => {
+  const loadThreads =
+    useCallback(async () => {
       if (!id) {
         return;
       }
 
-      if (cancelled) {
-        return;
+      setIsLoading(true);
+      setError("");
+
+      try {
+        const response =
+          await api.get<DiscussionThread[]>(
+            `/decisions/${id}/threads`,
+          );
+
+        setThreads(response.data);
+      } catch (requestError: unknown) {
+        console.error(
+          "Unable to load discussion threads:",
+          requestError,
+        );
+
+        setError(
+          getApiErrorMessage(
+            requestError,
+          ),
+        );
+      } finally {
+        setIsLoading(false);
       }
+    }, [id]);
 
-      await loadThreads();
-    };
+  useEffect(() => {
+    let cancelled = false;
 
-    loadInitialThreads();
+    const loadInitialThreads =
+      async () => {
+        if (!id || cancelled) {
+          return;
+        }
+
+        await loadThreads();
+      };
+
+    void loadInitialThreads();
 
     return () => {
       cancelled = true;
@@ -159,17 +225,23 @@ export default function Discussion() {
     event.preventDefault();
 
     if (!id) {
-      setError("Decision ID is missing.");
+      setError(
+        "Decision ID is missing.",
+      );
       return;
     }
 
     if (!title.trim()) {
-      setError("Discussion title is required.");
+      setError(
+        "Discussion title is required.",
+      );
       return;
     }
 
     if (!description.trim()) {
-      setError("Discussion description is required.");
+      setError(
+        "Discussion description is required.",
+      );
       return;
     }
 
@@ -178,10 +250,14 @@ export default function Discussion() {
     setSuccess("");
 
     try {
-      await api.post(`/decisions/${id}/threads`, {
-        title: title.trim(),
-        description: description.trim(),
-      });
+      await api.post(
+        `/decisions/${id}/threads`,
+        {
+          title: title.trim(),
+          description:
+            description.trim(),
+        },
+      );
 
       setTitle("");
       setDescription("");
@@ -192,22 +268,29 @@ export default function Discussion() {
       );
 
       await loadThreads();
-    } catch (requestError) {
+    } catch (requestError: unknown) {
       console.error(
         "Unable to create discussion:",
         requestError,
       );
 
-      setError(getApiErrorMessage(requestError));
+      setError(
+        getApiErrorMessage(
+          requestError,
+        ),
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (threadId: number) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this discussion?",
-    );
+  const handleDelete = async (
+    threadId: number,
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this discussion?",
+      );
 
     if (!confirmed) {
       return;
@@ -217,9 +300,14 @@ export default function Discussion() {
     setSuccess("");
 
     try {
-      await api.delete(`/threads/${threadId}`);
+      await api.delete(
+        `/threads/${threadId}`,
+      );
 
-      if (selectedThread?.id === threadId) {
+      if (
+        selectedThread?.id ===
+        threadId
+      ) {
         setSelectedThread(null);
       }
 
@@ -228,13 +316,17 @@ export default function Discussion() {
       );
 
       await loadThreads();
-    } catch (requestError) {
+    } catch (requestError: unknown) {
       console.error(
         "Unable to delete discussion:",
         requestError,
       );
 
-      setError(getApiErrorMessage(requestError));
+      setError(
+        getApiErrorMessage(
+          requestError,
+        ),
+      );
     }
   };
 
@@ -245,7 +337,9 @@ export default function Discussion() {
 
     window.setTimeout(() => {
       document
-        .getElementById("discussion-detail")
+        .getElementById(
+          "discussion-detail",
+        )
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -262,21 +356,33 @@ export default function Discussion() {
   const handleDescriptionChange = (
     event: ChangeEvent<HTMLTextAreaElement>,
   ) => {
-    setDescription(event.target.value);
+    setDescription(
+      event.target.value,
+    );
   };
 
   if (!id) {
     return (
-      <main className="page-container">
-        <div className="error-state">
+      <main className="discussion-page">
+        <div className="discussion-error-state">
+          <div className="discussion-error-icon">
+            <MessageSquare size={25} />
+          </div>
+
           <h1>Discussion</h1>
 
-          <p>Decision ID is missing.</p>
+          <p>
+            Decision ID is missing.
+          </p>
 
           <button
             type="button"
-            onClick={() => navigate("/decisions")}
+            className="discussion-primary-button"
+            onClick={() =>
+              navigate("/decisions")
+            }
           >
+            <ArrowLeft size={17} />
             Back to Decisions
           </button>
         </div>
@@ -284,63 +390,111 @@ export default function Discussion() {
     );
   }
 
+  const decisionTabs = [
+    {
+      label: "Overview",
+      icon: FileText,
+      path: `/decisions/${id}`,
+    },
+    {
+      label: "Alternatives",
+      icon: Scale,
+      path: `/decisions/${id}/alternatives`,
+    },
+    {
+      label: "Discussion",
+      icon: MessageSquare,
+      path: `/decisions/${id}/discussion`,
+    },
+    {
+      label: "Approval",
+      icon: ClipboardCheck,
+      path: `/decisions/${id}/approval`,
+    },
+    {
+      label: "History",
+      icon: History,
+      path: `/decisions/${id}/history`,
+    },
+  ];
+
   return (
-    <main className="page-container">
-      <header
-        className="page-header"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <button
-            type="button"
-            onClick={() =>
-              navigate(`/decisions/${id}`)
-            }
-            style={{
-              marginBottom: "12px",
-            }}
-          >
-            ← Back to Decision
-          </button>
+    <main className="discussion-page">
+      {/* HEADER */}
 
-          <h1>Discussion</h1>
+      <header className="discussion-header">
+        <div className="discussion-heading">
+          <div className="discussion-heading-icon">
+            <MessageSquare size={25} />
+          </div>
 
-          <p>
-            Start and manage discussions for this
-            decision.
-          </p>
+          <div>
+            <p className="discussion-eyebrow">
+              EXPERT DECISION REPLAY PLATFORM
+            </p>
+
+            <h1>
+              Discussion
+            </h1>
+
+            <p className="discussion-subtitle">
+              Collaborate, review perspectives,
+              and document discussions for
+              Decision #{id}.
+            </p>
+          </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="discussion-header-actions">
           <button
             type="button"
-            onClick={() => loadThreads()}
-            disabled={isLoading}
-          >
-            ↻ Refresh
-          </button>
-
-          <button
-            type="button"
+            className="discussion-secondary-button"
             onClick={() =>
-              setShowCreateForm(
-                (current) => !current,
+              navigate(
+                `/decisions/${id}`,
               )
             }
           >
-            +{" "}
+            <ArrowLeft size={17} />
+            Back to Decision
+          </button>
+
+          <button
+            type="button"
+            className="discussion-secondary-button"
+            onClick={() => {
+              void loadThreads();
+            }}
+            disabled={isLoading}
+          >
+            <RefreshCw
+              size={16}
+              className={
+                isLoading
+                  ? "discussion-spin"
+                  : ""
+              }
+            />
+
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            className="discussion-primary-button"
+            onClick={() =>
+              setShowCreateForm(
+                (current) =>
+                  !current,
+              )
+            }
+          >
+            {showCreateForm ? (
+              <X size={17} />
+            ) : (
+              <Plus size={17} />
+            )}
+
             {showCreateForm
               ? "Close"
               : "Start Discussion"}
@@ -348,350 +502,532 @@ export default function Discussion() {
         </div>
       </header>
 
+      {/* DECISION NAVIGATION */}
+
+      <nav
+        className="decision-context-nav discussion-context-nav"
+        aria-label="Decision navigation"
+      >
+        {decisionTabs.map(
+          (tab) => {
+            const Icon = tab.icon;
+
+            const isActive =
+              tab.label ===
+              "Discussion";
+
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                className={`decision-context-tab ${
+                  isActive
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  navigate(
+                    tab.path,
+                  )
+                }
+              >
+                <Icon size={17} />
+                <span>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          },
+        )}
+      </nav>
+
+      {/* STATUS MESSAGES */}
+
       {error && (
         <div
-          className="error-state"
-          style={{ marginTop: "20px" }}
+          className="discussion-alert discussion-alert-error"
+          role="alert"
         >
-          <strong>Error:</strong> {error}
+          <div className="discussion-alert-icon">
+            <X size={18} />
+          </div>
+
+          <div>
+            <strong>
+              Something went wrong
+            </strong>
+
+            <p>{error}</p>
+          </div>
         </div>
       )}
 
       {success && (
         <div
-          style={{
-            marginTop: "20px",
-            padding: "12px 16px",
-            borderRadius: "8px",
-            border: "1px solid #b7ebc6",
-            background: "#f0fff4",
-          }}
+          className="discussion-alert discussion-alert-success"
+          role="status"
         >
-          {success}
+          <div className="discussion-alert-icon">
+            <CheckCircle2 size={18} />
+          </div>
+
+          <div>
+            <strong>
+              Success
+            </strong>
+
+            <p>{success}</p>
+          </div>
         </div>
       )}
 
-      {showCreateForm && (
-        <section
-          className="alternative-form-card"
-          style={{ marginTop: "24px" }}
-        >
-          <h2>Start a Discussion</h2>
+      {/* CREATE DISCUSSION */}
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: "16px" }}>
-              <label
-                htmlFor="discussion-title"
-                style={{
-                  display: "block",
-                  fontWeight: 600,
-                  marginBottom: "8px",
-                }}
-              >
+      {showCreateForm && (
+        <section className="discussion-create-card">
+          <div className="discussion-section-header">
+            <div className="discussion-section-icon">
+              <Plus size={20} />
+            </div>
+
+            <div>
+              <span className="discussion-section-label">
+                COLLABORATION
+              </span>
+
+              <h2>
+                Start a Discussion
+              </h2>
+
+              <p>
+                Create a discussion thread
+                to capture questions,
+                opinions, and review
+                feedback.
+              </p>
+            </div>
+          </div>
+
+          <form
+            onSubmit={handleSubmit}
+            className="discussion-form"
+          >
+            <div className="discussion-field">
+              <label htmlFor="discussion-title">
                 Discussion Title
               </label>
+
+              <span className="discussion-field-help">
+                Give the discussion a
+                clear and recognizable
+                topic.
+              </span>
 
               <input
                 id="discussion-title"
                 type="text"
                 value={title}
-                onChange={handleTitleChange}
+                onChange={
+                  handleTitleChange
+                }
                 placeholder="Enter discussion title"
-                disabled={isSubmitting}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid #ccc",
-                }}
+                disabled={
+                  isSubmitting
+                }
               />
             </div>
 
-            <div style={{ marginBottom: "16px" }}>
-              <label
-                htmlFor="discussion-description"
-                style={{
-                  display: "block",
-                  fontWeight: 600,
-                  marginBottom: "8px",
-                }}
-              >
+            <div className="discussion-field">
+              <label htmlFor="discussion-description">
                 Description
               </label>
+
+              <span className="discussion-field-help">
+                Explain the question,
+                concern, or topic you
+                want the team to discuss.
+              </span>
 
               <textarea
                 id="discussion-description"
                 value={description}
-                onChange={handleDescriptionChange}
+                onChange={
+                  handleDescriptionChange
+                }
                 placeholder="Explain what you want to discuss..."
-                rows={5}
-                disabled={isSubmitting}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid #ccc",
-                  resize: "vertical",
-                }}
+                rows={6}
+                disabled={
+                  isSubmitting
+                }
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? "Creating..."
-                : "Create Discussion"}
-            </button>
+            <div className="discussion-form-footer">
+              <p>
+                Provide enough context
+                so participants can
+                understand the discussion.
+              </p>
+
+              <button
+                type="submit"
+                className="discussion-primary-button"
+                disabled={
+                  isSubmitting
+                }
+              >
+                {isSubmitting ? (
+                  <RefreshCw
+                    size={17}
+                    className="discussion-spin"
+                  />
+                ) : (
+                  <MessageSquare
+                    size={17}
+                  />
+                )}
+
+                {isSubmitting
+                  ? "Creating..."
+                  : "Create Discussion"}
+              </button>
+            </div>
           </form>
         </section>
       )}
 
-      <section style={{ marginTop: "28px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "18px",
-          }}
-        >
+      {/* THREADS */}
+
+      <section className="discussion-list-section">
+        <div className="discussion-list-header">
           <div>
-            <h2>Discussion Threads</h2>
+            <span className="discussion-section-label">
+              DECISION COLLABORATION
+            </span>
+
+            <h2>
+              Discussion Threads
+            </h2>
 
             <p>
               {threads.length}{" "}
               {threads.length === 1
                 ? "discussion"
-                : "discussions"}
+                : "discussions"}{" "}
+              available for this
+              decision.
             </p>
+          </div>
+
+          <div className="discussion-count">
+            <MessageSquare size={16} />
+            {threads.length}
           </div>
         </div>
 
         {isLoading ? (
-          <div className="empty-state">
-            <p>Loading discussions...</p>
-          </div>
-        ) : threads.length === 0 ? (
-          <div className="empty-state">
-            <h3>No discussions yet</h3>
+          <div className="discussion-state-card">
+            <div className="loading-spinner" />
+
+            <h3>
+              Loading discussions...
+            </h3>
 
             <p>
-              Start a discussion to collaborate
-              with other users.
+              Retrieving the latest
+              discussion threads.
             </p>
           </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: "16px",
-            }}
-          >
-            {threads.map((thread) => (
-              <article
-                key={thread.id}
-                className="alternative-card"
-                onClick={() =>
-                  handleThreadClick(thread)
-                }
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" ||
-                    event.key === " "
-                  ) {
-                    event.preventDefault();
+        ) : threads.length === 0 ? (
+          <div className="discussion-state-card">
+            <div className="discussion-empty-icon">
+              <MessageSquare size={30} />
+            </div>
 
-                    handleThreadClick(thread);
+            <h3>
+              No discussions yet
+            </h3>
+
+            <p>
+              Start a discussion to
+              collaborate with other
+              users.
+            </p>
+
+            <button
+              type="button"
+              className="discussion-primary-button"
+              onClick={() =>
+                setShowCreateForm(
+                  true,
+                )
+              }
+            >
+              <Plus size={17} />
+              Start Discussion
+            </button>
+          </div>
+        ) : (
+          <div className="discussion-thread-grid">
+            {threads.map(
+              (thread) => (
+                <article
+                  key={thread.id}
+                  className={`discussion-thread-card ${
+                    selectedThread?.id ===
+                    thread.id
+                      ? "discussion-thread-selected"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    handleThreadClick(
+                      thread,
+                    )
                   }
-                }}
-                style={{
-                  cursor: "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: "16px",
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(
+                    event,
+                  ) => {
+                    if (
+                      event.key ===
+                        "Enter" ||
+                      event.key ===
+                        " "
+                    ) {
+                      event.preventDefault();
+
+                      handleThreadClick(
+                        thread,
+                      );
+                    }
                   }}
                 >
-                  <div>
-                    <h3
-                      style={{
-                        marginTop: 0,
-                        marginBottom: "8px",
-                      }}
+                  <div className="discussion-thread-top">
+                    <div className="discussion-thread-icon">
+                      <MessageSquare
+                        size={19}
+                      />
+                    </div>
+
+                    <span
+                      className={`discussion-status ${getStatusClass(
+                        thread.status,
+                      )}`}
                     >
+                      {thread.status}
+                    </span>
+                  </div>
+
+                  <div className="discussion-thread-content">
+                    <span className="discussion-thread-number">
+                      Discussion #
+                      {thread.id}
+                    </span>
+
+                    <h3>
                       {thread.title}
                     </h3>
 
                     <p>
-                      {thread.description}
+                      {
+                        thread.description
+                      }
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
+                  <div className="discussion-thread-meta">
+                    <div>
+                      <User size={14} />
 
-                      handleDelete(thread.id);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
+                      <span>
+                        User #
+                        {
+                          thread.created_by
+                        }
+                      </span>
+                    </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                    marginTop: "14px",
-                    fontSize: "14px",
-                  }}
-                >
-                  <span>
-                    Discussion #{thread.id}
-                  </span>
+                    <div>
+                      <CalendarDays
+                        size={14}
+                      />
 
-                  <span>
-                    Status: {thread.status}
-                  </span>
+                      <span>
+                        {formatDate(
+                          thread.created_at,
+                        )}
+                      </span>
+                    </div>
+                  </div>
 
-                  <span>
-                    Created By User #
-                    {thread.created_by}
-                  </span>
+                  <div className="discussion-thread-footer">
+                    <span>
+                      View discussion
+                      details
+                    </span>
 
-                  <span>
-                    Created:{" "}
-                    {formatDate(
-                      thread.created_at,
-                    )}
-                  </span>
-                </div>
+                    <button
+                      type="button"
+                      className="discussion-delete-button"
+                      onClick={(
+                        event,
+                      ) => {
+                        event.stopPropagation();
 
-                <div
-                  style={{
-                    marginTop: "14px",
-                    fontSize: "13px",
-                    opacity: 0.7,
-                  }}
-                >
-                  Click this discussion to view
-                  details
-                </div>
-              </article>
-            ))}
+                        void handleDelete(
+                          thread.id,
+                        );
+                      }}
+                      aria-label={`Delete discussion ${thread.id}`}
+                    >
+                      <Trash2
+                        size={16}
+                      />
+
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              ),
+            )}
           </div>
         )}
       </section>
 
+      {/* SELECTED DISCUSSION */}
+
       {selectedThread && (
         <section
           id="discussion-detail"
-          className="alternative-form-card"
-          style={{ marginTop: "24px" }}
+          className="discussion-detail-card"
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: "16px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <span
-                style={{
-                  fontSize: "13px",
-                  opacity: 0.7,
-                }}
-              >
-                Discussion #{selectedThread.id}
-              </span>
+          <div className="discussion-detail-header">
+            <div className="discussion-detail-heading">
+              <div className="discussion-detail-icon">
+                <FileText
+                  size={21}
+                />
+              </div>
 
-              <h2
-                style={{
-                  marginTop: "6px",
-                  marginBottom: "8px",
-                }}
-              >
-                {selectedThread.title}
-              </h2>
+              <div>
+                <span className="discussion-thread-number">
+                  Discussion #
+                  {
+                    selectedThread.id
+                  }
+                </span>
 
-              <p>
-                {selectedThread.description}
-              </p>
+                <h2>
+                  {
+                    selectedThread.title
+                  }
+                </h2>
+              </div>
             </div>
 
             <button
               type="button"
+              className="discussion-close-button"
               onClick={() =>
-                setSelectedThread(null)
+                setSelectedThread(
+                  null,
+                )
               }
             >
+              <X size={17} />
               Close
             </button>
           </div>
 
-          <hr
-            style={{
-              margin: "24px 0",
-              border: 0,
-              borderTop: "1px solid #ddd",
-            }}
-          />
-
-          <h3>Discussion Details</h3>
-
-          <div
-            style={{
-              display: "grid",
-              gap: "10px",
-              marginTop: "12px",
-            }}
-          >
+          <div className="discussion-detail-description">
             <p>
-              <strong>Status:</strong>{" "}
-              {selectedThread.status}
-            </p>
-
-            <p>
-              <strong>Created By:</strong> User #
-              {selectedThread.created_by}
-            </p>
-
-            <p>
-              <strong>Created:</strong>{" "}
-              {formatDate(
-                selectedThread.created_at,
-              )}
+              {
+                selectedThread.description
+              }
             </p>
           </div>
 
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "16px",
-              borderRadius: "8px",
-              border: "1px dashed #bbb",
-            }}
-          >
-            <h3>Comments & Further Discussion</h3>
+          <div className="discussion-detail-divider" />
 
-            <p>
-              This discussion is selected and
-              ready for comments and further
-              discussion.
-            </p>
+          <div className="discussion-detail-grid">
+            <div className="discussion-detail-item">
+              <span>Status</span>
+
+              <strong
+                className={`discussion-status ${getStatusClass(
+                  selectedThread.status,
+                )}`}
+              >
+                {
+                  selectedThread.status
+                }
+              </strong>
+            </div>
+
+            <div className="discussion-detail-item">
+              <span>
+                Created By
+              </span>
+
+              <strong>
+                <User size={15} />
+                User #
+                {
+                  selectedThread.created_by
+                }
+              </strong>
+            </div>
+
+            <div className="discussion-detail-item">
+              <span>
+                Created
+              </span>
+
+              <strong>
+                <CalendarDays
+                  size={15}
+                />
+                {formatDate(
+                  selectedThread.created_at,
+                )}
+              </strong>
+            </div>
+
+            <div className="discussion-detail-item">
+              <span>
+                Discussion ID
+              </span>
+
+              <strong>
+                #
+                {
+                  selectedThread.id
+                }
+              </strong>
+            </div>
+          </div>
+
+          <div className="discussion-comments-panel">
+            <div className="discussion-comments-icon">
+              <MessageSquare
+                size={21}
+              />
+            </div>
+
+            <div>
+              <h3>
+                Comments & Further
+                Discussion
+              </h3>
+
+              <p>
+                This discussion is
+                selected and ready for
+                comments and further
+                discussion.
+              </p>
+            </div>
           </div>
         </section>
       )}

@@ -1,5 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, FileText, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Save,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -18,7 +22,9 @@ export default function CreateDecision() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    event: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement
+    >,
   ) => {
     const { name, value } = event.target;
 
@@ -36,7 +42,8 @@ export default function CreateDecision() {
     setError("");
 
     const title = form.title.trim();
-    const problemStatement = form.problem_statement.trim();
+    const problemStatement =
+      form.problem_statement.trim();
     const category = form.category.trim();
 
     if (!title) {
@@ -105,153 +112,221 @@ export default function CreateDecision() {
     }
   };
 
-  const createButtonStyle: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    padding: "10px 20px",
-    minWidth: "165px",
-    minHeight: "42px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontWeight: 600,
-    fontSize: "14px",
-    cursor: isSubmitting ? "not-allowed" : "pointer",
-    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
-    opacity: isSubmitting ? 0.7 : 1,
-  };
-
   return (
-    <main className="decision-form-page">
-      <header className="page-header">
-        <div>
-          <p className="page-eyebrow">
+    <main className="create-decision-page">
+      <div className="create-decision-container">
+
+        {/* TOP BAR */}
+        <div className="create-decision-topbar">
+          <button
+            type="button"
+            className="create-decision-back"
+            onClick={() => navigate("/decisions")}
+            disabled={isSubmitting}
+          >
+            <ArrowLeft size={17} />
+            <span>Back to Decisions</span>
+          </button>
+
+          <div className="create-decision-brand">
             Expert Decision Replay Platform
-          </p>
-
-          <h1>Create Decision</h1>
-
-          <p>
-            Create a new decision for evaluation and review.
-          </p>
+          </div>
         </div>
 
-        <button
-          className="secondary-button"
-          onClick={() => navigate("/decisions")}
-          disabled={isSubmitting}
-        >
-          <ArrowLeft size={18} />
-          Back to Decisions
-        </button>
-      </header>
+        {/* PAGE HEADER */}
+        <header className="create-decision-header">
 
-      <section className="decision-form-card">
-        <div className="form-card-header">
-          <div className="form-card-icon">
+          <div className="create-decision-header-icon">
             <FileText size={22} />
           </div>
 
           <div>
-            <h2>Decision Information</h2>
+            <p className="create-decision-eyebrow">
+              NEW DECISION
+            </p>
 
-            <p>
-              Enter the basic information for your decision.
+            <h1>Create Decision</h1>
+
+            <p className="create-decision-subtitle">
+              Start a new decision record that can be
+              evaluated, reviewed, approved, and replayed
+              throughout its lifecycle.
             </p>
           </div>
-        </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="decision-form"
-        >
-          <div className="form-group">
-            <label htmlFor="title">
-              Decision Title
-            </label>
+        </header>
 
-            <input
-              id="title"
-              name="title"
-              type="text"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="e.g. Select Cloud Provider"
-              disabled={isSubmitting}
-              maxLength={255}
-            />
-          </div>
+        {/* CENTERED FORM */}
+        <section className="create-decision-card">
 
-          <div className="form-group">
-            <label htmlFor="category">
-              Category
-            </label>
+          {/* CARD HEADER */}
+          <div className="create-decision-card-header">
 
-            <input
-              id="category"
-              name="category"
-              type="text"
-              value={form.category}
-              onChange={handleChange}
-              placeholder="e.g. Technology"
-              disabled={isSubmitting}
-              maxLength={255}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="problem_statement">
-              Problem Statement
-            </label>
-
-            <textarea
-              id="problem_statement"
-              name="problem_statement"
-              value={form.problem_statement}
-              onChange={handleChange}
-              placeholder="Describe the problem or situation that requires a decision..."
-              rows={7}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {error && (
-            <div
-              className="auth-error"
-              role="alert"
-            >
-              {error}
+            <div className="create-decision-card-icon">
+              <FileText size={20} />
             </div>
-          )}
 
-          <div className="form-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => navigate("/decisions")}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
+            <div>
+              <p className="create-decision-card-label">
+                DECISION RECORD
+              </p>
 
-            <button
-              type="submit"
-              className="primary-button"
-              style={createButtonStyle}
-              disabled={isSubmitting}
-            >
-              <Save size={18} />
+              <h2>Decision Information</h2>
 
-              {isSubmitting
-                ? "Creating..."
-                : "Create Decision"}
-            </button>
+              <p>
+                Define the core information that will begin
+                this decision&apos;s replay history.
+              </p>
+            </div>
+
           </div>
-        </form>
-      </section>
+
+          <div className="create-decision-divider" />
+
+          {/* FORM */}
+          <form
+            className="create-decision-form"
+            onSubmit={handleSubmit}
+          >
+
+            {/* TITLE */}
+            <div className="create-field">
+
+              <label htmlFor="title">
+                Decision Title
+                <span>*</span>
+              </label>
+
+              <p className="create-field-help">
+                Give the decision a clear and recognizable
+                name.
+              </p>
+
+              <input
+                id="title"
+                name="title"
+                type="text"
+                value={form.title}
+                onChange={handleChange}
+                placeholder="Enter a clear decision title"
+                disabled={isSubmitting}
+                maxLength={255}
+              />
+
+            </div>
+
+            {/* CATEGORY */}
+            <div className="create-field">
+
+              <label htmlFor="category">
+                Category
+                <span>*</span>
+              </label>
+
+              <p className="create-field-help">
+                Identify the area or domain this decision
+                belongs to.
+              </p>
+
+              <input
+                id="category"
+                name="category"
+                type="text"
+                value={form.category}
+                onChange={handleChange}
+                placeholder="e.g. Technology, Cloud, AI Testing"
+                disabled={isSubmitting}
+                maxLength={255}
+              />
+
+            </div>
+
+            {/* PROBLEM STATEMENT */}
+            <div className="create-field">
+
+              <label htmlFor="problem_statement">
+                Problem Statement
+                <span>*</span>
+              </label>
+
+              <p className="create-field-help">
+                Explain the situation, challenge, or problem
+                requiring a decision.
+              </p>
+
+              <textarea
+                id="problem_statement"
+                name="problem_statement"
+                value={form.problem_statement}
+                onChange={handleChange}
+                placeholder="Describe the problem or situation that requires a decision..."
+                rows={8}
+                disabled={isSubmitting}
+              />
+
+              <div className="create-textarea-footer">
+                <span>
+                  Provide enough context for reviewers to
+                  understand the decision.
+                </span>
+
+                <span>
+                  {form.problem_statement.length} characters
+                </span>
+              </div>
+
+            </div>
+
+            {/* ERROR */}
+            {error && (
+              <div
+                className="create-decision-error"
+                role="alert"
+              >
+                <div className="create-error-icon">
+                  !
+                </div>
+
+                <div>
+                  <strong>
+                    Unable to create decision
+                  </strong>
+
+                  <p>{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* ACTION BAR */}
+            <div className="create-decision-actions">
+
+              <button
+                type="button"
+                className="create-decision-cancel"
+                onClick={() => navigate("/decisions")}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="create-decision-submit"
+                disabled={isSubmitting}
+              >
+                <Save size={17} />
+
+                {isSubmitting
+                  ? "Creating..."
+                  : "Create Decision"}
+              </button>
+
+            </div>
+
+          </form>
+        </section>
+
+      </div>
     </main>
   );
 }

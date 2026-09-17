@@ -1,18 +1,20 @@
 import {
-  useCallback,
   useEffect,
   useState,
-  type CSSProperties,
+  type KeyboardEvent,
 } from "react";
 import {
-  ArrowLeft,
-  Calendar,
-  FileText,
-  History,
-  MessageSquare,
-  GitBranch,
-  CheckCircle2,
-  Edit,
+  ArrowLeft as ArrowLeftIcon,
+  ArrowRight as ArrowRightIcon,
+  Calendar as CalendarIcon,
+  CheckCircle2 as CheckCircle2Icon,
+  Edit as EditIcon,
+  FileText as FileTextIcon,
+  GitBranch as GitBranchIcon,
+  History as HistoryIcon,
+  MessageSquare as MessageSquareIcon,
+  Scale as ScaleIcon,
+  ClipboardCheck as ClipboardCheckIcon,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
@@ -52,18 +54,89 @@ export default function DecisionDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadDecision = useCallback(async () => {
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDecision = async () => {
+      if (!id) {
+        if (isMounted) {
+          setError("Invalid decision ID.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        if (isMounted) {
+          setError("");
+          setIsLoading(true);
+        }
+
+        const response = await api.get<Decision>(
+          `/decisions/${id}`
+        );
+
+        if (isMounted) {
+          setDecision(response.data);
+        }
+      } catch (err: unknown) {
+        if (!isMounted) {
+          return;
+        }
+
+        if (isAxiosError(err)) {
+          const status = err.response?.status;
+
+          if (status === 401) {
+            setError(
+              "Your session has expired. Please sign in again."
+            );
+          } else if (status === 403) {
+            setError(
+              "You do not have permission to view this decision."
+            );
+          } else if (status === 404) {
+            setError("Decision not found.");
+          } else if (status && status >= 500) {
+            setError(
+              "Server error. Please try again later."
+            );
+          } else if (err.request) {
+            setError(
+              "Unable to connect to the server. Make sure FastAPI is running."
+            );
+          } else {
+            setError("Unable to load the decision.");
+          }
+        } else {
+          setError("Unable to load the decision.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadDecision();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const retryLoad = async () => {
     if (!id) {
       setError("Invalid decision ID.");
-      setIsLoading(false);
       return;
     }
 
     try {
       setError("");
+      setIsLoading(true);
 
       const response = await api.get<Decision>(
-        `/decisions/${id}`,
+        `/decisions/${id}`
       );
 
       setDecision(response.data);
@@ -73,21 +146,21 @@ export default function DecisionDetails() {
 
         if (status === 401) {
           setError(
-            "Your session has expired. Please sign in again.",
+            "Your session has expired. Please sign in again."
           );
         } else if (status === 403) {
           setError(
-            "You do not have permission to view this decision.",
+            "You do not have permission to view this decision."
           );
         } else if (status === 404) {
           setError("Decision not found.");
         } else if (status && status >= 500) {
           setError(
-            "Server error. Please try again later.",
+            "Server error. Please try again later."
           );
         } else if (err.request) {
           setError(
-            "Unable to connect to the server. Make sure FastAPI is running.",
+            "Unable to connect to the server. Make sure FastAPI is running."
           );
         } else {
           setError("Unable to load the decision.");
@@ -98,105 +171,102 @@ export default function DecisionDetails() {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
-
-  useEffect(() => {
-    // Intentionally load decision data when the URL ID changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadDecision();
-  }, [loadDecision]);
-
-  const backButtonStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    padding: "10px 18px",
-    minWidth: "165px",
-    minHeight: "42px",
-    border: "1px solid #cbd5e1",
-    borderRadius: "8px",
-    backgroundColor: "#ffffff",
-    color: "#1e293b",
-    fontWeight: 600,
-    fontSize: "14px",
-    cursor: "pointer",
   };
 
-  const editButtonStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    padding: "10px 20px",
-    minWidth: "165px",
-    minHeight: "42px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontWeight: 600,
-    fontSize: "14px",
-    cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
+  const handleWorkspaceKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    path: string
+  ) => {
+    if (
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+      event.preventDefault();
+      navigate(path);
+    }
   };
 
-  const retryButtonStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    padding: "10px 20px",
-    minWidth: "120px",
-    minHeight: "42px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontWeight: 600,
-    fontSize: "14px",
-    cursor: "pointer",
-  };
+  const decisionTabs = [
+    {
+      label: "Overview",
+      icon: FileTextIcon,
+      path: `/decisions/${id}`,
+    },
+    {
+      label: "Alternatives",
+      icon: ScaleIcon,
+      path: `/decisions/${id}/alternatives`,
+    },
+    {
+      label: "Discussion",
+      icon: MessageSquareIcon,
+      path: `/decisions/${id}/discussion`,
+    },
+    {
+      label: "Approval",
+      icon: ClipboardCheckIcon,
+      path: `/decisions/${id}/approval`,
+    },
+    {
+      label: "History",
+      icon: HistoryIcon,
+      path: `/decisions/${id}/history`,
+    },
+  ];
 
   if (isLoading) {
     return (
-      <main className="decision-loading">
-        <div className="loading-spinner" />
-        <p>Loading decision...</p>
+      <main className="decision-details-loading-page">
+        <div className="decision-details-loading-card">
+          <div className="loading-spinner" />
+          <p>Loading decision...</p>
+        </div>
       </main>
     );
   }
 
   if (error) {
     return (
-      <main className="decision-page">
-        <section className="decision-error" role="alert">
-          <h2>Unable to load decision</h2>
+      <main className="decision-details-page">
+        <section
+          className="decision-details-error-card"
+          role="alert"
+        >
+          <div className="decision-details-error-icon">
+            <FileTextIcon size={24} />
+          </div>
 
-          <p>{error}</p>
+          <div className="decision-details-error-content">
+            <p className="decision-details-eyebrow">
+              Decision Details
+            </p>
 
-          <div className="form-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              style={backButtonStyle}
-              onClick={() => navigate("/decisions")}
-            >
-              <ArrowLeft size={18} />
-              Back to Decisions
-            </button>
+            <h1>Unable to load decision</h1>
 
-            <button
-              type="button"
-              className="primary-button"
-              style={retryButtonStyle}
-              onClick={() => {
-                setIsLoading(true);
-                void loadDecision();
-              }}
-            >
-              Try Again
-            </button>
+            <p>{error}</p>
+
+            <div className="decision-details-error-actions">
+              <button
+                type="button"
+                className="decision-details-secondary-button"
+                onClick={() =>
+                  navigate("/decisions")
+                }
+              >
+                <ArrowLeftIcon size={18} />
+                Back to Decisions
+              </button>
+
+              <button
+                type="button"
+                className="decision-details-primary-button"
+                onClick={() => {
+                  void retryLoad();
+                }}
+              >
+                Try Again
+              </button>
+            </div>
           </div>
         </section>
       </main>
@@ -207,282 +277,300 @@ export default function DecisionDetails() {
     return null;
   }
 
+  const statusClass = getStatusClass(
+    decision.status
+  );
+
+  const workspaceItems = [
+    {
+      title: "Alternatives",
+      description:
+        "Compare possible solutions for this decision.",
+      action: "Open Alternative Analysis",
+      icon: ScaleIcon,
+      path: `/decisions/${decision.id}/alternatives`,
+      className: "alternatives",
+    },
+    {
+      title: "Discussion",
+      description:
+        "Review comments and decision discussions.",
+      action: "Open Discussion",
+      icon: MessageSquareIcon,
+      path: `/decisions/${decision.id}/discussion`,
+      className: "discussion",
+    },
+    {
+      title: "Approval",
+      description:
+        "Track the decision approval workflow.",
+      action: "Open Approval Workflow",
+      icon: ClipboardCheckIcon,
+      path: `/decisions/${decision.id}/approval`,
+      className: "approval",
+    },
+    {
+      title: "History",
+      description:
+        "Review versions and the decision timeline.",
+      action: "Open Version History",
+      icon: HistoryIcon,
+      path: `/decisions/${decision.id}/history`,
+      className: "history",
+    },
+  ];
+
   return (
     <main className="decision-details-page">
-      <header className="page-header">
-        <div>
-          <p className="page-eyebrow">
-            Expert Decision Replay Platform
-          </p>
+      <div className="decision-details-container">
 
-          <h1>{decision.title}</h1>
+        {/* Header */}
+        <header className="decision-details-header">
+          <div className="decision-details-heading">
+            <div className="decision-details-title-icon">
+              <FileTextIcon size={24} />
+            </div>
 
-          <p>Decision #{decision.id}</p>
-        </div>
+            <div className="decision-details-title-content">
+              <p className="decision-details-eyebrow">
+                Expert Decision Replay Platform
+              </p>
 
-        <div className="form-actions">
-          <button
-            type="button"
-            className="secondary-button"
-            style={backButtonStyle}
-            onClick={() => navigate("/decisions")}
-          >
-            <ArrowLeft size={18} />
-            Back to Decisions
-          </button>
+              <div className="decision-details-title-row">
+                <h1>{decision.title}</h1>
 
-          <button
-            type="button"
-            className="primary-button"
-            style={editButtonStyle}
-            onClick={() =>
-              navigate(`/decisions/${decision.id}/edit`)
-            }
-          >
-            <Edit size={18} />
-            Edit Decision
-          </button>
-        </div>
-      </header>
+                <span
+                  className={`decision-details-status ${statusClass}`}
+                >
+                  <CheckCircle2Icon size={15} />
+                  {decision.status}
+                </span>
+              </div>
 
-      <section className="decision-details-card">
-        <div className="details-card-header">
-          <div className="details-icon">
-            <FileText size={24} />
+              <p className="decision-details-reference">
+                Decision #{decision.id}
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h2>Decision Information</h2>
-
-            <p>
-              Review the information and current status of
-              this decision.
-            </p>
-          </div>
-        </div>
-
-        <div className="decision-info-grid">
-          <div className="info-item">
-            <span className="info-label">
-              Decision ID
-            </span>
-
-            <strong>#{decision.id}</strong>
-          </div>
-
-          <div className="info-item">
-            <span className="info-label">
-              Category
-            </span>
-
-            <strong>{decision.category}</strong>
-          </div>
-
-          <div className="info-item">
-            <span className="info-label">
-              Status
-            </span>
-
-            <span
-              className={`status-badge ${getStatusClass(
-                decision.status,
-              )}`}
+          <div className="decision-details-header-actions">
+            <button
+              type="button"
+              className="decision-details-secondary-button"
+              onClick={() =>
+                navigate("/decisions")
+              }
             >
-              {decision.status}
-            </span>
-          </div>
+              <ArrowLeftIcon size={18} />
+              Back to Decisions
+            </button>
 
-          <div className="info-item">
-            <span className="info-label">
-              Created By
-            </span>
-
-            <strong>
-              User #{decision.created_by}
-            </strong>
-          </div>
-
-          <div className="info-item">
-            <span className="info-label">
-              Created
-            </span>
-
-            <strong>
-              <Calendar size={16} />
-              {formatDate(decision.created_at)}
-            </strong>
-          </div>
-
-          <div className="info-item">
-            <span className="info-label">
-              Last Updated
-            </span>
-
-            <strong>
-              <Calendar size={16} />
-              {formatDate(decision.updated_at)}
-            </strong>
-          </div>
-        </div>
-
-        <div className="details-section">
-          <h3>Problem Statement</h3>
-
-          <div className="problem-statement">
-            {decision.problem_statement}
-          </div>
-        </div>
-      </section>
-
-      <section className="decision-details-card">
-        <div className="details-card-header">
-          <div className="details-icon">
-            <GitBranch size={22} />
-          </div>
-
-          <div>
-            <h2>Decision Workspace</h2>
-
-            <p>
-              Explore the complete decision lifecycle.
-            </p>
-          </div>
-        </div>
-
-        <div className="workspace-grid">
-          <div
-            className="workspace-item"
-            onClick={() =>
-              navigate(
-                `/decisions/${decision.id}/alternatives`,
-              )
-            }
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" ||
-                event.key === " "
-              ) {
+            <button
+              type="button"
+              className="decision-details-primary-button"
+              onClick={() =>
                 navigate(
-                  `/decisions/${decision.id}/alternatives`,
-                );
+                  `/decisions/${decision.id}/edit`
+                )
               }
-            }}
-          >
-            <FileText size={22} />
+            >
+              <EditIcon size={18} />
+              Edit Decision
+            </button>
+          </div>
+        </header>
 
-            <h3>Alternatives</h3>
+        {/* Decision Navigation */}
+        <nav
+          className="decision-context-nav"
+          aria-label="Decision navigation"
+        >
+          {decisionTabs.map((tab) => {
+            const Icon = tab.icon;
 
-            <p>
-              Compare possible solutions for this decision.
-            </p>
+            const isActive =
+              tab.label === "Overview";
 
-            <span>
-              Open Alternative Analysis →
-            </span>
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                className={`decision-context-tab ${
+                  isActive ? "active" : ""
+                }`}
+                onClick={() => navigate(tab.path)}
+              >
+                <Icon size={17} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Decision Information */}
+        <section className="decision-details-card">
+          <div className="decision-details-card-header">
+            <div className="decision-details-card-icon">
+              <FileTextIcon size={21} />
+            </div>
+
+            <div>
+              <h2>Decision Information</h2>
+
+              <p>
+                Review the information and current
+                status of this decision.
+              </p>
+            </div>
           </div>
 
-          <div
-            className="workspace-item"
-            onClick={() =>
-              navigate(
-                `/decisions/${decision.id}/discussion`,
-              )
-            }
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" ||
-                event.key === " "
-              ) {
-                navigate(
-                  `/decisions/${decision.id}/discussion`,
-                );
-              }
-            }}
-          >
-            <MessageSquare size={22} />
+          <div className="decision-details-info-grid">
+            <div className="decision-details-info-item">
+              <span className="decision-details-info-label">
+                Decision ID
+              </span>
 
-            <h3>Discussion</h3>
+              <strong className="decision-details-id-value">
+                #{decision.id}
+              </strong>
+            </div>
 
-            <p>
-              Review comments and decision discussions.
-            </p>
+            <div className="decision-details-info-item">
+              <span className="decision-details-info-label">
+                Category
+              </span>
 
-            <span>
-              Open Discussion →
-            </span>
+              <strong className="decision-details-category-value">
+                {decision.category}
+              </strong>
+            </div>
+
+            <div className="decision-details-info-item">
+              <span className="decision-details-info-label">
+                Status
+              </span>
+
+              <span
+                className={`decision-details-status ${statusClass}`}
+              >
+                <CheckCircle2Icon size={15} />
+                {decision.status}
+              </span>
+            </div>
+
+            <div className="decision-details-info-item">
+              <span className="decision-details-info-label">
+                Created By
+              </span>
+
+              <strong>
+                User #{decision.created_by}
+              </strong>
+            </div>
+
+            <div className="decision-details-info-item">
+              <span className="decision-details-info-label">
+                Created
+              </span>
+
+              <strong className="decision-details-date-value">
+                <CalendarIcon size={16} />
+                {formatDate(decision.created_at)}
+              </strong>
+            </div>
+
+            <div className="decision-details-info-item">
+              <span className="decision-details-info-label">
+                Last Updated
+              </span>
+
+              <strong className="decision-details-date-value">
+                <CalendarIcon size={16} />
+                {formatDate(decision.updated_at)}
+              </strong>
+            </div>
           </div>
 
-          <div
-            className="workspace-item"
-            onClick={() =>
-              navigate(
-                `/decisions/${decision.id}/approval`,
-              )
-            }
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" ||
-                event.key === " "
-              ) {
-                navigate(
-                  `/decisions/${decision.id}/approval`,
-                );
-              }
-            }}
-          >
-            <CheckCircle2 size={22} />
+          {/* Problem Statement */}
+          <div className="decision-details-problem-section">
+            <div className="decision-details-section-heading">
+              <div className="decision-details-section-icon">
+                <FileTextIcon size={17} />
+              </div>
 
-            <h3>Approval</h3>
+              <h3>Problem Statement</h3>
+            </div>
 
-            <p>
-              Track the decision approval workflow.
-            </p>
+            <div className="decision-details-problem">
+              <p>{decision.problem_statement}</p>
+            </div>
+          </div>
+        </section>
 
-            <span>
-              Open Approval Workflow →
-            </span>
+        {/* Decision Workspace */}
+        <section className="decision-details-card">
+          <div className="decision-details-card-header">
+            <div className="decision-details-card-icon workspace">
+              <GitBranchIcon size={21} />
+            </div>
+
+            <div>
+              <h2>Decision Workspace</h2>
+
+              <p>
+                Explore the complete decision
+                lifecycle.
+              </p>
+            </div>
           </div>
 
-          <div
-            className="workspace-item"
-            onClick={() =>
-              navigate(
-                `/decisions/${decision.id}/history`,
-              )
-            }
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" ||
-                event.key === " "
-              ) {
-                navigate(
-                  `/decisions/${decision.id}/history`,
-                );
-              }
-            }}
-          >
-            <History size={22} />
+          <div className="decision-details-workspace-grid">
+            {workspaceItems.map((item) => {
+              const Icon = item.icon;
 
-            <h3>History</h3>
+              return (
+                <div
+                  key={item.title}
+                  className={`decision-details-workspace-card ${item.className}`}
+                  onClick={() =>
+                    navigate(item.path)
+                  }
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) =>
+                    handleWorkspaceKeyDown(
+                      event,
+                      item.path
+                    )
+                  }
+                >
+                  <div className="decision-details-workspace-top">
+                    <div className="decision-details-workspace-icon">
+                      <Icon size={21} />
+                    </div>
 
-            <p>
-              Review versions and the decision timeline.
-            </p>
+                    <ArrowRightIcon
+                      className="decision-details-workspace-arrow"
+                      size={19}
+                    />
+                  </div>
 
-            <span>
-              Open Version History →
-            </span>
+                  <div className="decision-details-workspace-content">
+                    <h3>{item.title}</h3>
+
+                    <p>{item.description}</p>
+
+                    <span>
+                      {item.action}
+                      <ArrowRightIcon size={15} />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

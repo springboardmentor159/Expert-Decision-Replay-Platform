@@ -11,6 +11,12 @@ import {
   LogIn,
   LogOut,
   XCircle,
+  Trash2,
+  Edit3,
+  Plus,
+  LockKeyhole,
+  UserRound,
+  Database,
 } from "lucide-react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -86,38 +92,42 @@ function getActionClass(action: string) {
   const value = action.toLowerCase();
 
   if (value.includes("create")) {
-    return "audit-created";
+    return "audit-action-create";
   }
 
   if (
     value.includes("update") ||
     value.includes("edit")
   ) {
-    return "audit-updated";
+    return "audit-action-update";
   }
 
   if (
     value.includes("approve") ||
     value.includes("complete")
   ) {
-    return "audit-approved";
+    return "audit-action-approve";
   }
 
   if (
     value.includes("reject") ||
     value.includes("delete")
   ) {
-    return "audit-rejected";
+    return "audit-action-delete";
   }
 
-  return "audit-default";
+  if (value.includes("status")) {
+    return "audit-action-status";
+  }
+
+  return "audit-action-default";
 }
 
 function getActionIcon(action: string) {
   const value = action.toLowerCase();
 
   if (value.includes("create")) {
-    return <FileText size={18} />;
+    return <Plus size={18} />;
   }
 
   if (
@@ -131,14 +141,18 @@ function getActionIcon(action: string) {
     value.includes("reject") ||
     value.includes("delete")
   ) {
-    return <XCircle size={18} />;
+    return value.includes("delete") ? (
+      <Trash2 size={18} />
+    ) : (
+      <XCircle size={18} />
+    );
   }
 
   if (
     value.includes("update") ||
     value.includes("edit")
   ) {
-    return <RefreshCw size={18} />;
+    return <Edit3 size={18} />;
   }
 
   if (value.includes("login")) {
@@ -149,7 +163,11 @@ function getActionIcon(action: string) {
     return <LogOut size={18} />;
   }
 
-  return <Activity size={18} />;
+  if (value.includes("status")) {
+    return <Activity size={18} />;
+  }
+
+  return <FileText size={18} />;
 }
 
 function getErrorMessage(error: unknown) {
@@ -178,6 +196,32 @@ function getErrorMessage(error: unknown) {
   }
 
   return "Unable to load audit activity.";
+}
+
+function getTabLabel(tab: AdminTab) {
+  if (tab === "audit") {
+    return "Audit Logs";
+  }
+
+  if (tab === "security") {
+    return "Security Logs";
+  }
+
+  return "Access Logs";
+}
+
+function getSecurityIcon(eventType: string) {
+  const value = eventType.toLowerCase();
+
+  if (value.includes("login")) {
+    return <LogIn size={18} />;
+  }
+
+  if (value.includes("logout")) {
+    return <LogOut size={18} />;
+  }
+
+  return <ShieldAlert size={18} />;
 }
 
 export default function AuditActivity() {
@@ -282,420 +326,785 @@ export default function AuditActivity() {
   };
 
   return (
-    <main className="dashboard-page">
-      <header className="dashboard-header">
-        <div>
-          <p className="dashboard-eyebrow">
-            Expert Decision Replay Platform
-          </p>
+    <main className="audit-page">
+      <div className="audit-page-container">
 
-          <h1>Audit & Activity</h1>
+        {/* PAGE HEADER */}
 
-          <p className="dashboard-subtitle">
-            Review platform activity, audit events,
-            security events, and access logs.
-          </p>
-        </div>
+        <header className="audit-page-header">
+          <div className="audit-heading-area">
 
-        <div className="dashboard-user-actions">
-          <div className="dashboard-user">
-            <div className="dashboard-avatar">
+            <div className="audit-heading-icon">
+              <Activity size={25} />
+            </div>
+
+            <div>
+              <p className="audit-eyebrow">
+                Expert Decision Replay Platform
+              </p>
+
+              <h1>Audit &amp; Activity</h1>
+
+              <p className="audit-subtitle">
+                Review platform activity, audit events,
+                security events, and access logs.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="audit-user-panel">
+            <div className="audit-user-avatar">
               {user?.full_name
                 ?.charAt(0)
                 .toUpperCase()}
             </div>
 
-            <div>
-              <strong>{user?.full_name}</strong>
-              <span>{user?.role}</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <section className="dashboard-role-banner">
-        <div className="role-icon">
-          {isAdministrator ? (
-            <ShieldCheck size={24} />
-          ) : (
-            <Activity size={24} />
-          )}
-        </div>
-
-        <div>
-          <strong>
-            {isAdministrator
-              ? "Administrator Audit Center"
-              : "Activity Audit Trail"}
-          </strong>
-
-          <p>
-            {isAdministrator
-              ? "Monitor audit, security, and access events across the platform."
-              : "Track actions performed across your decision workspace."}
-          </p>
-        </div>
-      </section>
-
-      {isAdministrator ? (
-        <section className="dashboard-section">
-          <div className="section-heading">
-            <div>
-              <h2>System Logs</h2>
-
-              <p>
-                Administrator-only audit, security,
-                and access monitoring.
-              </p>
-            </div>
-
-            <button
-              className="secondary-button"
-              onClick={handleRefresh}
-              disabled={isLoading}
-            >
-              <RefreshCw size={17} />
-              Refresh
-            </button>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              marginBottom: "20px",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              className={
-                activeTab === "audit"
-                  ? "primary-button"
-                  : "secondary-button"
-              }
-              onClick={() => setActiveTab("audit")}
-            >
-              <ShieldCheck size={17} />
-              Audit Logs
-            </button>
-
-            <button
-              className={
-                activeTab === "security"
-                  ? "primary-button"
-                  : "secondary-button"
-              }
-              onClick={() =>
-                setActiveTab("security")
-              }
-            >
-              <ShieldAlert size={17} />
-              Security Logs
-            </button>
-
-            <button
-              className={
-                activeTab === "access"
-                  ? "primary-button"
-                  : "secondary-button"
-              }
-              onClick={() => setActiveTab("access")}
-            >
-              <Activity size={17} />
-              Access Logs
-            </button>
-          </div>
-
-          {isLoading ? (
-            <div className="empty-state">
-              <Clock3 size={32} />
-              <p>Loading logs...</p>
-            </div>
-          ) : error ? (
-            <div className="dashboard-error">
-              <XCircle size={42} />
-
-              <h2>Unable to load logs</h2>
-
-              <p>{error}</p>
-
-              <button onClick={handleRefresh}>
-                Try Again
-              </button>
-            </div>
-          ) : activeTab === "audit" ? (
-            auditLogs.length === 0 ? (
-              <div className="empty-state">
-                <ShieldCheck size={40} />
-                <p>No audit logs recorded yet.</p>
-              </div>
-            ) : (
-              <div className="audit-list">
-                {auditLogs.map((log) => (
-                  <article
-                    className="audit-card"
-                    key={log.id}
-                  >
-                    <div
-                      className={`audit-icon ${getActionClass(
-                        log.action,
-                      )}`}
-                    >
-                      {getActionIcon(log.action)}
-                    </div>
-
-                    <div className="audit-content">
-                      <div className="audit-top">
-                        <strong>{log.action}</strong>
-
-                        <span className="audit-time">
-                          {formatDateTime(
-                            log.created_at,
-                          )}
-                        </span>
-                      </div>
-
-                      <p>{log.description}</p>
-
-                      <div className="audit-meta">
-                        <span>
-                          User: {log.user_id ?? "—"}
-                        </span>
-
-                        <span>
-                          Entity:{" "}
-                          {log.entity_type || "—"}
-                        </span>
-
-                        <span>
-                          ID: {log.entity_id ?? "—"}
-                        </span>
-
-                        <span>
-                          IP: {log.ip_address ?? "—"}
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )
-          ) : activeTab === "security" ? (
-            securityLogs.length === 0 ? (
-              <div className="empty-state">
-                <ShieldAlert size={40} />
-                <p>
-                  No security logs recorded yet.
-                </p>
-              </div>
-            ) : (
-              <div className="audit-list">
-                {securityLogs.map((log) => (
-                  <article
-                    className="audit-card"
-                    key={log.id}
-                  >
-                    <div className="audit-icon audit-default">
-                      {log.event_type
-                        .toLowerCase()
-                        .includes("login") ? (
-                        <LogIn size={18} />
-                      ) : (
-                        <ShieldAlert size={18} />
-                      )}
-                    </div>
-
-                    <div className="audit-content">
-                      <div className="audit-top">
-                        <strong>
-                          {log.event_type}
-                        </strong>
-
-                        <span className="audit-time">
-                          {formatDateTime(
-                            log.created_at,
-                          )}
-                        </span>
-                      </div>
-
-                      <p>{log.description}</p>
-
-                      <div className="audit-meta">
-                        <span>
-                          User: {log.user_id ?? "—"}
-                        </span>
-
-                        <span>
-                          IP: {log.ip_address ?? "—"}
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )
-          ) : accessLogs.length === 0 ? (
-            <div className="empty-state">
-              <Activity size={40} />
-              <p>No access logs recorded yet.</p>
-            </div>
-          ) : (
-            <div className="audit-list">
-              {accessLogs.map((log) => (
-                <article
-                  className="audit-card"
-                  key={log.id}
-                >
-                  <div className="audit-icon audit-default">
-                    <Activity size={18} />
-                  </div>
-
-                  <div className="audit-content">
-                    <div className="audit-top">
-                      <strong>{log.action}</strong>
-
-                      <span className="audit-time">
-                        {formatDateTime(
-                          log.created_at,
-                        )}
-                      </span>
-                    </div>
-
-                    <p>
-                      {log.resource_type} resource
-                      accessed.
-                    </p>
-
-                    <div className="audit-meta">
-                      <span>
-                        User: {log.user_id ?? "—"}
-                      </span>
-
-                      <span>
-                        Resource:{" "}
-                        {log.resource_type || "—"}
-                      </span>
-
-                      <span>
-                        ID: {log.resource_id ?? "—"}
-                      </span>
-
-                      <span>
-                        IP: {log.ip_address ?? "—"}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      ) : (
-        <section className="dashboard-section">
-          <div className="section-heading">
-            <div>
-              <h2>Activity Log</h2>
-
-              <p>
-                Recent decision, alternative,
-                discussion, and approval activities.
-              </p>
-            </div>
-
-            <button
-              className="secondary-button"
-              onClick={handleRefresh}
-              disabled={isLoading}
-            >
-              <RefreshCw size={17} />
-              Refresh
-            </button>
-          </div>
-
-          {isLoading ? (
-            <div className="empty-state">
-              <Clock3 size={32} />
-              <p>Loading activity...</p>
-            </div>
-          ) : error ? (
-            <div className="dashboard-error">
-              <XCircle size={42} />
-
-              <h2>Unable to load activity</h2>
-
-              <p>{error}</p>
-
-              <button onClick={handleRefresh}>
-                Try Again
-              </button>
-            </div>
-          ) : activities.length === 0 ? (
-            <div className="empty-state">
-              <Activity size={40} />
-
-              <p>No activity recorded yet.</p>
+            <div className="audit-user-info">
+              <strong>
+                {user?.full_name}
+              </strong>
 
               <span>
-                Platform actions will appear here.
+                {user?.role}
               </span>
             </div>
-          ) : (
-            <div className="audit-list">
-              {activities.map((activity) => (
-                <article
-                  className="audit-card"
-                  key={activity.id}
-                >
-                  <div
-                    className={`audit-icon ${getActionClass(
-                      activity.action,
-                    )}`}
-                  >
-                    {getActionIcon(activity.action)}
-                  </div>
+          </div>
+        </header>
 
-                  <div className="audit-content">
-                    <div className="audit-top">
-                      <strong>
-                        {activity.action}
-                      </strong>
+        {/* ADMIN / USER CONTEXT */}
 
-                      <span className="audit-time">
-                        {formatDateTime(
-                          activity.created_at,
-                        )}
-                      </span>
-                    </div>
+        <section className="audit-context-card">
 
-                    <p>{activity.description}</p>
+          <div className="audit-context-icon">
+            {isAdministrator ? (
+              <ShieldCheck size={24} />
+            ) : (
+              <Activity size={24} />
+            )}
+          </div>
 
-                    <div className="audit-meta">
-                      <span>
-                        Entity:{" "}
-                        {activity.entity_type || "—"}
-                      </span>
+          <div className="audit-context-content">
+            <div className="audit-context-heading">
+              <span className="audit-context-label">
+                {isAdministrator
+                  ? "ADMINISTRATOR AUDIT CENTER"
+                  : "ACTIVITY AUDIT TRAIL"}
+              </span>
 
-                      <span>
-                        ID:{" "}
-                        {activity.entity_id ?? "—"}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              ))}
+              <span className="audit-live-indicator">
+                <span />
+                Live Platform Records
+              </span>
             </div>
-          )}
-        </section>
-      )}
 
-      <div className="audit-back-row">
-        <button
-          className="secondary-button"
-          onClick={() => navigate("/dashboard")}
-        >
-          <ArrowLeft size={17} />
-          Back to Dashboard
-        </button>
+            <h2>
+              {isAdministrator
+                ? "System Governance & Monitoring"
+                : "Your Workspace Activity"}
+            </h2>
+
+            <p>
+              {isAdministrator
+                ? "Monitor audit, security, and access events across the platform."
+                : "Track actions performed across your decision workspace."}
+            </p>
+          </div>
+
+        </section>
+
+        {/* ADMINISTRATOR LOGS */}
+
+        {isAdministrator ? (
+          <section className="audit-system-section">
+
+            <div className="audit-section-header">
+
+              <div>
+                <div className="audit-section-title-row">
+                  <div className="audit-section-title-icon">
+                    <Database size={19} />
+                  </div>
+
+                  <div>
+                    <h2>
+                      System Logs
+                    </h2>
+
+                    <p>
+                      Administrator-only audit,
+                      security, and access monitoring.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="audit-refresh-button"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw
+                  size={17}
+                  className={
+                    isLoading
+                      ? "audit-spin"
+                      : ""
+                  }
+                />
+
+                Refresh
+              </button>
+
+            </div>
+
+            {/* TABS */}
+
+            <div className="audit-tabs">
+
+              <button
+                type="button"
+                className={`audit-tab ${
+                  activeTab === "audit"
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setActiveTab("audit")
+                }
+              >
+                <ShieldCheck size={17} />
+
+                <span>
+                  Audit Logs
+                </span>
+
+                {activeTab === "audit" && (
+                  <span className="audit-tab-active-dot" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={`audit-tab ${
+                  activeTab === "security"
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setActiveTab("security")
+                }
+              >
+                <ShieldAlert size={17} />
+
+                <span>
+                  Security Logs
+                </span>
+
+                {activeTab === "security" && (
+                  <span className="audit-tab-active-dot" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={`audit-tab ${
+                  activeTab === "access"
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  setActiveTab("access")
+                }
+              >
+                <LockKeyhole size={17} />
+
+                <span>
+                  Access Logs
+                </span>
+
+                {activeTab === "access" && (
+                  <span className="audit-tab-active-dot" />
+                )}
+              </button>
+
+            </div>
+
+            {/* TAB CONTENT */}
+
+            <div className="audit-log-surface">
+
+              <div className="audit-log-surface-header">
+                <div>
+                  <span className="audit-surface-eyebrow">
+                    SYSTEM MONITORING
+                  </span>
+
+                  <h3>
+                    {getTabLabel(activeTab)}
+                  </h3>
+                </div>
+
+                <div className="audit-record-status">
+                  <span />
+                  Monitoring
+                </div>
+              </div>
+
+              {isLoading ? (
+                <div className="audit-loading-state">
+                  <div className="audit-loading-icon">
+                    <Clock3 size={27} />
+                  </div>
+
+                  <h3>
+                    Loading logs
+                  </h3>
+
+                  <p>
+                    Retrieving the latest
+                    platform records...
+                  </p>
+                </div>
+              ) : error ? (
+                <div className="audit-error-state">
+                  <div className="audit-error-icon">
+                    <XCircle size={26} />
+                  </div>
+
+                  <h3>
+                    Unable to load logs
+                  </h3>
+
+                  <p>{error}</p>
+
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                  >
+                    <RefreshCw size={16} />
+                    Try Again
+                  </button>
+                </div>
+              ) : activeTab === "audit" ? (
+                auditLogs.length === 0 ? (
+                  <div className="audit-empty-state">
+                    <div className="audit-empty-icon">
+                      <ShieldCheck size={28} />
+                    </div>
+
+                    <h3>
+                      No audit events
+                    </h3>
+
+                    <p>
+                      Audit events will appear
+                      here when platform actions
+                      are recorded.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="audit-timeline">
+
+                    {auditLogs.map((log) => (
+                      <article
+                        className="audit-event"
+                        key={log.id}
+                      >
+                        <div className="audit-event-rail">
+                          <div
+                            className={`audit-event-icon ${getActionClass(
+                              log.action,
+                            )}`}
+                          >
+                            {getActionIcon(
+                              log.action,
+                            )}
+                          </div>
+
+                          <span className="audit-event-line" />
+                        </div>
+
+                        <div className="audit-event-card">
+
+                          <div className="audit-event-header">
+
+                            <div className="audit-event-title">
+                              <span
+                                className={`audit-action-badge ${getActionClass(
+                                  log.action,
+                                )}`}
+                              >
+                                {log.action}
+                              </span>
+
+                              <span className="audit-event-time">
+                                <Clock3 size={14} />
+                                {formatDateTime(
+                                  log.created_at,
+                                )}
+                              </span>
+                            </div>
+
+                            <span className="audit-event-number">
+                              #{log.id}
+                            </span>
+
+                          </div>
+
+                          <p className="audit-event-description">
+                            {log.description}
+                          </p>
+
+                          <div className="audit-event-meta">
+
+                            <span className="audit-meta-item">
+                              <UserRound size={14} />
+                              User{" "}
+                              <strong>
+                                {log.user_id ?? "—"}
+                              </strong>
+                            </span>
+
+                            <span className="audit-meta-item">
+                              <Database size={14} />
+                              Entity{" "}
+                              <strong>
+                                {log.entity_type ||
+                                  "—"}
+                              </strong>
+                            </span>
+
+                            <span className="audit-meta-item">
+                              ID{" "}
+                              <strong>
+                                {log.entity_id ??
+                                  "—"}
+                              </strong>
+                            </span>
+
+                            <span className="audit-meta-item">
+                              IP{" "}
+                              <strong>
+                                {log.ip_address ??
+                                  "—"}
+                              </strong>
+                            </span>
+
+                          </div>
+
+                        </div>
+                      </article>
+                    ))}
+
+                  </div>
+                )
+              ) : activeTab === "security" ? (
+                securityLogs.length === 0 ? (
+                  <div className="audit-empty-state">
+                    <div className="audit-empty-icon security">
+                      <ShieldAlert size={28} />
+                    </div>
+
+                    <h3>
+                      No security events
+                    </h3>
+
+                    <p>
+                      Security events will appear
+                      here when they are recorded.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="audit-timeline">
+
+                    {securityLogs.map((log) => (
+                      <article
+                        className="audit-event"
+                        key={log.id}
+                      >
+                        <div className="audit-event-rail">
+                          <div className="audit-event-icon audit-action-security">
+                            {getSecurityIcon(
+                              log.event_type,
+                            )}
+                          </div>
+
+                          <span className="audit-event-line" />
+                        </div>
+
+                        <div className="audit-event-card">
+
+                          <div className="audit-event-header">
+
+                            <div className="audit-event-title">
+                              <span className="audit-action-badge audit-action-security">
+                                {log.event_type}
+                              </span>
+
+                              <span className="audit-event-time">
+                                <Clock3 size={14} />
+                                {formatDateTime(
+                                  log.created_at,
+                                )}
+                              </span>
+                            </div>
+
+                            <span className="audit-event-number">
+                              #{log.id}
+                            </span>
+
+                          </div>
+
+                          <p className="audit-event-description">
+                            {log.description}
+                          </p>
+
+                          <div className="audit-event-meta">
+
+                            <span className="audit-meta-item">
+                              <UserRound size={14} />
+                              User{" "}
+                              <strong>
+                                {log.user_id ?? "—"}
+                              </strong>
+                            </span>
+
+                            <span className="audit-meta-item">
+                              IP{" "}
+                              <strong>
+                                {log.ip_address ??
+                                  "—"}
+                              </strong>
+                            </span>
+
+                          </div>
+
+                        </div>
+                      </article>
+                    ))}
+
+                  </div>
+                )
+              ) : accessLogs.length === 0 ? (
+                <div className="audit-empty-state">
+                  <div className="audit-empty-icon access">
+                    <LockKeyhole size={28} />
+                  </div>
+
+                  <h3>
+                    No access events
+                  </h3>
+
+                  <p>
+                    Resource access events will
+                    appear here when recorded.
+                  </p>
+                </div>
+              ) : (
+                <div className="audit-timeline">
+
+                  {accessLogs.map((log) => (
+                    <article
+                      className="audit-event"
+                      key={log.id}
+                    >
+                      <div className="audit-event-rail">
+                        <div className="audit-event-icon audit-action-access">
+                          <LockKeyhole size={18} />
+                        </div>
+
+                        <span className="audit-event-line" />
+                      </div>
+
+                      <div className="audit-event-card">
+
+                        <div className="audit-event-header">
+
+                          <div className="audit-event-title">
+                            <span className="audit-action-badge audit-action-access">
+                              {log.action}
+                            </span>
+
+                            <span className="audit-event-time">
+                              <Clock3 size={14} />
+                              {formatDateTime(
+                                log.created_at,
+                              )}
+                            </span>
+                          </div>
+
+                          <span className="audit-event-number">
+                            #{log.id}
+                          </span>
+
+                        </div>
+
+                        <p className="audit-event-description">
+                          {log.resource_type} resource
+                          accessed.
+                        </p>
+
+                        <div className="audit-event-meta">
+
+                          <span className="audit-meta-item">
+                            <UserRound size={14} />
+                            User{" "}
+                            <strong>
+                              {log.user_id ?? "—"}
+                            </strong>
+                          </span>
+
+                          <span className="audit-meta-item">
+                            Resource{" "}
+                            <strong>
+                              {log.resource_type ||
+                                "—"}
+                            </strong>
+                          </span>
+
+                          <span className="audit-meta-item">
+                            ID{" "}
+                            <strong>
+                              {log.resource_id ??
+                                "—"}
+                            </strong>
+                          </span>
+
+                          <span className="audit-meta-item">
+                            IP{" "}
+                            <strong>
+                              {log.ip_address ??
+                                "—"}
+                            </strong>
+                          </span>
+
+                        </div>
+
+                      </div>
+                    </article>
+                  ))}
+
+                </div>
+              )}
+
+            </div>
+          </section>
+        ) : (
+          /* NON-ADMIN ACTIVITY */
+
+          <section className="audit-system-section">
+
+            <div className="audit-section-header">
+
+              <div className="audit-section-title-row">
+                <div className="audit-section-title-icon">
+                  <Activity size={19} />
+                </div>
+
+                <div>
+                  <h2>
+                    Activity Log
+                  </h2>
+
+                  <p>
+                    Recent decision, alternative,
+                    discussion, and approval
+                    activities.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="audit-refresh-button"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw
+                  size={17}
+                  className={
+                    isLoading
+                      ? "audit-spin"
+                      : ""
+                  }
+                />
+
+                Refresh
+              </button>
+
+            </div>
+
+            <div className="audit-log-surface">
+
+              <div className="audit-log-surface-header">
+                <div>
+                  <span className="audit-surface-eyebrow">
+                    WORKSPACE ACTIVITY
+                  </span>
+
+                  <h3>
+                    Recent Activity
+                  </h3>
+                </div>
+
+                <div className="audit-record-status">
+                  <span />
+                  Activity Tracking
+                </div>
+              </div>
+
+              {isLoading ? (
+                <div className="audit-loading-state">
+                  <div className="audit-loading-icon">
+                    <Clock3 size={27} />
+                  </div>
+
+                  <h3>
+                    Loading activity
+                  </h3>
+
+                  <p>
+                    Retrieving your latest
+                    workspace activity...
+                  </p>
+                </div>
+              ) : error ? (
+                <div className="audit-error-state">
+                  <div className="audit-error-icon">
+                    <XCircle size={26} />
+                  </div>
+
+                  <h3>
+                    Unable to load activity
+                  </h3>
+
+                  <p>{error}</p>
+
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                  >
+                    <RefreshCw size={16} />
+                    Try Again
+                  </button>
+                </div>
+              ) : activities.length === 0 ? (
+                <div className="audit-empty-state">
+                  <div className="audit-empty-icon">
+                    <Activity size={28} />
+                  </div>
+
+                  <h3>
+                    No activity recorded
+                  </h3>
+
+                  <p>
+                    Platform actions will appear
+                    here as you work with decisions.
+                  </p>
+                </div>
+              ) : (
+                <div className="audit-timeline">
+
+                  {activities.map((activity) => (
+                    <article
+                      className="audit-event"
+                      key={activity.id}
+                    >
+                      <div className="audit-event-rail">
+                        <div
+                          className={`audit-event-icon ${getActionClass(
+                            activity.action,
+                          )}`}
+                        >
+                          {getActionIcon(
+                            activity.action,
+                          )}
+                        </div>
+
+                        <span className="audit-event-line" />
+                      </div>
+
+                      <div className="audit-event-card">
+
+                        <div className="audit-event-header">
+
+                          <div className="audit-event-title">
+                            <span
+                              className={`audit-action-badge ${getActionClass(
+                                activity.action,
+                              )}`}
+                            >
+                              {activity.action}
+                            </span>
+
+                            <span className="audit-event-time">
+                              <Clock3 size={14} />
+                              {formatDateTime(
+                                activity.created_at,
+                              )}
+                            </span>
+                          </div>
+
+                          <span className="audit-event-number">
+                            #{activity.id}
+                          </span>
+
+                        </div>
+
+                        <p className="audit-event-description">
+                          {activity.description}
+                        </p>
+
+                        <div className="audit-event-meta">
+
+                          <span className="audit-meta-item">
+                            <Database size={14} />
+                            Entity{" "}
+                            <strong>
+                              {activity.entity_type ||
+                                "—"}
+                            </strong>
+                          </span>
+
+                          <span className="audit-meta-item">
+                            ID{" "}
+                            <strong>
+                              {activity.entity_id ??
+                                "—"}
+                            </strong>
+                          </span>
+
+                        </div>
+
+                      </div>
+                    </article>
+                  ))}
+
+                </div>
+              )}
+
+            </div>
+          </section>
+        )}
+
+        {/* BACK */}
+
+        <div className="audit-back-row">
+          <button
+            type="button"
+            className="audit-back-button"
+            onClick={() =>
+              navigate("/dashboard")
+            }
+          >
+            <ArrowLeft size={17} />
+            Back to Dashboard
+          </button>
+        </div>
+
       </div>
     </main>
   );

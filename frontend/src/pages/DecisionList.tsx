@@ -6,6 +6,10 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
+  User,
+  Filter,
+  ArrowUpRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -143,110 +147,141 @@ export default function DecisionList() {
     setPage(1);
   };
 
-  const createDecisionButtonStyle: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    padding: "10px 20px",
-    minWidth: "165px",
-    minHeight: "42px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    fontWeight: 600,
-    fontSize: "14px",
-    cursor: "pointer",
-    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
-  };
-
   return (
     <main className="decision-page">
-      <header className="page-header">
-        <div>
-          <p className="page-eyebrow">
-            Expert Decision Replay Platform
-          </p>
+      {/* PAGE HEADER */}
+      <header className="decision-page-header">
+        <div className="decision-heading-area">
+          <div className="decision-heading-icon">
+            <FileText size={24} />
+          </div>
 
-          <h1>Decisions</h1>
+          <div>
+            <p className="decision-eyebrow">
+              DECISION INTELLIGENCE
+            </p>
 
-          <p>
-            View, search and manage organizational decisions.
-          </p>
+            <h1>Decisions</h1>
+
+            <p className="decision-subtitle">
+              Review, search and manage organizational decisions
+              throughout their complete lifecycle.
+            </p>
+          </div>
         </div>
 
         <button
-          className="primary-button"
+          className="decision-create-button"
           onClick={() => navigate("/decisions/create")}
-          style={createDecisionButtonStyle}
         >
           <Plus size={18} />
           Create Decision
+          <ArrowUpRight size={16} />
         </button>
       </header>
 
-      <section className="decision-toolbar">
-        <div className="search-box">
-          <Search size={18} />
+      {/* FILTER PANEL */}
+      <section className="decision-filter-panel">
+        <div className="decision-filter-header">
+          <div className="decision-filter-title">
+            <Filter size={17} />
 
-          <input
-            type="text"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                handleSearch();
-              }
-            }}
-            placeholder="Search decisions..."
-          />
+            <span>Search & Filter</span>
+          </div>
 
-          <button onClick={handleSearch}>
-            Search
+          <button
+            className="decision-reset-button"
+            onClick={handleReset}
+            title="Reset filters"
+          >
+            <RefreshCw size={15} />
+            Reset
           </button>
         </div>
 
-        <select
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
-        >
-          {statuses.map((item) => (
-            <option key={item} value={item}>
-              {item === "All" ? "All Statuses" : item}
-            </option>
-          ))}
-        </select>
+        <div className="decision-filter-grid">
+          {/* SEARCH */}
+          <div className="decision-search-field">
+            <Search size={18} />
 
-        <input
-          type="text"
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              handleSearch();
-            }
-          }}
-          placeholder="Category"
-        />
+            <input
+              type="text"
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleSearch();
+                }
+              }}
+              placeholder="Search by decision title..."
+            />
 
-        <button
-          className="secondary-button"
-          onClick={handleReset}
-          title="Reset filters"
-        >
-          <RefreshCw size={17} />
-          Reset
-        </button>
+            <button onClick={handleSearch}>
+              Search
+            </button>
+          </div>
+
+          {/* STATUS */}
+          <div className="decision-input-field">
+            <label htmlFor="decision-status">
+              Status
+            </label>
+
+            <select
+              id="decision-status"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
+            >
+              {statuses.map((item) => (
+                <option key={item} value={item}>
+                  {item === "All"
+                    ? "All Statuses"
+                    : item}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* CATEGORY */}
+          <div className="decision-input-field">
+            <label htmlFor="decision-category">
+              Category
+            </label>
+
+            <input
+              id="decision-category"
+              type="text"
+              value={category}
+              onChange={(event) =>
+                setCategory(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleSearch();
+                }
+              }}
+              placeholder="e.g. Technology"
+            />
+          </div>
+        </div>
       </section>
 
+      {/* ERROR */}
       {error && (
-        <section className="decision-error" role="alert">
-          <strong>Unable to load decisions</strong>
-          <p>{error}</p>
+        <section className="decision-error-card" role="alert">
+          <div className="decision-error-icon">
+            !
+          </div>
+
+          <div>
+            <strong>Unable to load decisions</strong>
+            <p>{error}</p>
+          </div>
 
           <button onClick={loadDecisions}>
             Try Again
@@ -254,32 +289,62 @@ export default function DecisionList() {
         </section>
       )}
 
+      {/* LOADING */}
       {isLoading ? (
-        <section className="decision-loading">
+        <section className="decision-state-card">
           <div className="loading-spinner" />
-          <p>Loading decisions...</p>
+
+          <h3>Loading decisions</h3>
+
+          <p>
+            Retrieving the latest decision records...
+          </p>
         </section>
       ) : !error && decisions.length === 0 ? (
-        <section className="decision-empty">
-          <FileText size={42} />
+        /* EMPTY STATE */
+        <section className="decision-state-card decision-empty-state">
+          <div className="decision-empty-icon">
+            <FileText size={32} />
+          </div>
 
           <h2>No decisions found</h2>
 
           <p>
-            There are no decisions matching your current filters.
+            There are no decisions matching your current
+            search and filter criteria.
           </p>
 
           <button
-            className="primary-button"
+            className="decision-create-button"
             onClick={() => navigate("/decisions/create")}
-            style={createDecisionButtonStyle}
           >
             <Plus size={18} />
             Create Your First Decision
           </button>
         </section>
       ) : (
-        <section className="decision-table-section">
+        /* DECISION TABLE */
+        <section className="decision-results-card">
+          <div className="decision-results-header">
+            <div>
+              <p className="results-label">
+                DECISION RECORDS
+              </p>
+
+              <h2>Organizational Decisions</h2>
+
+              <p>
+                Browse the latest decisions and open any
+                record to replay its complete lifecycle.
+              </p>
+            </div>
+
+            <div className="decision-result-count">
+              <span>Page</span>
+              <strong>{page}</strong>
+            </div>
+          </div>
+
           <div className="decision-table-wrapper">
             <table className="decision-table">
               <thead>
@@ -290,21 +355,24 @@ export default function DecisionList() {
                   <th>Status</th>
                   <th>Created</th>
                   <th>Updated</th>
-                  <th>Action</th>
+                  <th></th>
                 </tr>
               </thead>
 
               <tbody>
                 {decisions.map((decision) => (
                   <tr key={decision.id}>
+                    {/* DECISION */}
                     <td>
                       <div className="decision-title-cell">
-                        <div className="decision-icon">
+                        <div className="decision-record-icon">
                           <FileText size={17} />
                         </div>
 
-                        <div>
-                          <strong>{decision.title}</strong>
+                        <div className="decision-title-content">
+                          <strong>
+                            {decision.title}
+                          </strong>
 
                           <span>
                             Decision #{decision.id}
@@ -313,38 +381,70 @@ export default function DecisionList() {
                       </div>
                     </td>
 
-                    <td>{decision.category}</td>
-
+                    {/* CATEGORY */}
                     <td>
-                      User #{decision.created_by}
+                      <span className="decision-category-badge">
+                        {decision.category}
+                      </span>
                     </td>
 
+                    {/* CREATOR */}
+                    <td>
+                      <div className="decision-user-cell">
+                        <div className="decision-user-icon">
+                          <User size={14} />
+                        </div>
+
+                        <span>
+                          User #{decision.created_by}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* STATUS */}
                     <td>
                       <span
                         className={`status-badge ${getStatusClass(
                           decision.status,
                         )}`}
                       >
+                        <span className="status-dot" />
                         {decision.status}
                       </span>
                     </td>
 
+                    {/* CREATED */}
                     <td>
-                      {formatDate(decision.created_at)}
+                      <div className="decision-date-cell">
+                        <CalendarDays size={14} />
+                        {formatDate(
+                          decision.created_at,
+                        )}
+                      </div>
                     </td>
 
+                    {/* UPDATED */}
                     <td>
-                      {formatDate(decision.updated_at)}
+                      <div className="decision-date-cell">
+                        <CalendarDays size={14} />
+                        {formatDate(
+                          decision.updated_at,
+                        )}
+                      </div>
                     </td>
 
+                    {/* ACTION */}
                     <td>
                       <button
-                        className="view-button"
+                        className="decision-view-button"
                         onClick={() =>
-                          navigate(`/decisions/${decision.id}`)
+                          navigate(
+                            `/decisions/${decision.id}`,
+                          )
                         }
                       >
                         View
+                        <ArrowUpRight size={15} />
                       </button>
                     </td>
                   </tr>
@@ -353,28 +453,42 @@ export default function DecisionList() {
             </table>
           </div>
 
-          <div className="pagination">
-            <button
-              disabled={page === 1}
-              onClick={() =>
-                setPage((current) => Math.max(1, current - 1))
-              }
-            >
-              <ChevronLeft size={17} />
-              Previous
-            </button>
+          {/* PAGINATION */}
+          <div className="decision-pagination">
+            <div className="pagination-info">
+              Showing{" "}
+              <strong>{decisions.length}</strong>{" "}
+              decision
+              {decisions.length !== 1 ? "s" : ""}
+            </div>
 
-            <span>Page {page}</span>
+            <div className="pagination-controls">
+              <button
+                disabled={page === 1}
+                onClick={() =>
+                  setPage((current) =>
+                    Math.max(1, current - 1),
+                  )
+                }
+              >
+                <ChevronLeft size={17} />
+                Previous
+              </button>
 
-            <button
-              disabled={decisions.length < pageSize}
-              onClick={() =>
-                setPage((current) => current + 1)
-              }
-            >
-              Next
-              <ChevronRight size={17} />
-            </button>
+              <div className="pagination-page">
+                Page <strong>{page}</strong>
+              </div>
+
+              <button
+                disabled={decisions.length < pageSize}
+                onClick={() =>
+                  setPage((current) => current + 1)
+                }
+              >
+                Next
+                <ChevronRight size={17} />
+              </button>
+            </div>
           </div>
         </section>
       )}

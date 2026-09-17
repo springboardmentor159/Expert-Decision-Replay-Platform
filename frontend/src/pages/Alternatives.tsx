@@ -1,7 +1,7 @@
 import {
-  useCallback,
   useEffect,
   useState,
+  type ChangeEvent,
   type FormEvent,
 } from "react";
 
@@ -14,6 +14,13 @@ import {
   Trash2,
   Scale,
   X,
+  FileText,
+  Gauge,
+  ShieldAlert,
+  CheckCircle2,
+  MessageSquare,
+  ClipboardCheck,
+  History,
 } from "lucide-react";
 
 import {
@@ -96,24 +103,48 @@ function getRiskRank(
 function formatCost(
   cost: number,
 ): string {
-  return `₹${cost.toLocaleString(
-    "en-IN",
-    {
-      maximumFractionDigits: 2,
-    },
-  )}`;
+  return `₹${cost.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function getRiskClass(
+  risk: string,
+): string {
+  return risk.toLowerCase();
+}
+
+function getFeasibilityLabel(
+  score: number,
+): string {
+  if (score <= 1) {
+    return "Very Low";
+  }
+
+  if (score === 2) {
+    return "Low";
+  }
+
+  if (score === 3) {
+    return "Medium";
+  }
+
+  if (score === 4) {
+    return "High";
+  }
+
+  return "Very High";
 }
 
 export default function Alternatives() {
-  const { id } =
-    useParams<{ id: string }>();
+  const { id } = useParams<{
+    id: string;
+  }>();
 
   const navigate = useNavigate();
 
-  const [
-    alternatives,
-    setAlternatives,
-  ] = useState<Alternative[]>([]);
+  const [alternatives, setAlternatives] =
+    useState<Alternative[]>([]);
 
   const [form, setForm] =
     useState(emptyForm);
@@ -130,10 +161,8 @@ export default function Alternatives() {
   const [formError, setFormError] =
     useState("");
 
-  const [
-    showComparison,
-    setShowComparison,
-  ] = useState(false);
+  const [showComparison, setShowComparison] =
+    useState(false);
 
   const [
     editingAlternativeId,
@@ -141,14 +170,10 @@ export default function Alternatives() {
   ] = useState<number | null>(null);
 
   const loadAlternatives =
-    useCallback(async () => {
+    async () => {
       if (!id) {
-        setError(
-          "Invalid decision ID.",
-        );
-
+        setError("Invalid decision ID.");
         setIsLoading(false);
-
         return;
       }
 
@@ -161,9 +186,7 @@ export default function Alternatives() {
             `/decisions/${id}/alternatives`,
           );
 
-        setAlternatives(
-          response.data,
-        );
+        setAlternatives(response.data);
       } catch (err: unknown) {
         const status =
           getApiErrorStatus(err);
@@ -177,9 +200,7 @@ export default function Alternatives() {
             "You do not have permission to view alternatives.",
           );
         } else if (status === 404) {
-          setError(
-            "Decision not found.",
-          );
+          setError("Decision not found.");
         } else if (
           status !== undefined &&
           status >= 500
@@ -201,25 +222,88 @@ export default function Alternatives() {
       } finally {
         setIsLoading(false);
       }
-    }, [id]);
+    };
 
   useEffect(() => {
-    if (!id) {
-      return;
-    }
+    let isMounted = true;
 
-    const timer =
-      window.setTimeout(() => {
-        loadAlternatives();
-      }, 0);
+    const loadInitialAlternatives =
+      async () => {
+        if (!id) {
+          if (isMounted) {
+            setError("Invalid decision ID.");
+            setIsLoading(false);
+          }
+
+          return;
+        }
+
+        try {
+          if (isMounted) {
+            setIsLoading(true);
+            setError("");
+          }
+
+          const response =
+            await api.get<Alternative[]>(
+              `/decisions/${id}/alternatives`,
+            );
+
+          if (isMounted) {
+            setAlternatives(response.data);
+          }
+        } catch (err: unknown) {
+          if (!isMounted) {
+            return;
+          }
+
+          const status =
+            getApiErrorStatus(err);
+
+          if (status === 401) {
+            setError(
+              "Your session has expired. Please login again.",
+            );
+          } else if (status === 403) {
+            setError(
+              "You do not have permission to view alternatives.",
+            );
+          } else if (status === 404) {
+            setError("Decision not found.");
+          } else if (
+            status !== undefined &&
+            status >= 500
+          ) {
+            setError(
+              "Server error. Please try again later.",
+            );
+          } else if (
+            isAxiosRequestError(err)
+          ) {
+            setError(
+              "Unable to connect to the server. Make sure FastAPI is running.",
+            );
+          } else {
+            setError(
+              "Unable to load alternatives.",
+            );
+          }
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        }
+      };
+
+    void loadInitialAlternatives();
 
     return () => {
-      window.clearTimeout(timer);
+      isMounted = false;
     };
-  }, [id, loadAlternatives]);
+  }, [id]);
 
   const handleChange = (
-    event: React.ChangeEvent<
+    event: ChangeEvent<
       HTMLInputElement |
         HTMLTextAreaElement |
         HTMLSelectElement
@@ -230,12 +314,10 @@ export default function Alternatives() {
       value,
     } = event.target;
 
-    setForm(
-      (current) => ({
-        ...current,
-        [name]: value,
-      }),
-    );
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
   };
 
   const handleEdit = (
@@ -274,10 +356,7 @@ export default function Alternatives() {
   };
 
   const handleCancelEdit = () => {
-    setEditingAlternativeId(
-      null,
-    );
-
+    setEditingAlternativeId(null);
     setForm(emptyForm);
     setFormError("");
     setError("");
@@ -331,16 +410,11 @@ export default function Alternatives() {
     }
 
     const estimatedCost =
-      Number(
-        form.estimated_cost,
-      );
+      Number(form.estimated_cost);
 
     if (
-      form.estimated_cost.trim() ===
-        "" ||
-      Number.isNaN(
-        estimatedCost,
-      ) ||
+      form.estimated_cost.trim() === "" ||
+      Number.isNaN(estimatedCost) ||
       estimatedCost < 0
     ) {
       setFormError(
@@ -350,9 +424,7 @@ export default function Alternatives() {
     }
 
     const feasibilityScore =
-      Number(
-        form.feasibility_score,
-      );
+      Number(form.feasibility_score);
 
     if (
       !Number.isInteger(
@@ -391,8 +463,7 @@ export default function Alternatives() {
       setIsSubmitting(true);
 
       if (
-        editingAlternativeId !==
-        null
+        editingAlternativeId !== null
       ) {
         await api.put(
           `/alternatives/${editingAlternativeId}`,
@@ -400,10 +471,7 @@ export default function Alternatives() {
         );
 
         setForm(emptyForm);
-
-        setEditingAlternativeId(
-          null,
-        );
+        setEditingAlternativeId(null);
 
         await loadAlternatives();
       } else {
@@ -426,15 +494,13 @@ export default function Alternatives() {
         );
       } else if (status === 403) {
         setFormError(
-          editingAlternativeId !==
-            null
+          editingAlternativeId !== null
             ? "You do not have permission to update this alternative."
             : "You do not have permission to add an alternative.",
         );
       } else if (status === 404) {
         setFormError(
-          editingAlternativeId !==
-            null
+          editingAlternativeId !== null
             ? "Alternative not found."
             : "Decision not found.",
         );
@@ -457,8 +523,7 @@ export default function Alternatives() {
         );
       } else {
         setFormError(
-          editingAlternativeId !==
-            null
+          editingAlternativeId !== null
             ? "Unable to update alternative."
             : "Unable to create alternative.",
         );
@@ -487,23 +552,19 @@ export default function Alternatives() {
         `/alternatives/${alternativeId}`,
       );
 
-      setAlternatives(
-        (current) =>
-          current.filter(
-            (alternative) =>
-              alternative.id !==
-              alternativeId,
-          ),
+      setAlternatives((current) =>
+        current.filter(
+          (alternative) =>
+            alternative.id !==
+            alternativeId,
+        ),
       );
 
       if (
         editingAlternativeId ===
         alternativeId
       ) {
-        setEditingAlternativeId(
-          null,
-        );
-
+        setEditingAlternativeId(null);
         setForm(emptyForm);
         setFormError("");
       }
@@ -546,429 +607,369 @@ export default function Alternatives() {
     }
   };
 
-  const submitButtonStyle: React.CSSProperties =
+  const decisionTabs = [
     {
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "8px",
-      padding: "10px 18px",
-      border: "none",
-      borderRadius: "8px",
-      backgroundColor: "#2563eb",
-      color: "#ffffff",
-      fontWeight: 600,
-      fontSize: "14px",
-      cursor: isSubmitting
-        ? "not-allowed"
-        : "pointer",
-      opacity: isSubmitting
-        ? 0.7
-        : 1,
-      minWidth: "170px",
-      minHeight: "42px",
-      boxShadow:
-        "0 2px 6px rgba(0, 0, 0, 0.15)",
-    };
-
-  const cancelButtonStyle: React.CSSProperties =
+      label: "Overview",
+      icon: FileText,
+      path: `/decisions/${id}`,
+    },
     {
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "8px",
-      padding: "10px 18px",
-      border: "1px solid #cbd5e1",
-      borderRadius: "8px",
-      backgroundColor: "#ffffff",
-      color: "#334155",
-      fontWeight: 600,
-      fontSize: "14px",
-      cursor: isSubmitting
-        ? "not-allowed"
-        : "pointer",
-      opacity: isSubmitting
-        ? 0.7
-        : 1,
-      minWidth: "140px",
-      minHeight: "42px",
-    };
-
-  const editButtonStyle: React.CSSProperties =
+      label: "Alternatives",
+      icon: Scale,
+      path: `/decisions/${id}/alternatives`,
+    },
     {
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "6px",
-      padding: "8px 12px",
-      border: "1px solid #cbd5e1",
-      borderRadius: "7px",
-      backgroundColor: "#ffffff",
-      color: "#1e40af",
-      fontWeight: 600,
-      fontSize: "13px",
-      cursor: isSubmitting
-        ? "not-allowed"
-        : "pointer",
-    };
-
-  /*
-   * Explicit styling for the comparison button.
-   * This overrides the existing primary-button CSS
-   * that was making the text appear white on white.
-   */
-  const compareButtonStyle: React.CSSProperties =
+      label: "Discussion",
+      icon: MessageSquare,
+      path: `/decisions/${id}/discussion`,
+    },
     {
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "8px",
-      padding: "10px 18px",
-      border: "none",
-      borderRadius: "8px",
-      backgroundColor: "#2563eb",
-      color: "#ffffff",
-      fontWeight: 600,
-      fontSize: "14px",
-      cursor: "pointer",
-      minWidth: "190px",
-      minHeight: "42px",
-      boxShadow:
-        "0 2px 6px rgba(0, 0, 0, 0.15)",
-    };
+      label: "Approval",
+      icon: ClipboardCheck,
+      path: `/decisions/${id}/approval`,
+    },
+    {
+      label: "History",
+      icon: History,
+      path: `/decisions/${id}/history`,
+    },
+  ];
 
   return (
     <main className="alternatives-page">
-
-      <header className="page-header">
-
-        <div>
-
-          <p className="page-eyebrow">
-            Expert Decision Replay Platform
-          </p>
-
-          <h1>
-            Alternative Analysis
-          </h1>
-
-          <p>
-            Compare possible solutions
-            for Decision #{id}.
-          </p>
-
-        </div>
-
-        <button
-          className="secondary-button"
-          onClick={() =>
-            navigate(
-              `/decisions/${id}`,
-            )
-          }
-        >
-          <ArrowLeft size={18} />
-
-          Back to Decision
-        </button>
-
-      </header>
-
-      {error && (
-        <section
-          className="decision-error"
-          role="alert"
-        >
-
-          <strong>
-            Error
-          </strong>
-
-          <p>{error}</p>
-
-          <button
-            onClick={
-              loadAlternatives
-            }
-          >
-
-            <RefreshCw size={17} />
-
-            Try Again
-
-          </button>
-
-        </section>
-      )}
-
-      <section className="alternative-form-card">
-
-        <div className="details-card-header">
-
-          <div className="details-icon">
-            {editingAlternativeId !==
-            null ? (
-              <Edit3 size={22} />
-            ) : (
-              <Plus size={22} />
-            )}
+      <header className="alternatives-header">
+        <div className="alternatives-heading">
+          <div className="alternatives-heading-icon">
+            <Scale size={24} />
           </div>
 
           <div>
-
-            <h2>
-              {editingAlternativeId !==
-              null
-                ? "Edit Alternative"
-                : "Add Alternative"}
-            </h2>
-
-            <p>
-              {editingAlternativeId !==
-              null
-                ? "Update the selected alternative."
-                : "Add a possible solution for this decision."}
+            <p className="alternatives-eyebrow">
+              Expert Decision Replay Platform
             </p>
 
+            <h1>
+              Alternative Analysis
+            </h1>
+
+            <p className="alternatives-subtitle">
+              Compare possible solutions
+              for Decision #{id}.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="alternatives-back-button"
+          onClick={() =>
+            navigate(`/decisions/${id}`)
+          }
+        >
+          <ArrowLeft size={18} />
+          Back to Decision
+        </button>
+      </header>
+
+      <nav
+        className="decision-context-nav alternatives-context-nav"
+        aria-label="Decision navigation"
+      >
+        {decisionTabs.map((tab) => {
+          const Icon = tab.icon;
+
+          const isActive =
+            tab.label === "Alternatives";
+
+          return (
+            <button
+              key={tab.label}
+              type="button"
+              className={`decision-context-tab ${
+                isActive ? "active" : ""
+              }`}
+              onClick={() =>
+                navigate(tab.path)
+              }
+            >
+              <Icon size={17} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {error && (
+        <section
+          className="alternatives-error"
+          role="alert"
+        >
+          <div className="alternatives-error-icon">
+            <ShieldAlert size={20} />
           </div>
 
+          <div>
+            <strong>
+              Unable to complete request
+            </strong>
+
+            <p>{error}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              void loadAlternatives();
+            }}
+          >
+            <RefreshCw size={16} />
+            Try Again
+          </button>
+        </section>
+      )}
+
+      <section className="alternatives-form-card">
+        <div className="alternatives-card-header">
+          <div className="alternatives-card-header-left">
+            <div className="alternatives-section-icon">
+              {editingAlternativeId !==
+              null ? (
+                <Edit3 size={21} />
+              ) : (
+                <Plus size={21} />
+              )}
+            </div>
+
+            <div>
+              <h2>
+                {editingAlternativeId !==
+                null
+                  ? "Edit Alternative"
+                  : "Add Alternative"}
+              </h2>
+
+              <p>
+                {editingAlternativeId !==
+                null
+                  ? "Update the details of this solution."
+                  : "Add a possible solution for this decision."}
+              </p>
+            </div>
+          </div>
+
+          {editingAlternativeId !==
+            null && (
+            <span className="editing-indicator">
+              Editing #{editingAlternativeId}
+            </span>
+          )}
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="alternative-form"
+          className="alternatives-form"
         >
-
-          <div className="form-group">
-
+          <div className="alternative-field full-width">
             <label htmlFor="name">
               Alternative Name
+              <span>*</span>
             </label>
 
-            <input
-              id="name"
-              name="name"
-              type="text"
-              value={form.name}
-              onChange={
-                handleChange
-              }
-              placeholder="e.g. Cloud-Based Solution"
-              disabled={
-                isSubmitting
-              }
-            />
+            <div className="alternative-input-wrapper">
+              <FileText size={17} />
 
+              <input
+                id="name"
+                name="name"
+                type="text"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="e.g. Cloud-Based Solution"
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-
+          <div className="alternative-field full-width">
             <label htmlFor="description">
               Description
+              <span>*</span>
             </label>
 
             <textarea
               id="description"
               name="description"
-              value={
-                form.description
-              }
-              onChange={
-                handleChange
-              }
+              value={form.description}
+              onChange={handleChange}
               placeholder="Describe this alternative..."
               rows={4}
-              disabled={
-                isSubmitting
-              }
+              disabled={isSubmitting}
             />
 
+            <small>
+              Explain how this solution
+              would address the decision.
+            </small>
           </div>
 
-          <div className="form-row">
-
-            <div className="form-group">
-
+          <div className="alternatives-pros-cons">
+            <div className="alternative-field">
               <label htmlFor="pros">
                 Pros
+                <span>*</span>
               </label>
 
               <textarea
                 id="pros"
                 name="pros"
                 value={form.pros}
-                onChange={
-                  handleChange
-                }
+                onChange={handleChange}
                 placeholder="Advantages..."
                 rows={4}
-                disabled={
-                  isSubmitting
-                }
+                disabled={isSubmitting}
               />
-
             </div>
 
-            <div className="form-group">
-
+            <div className="alternative-field">
               <label htmlFor="cons">
                 Cons
+                <span>*</span>
               </label>
 
               <textarea
                 id="cons"
                 name="cons"
                 value={form.cons}
-                onChange={
-                  handleChange
-                }
+                onChange={handleChange}
                 placeholder="Disadvantages..."
                 rows={4}
-                disabled={
-                  isSubmitting
-                }
+                disabled={isSubmitting}
               />
-
             </div>
-
           </div>
 
-          <div className="form-row">
-
-            <div className="form-group">
-
+          <div className="alternatives-metric-fields">
+            <div className="alternative-field">
               <label htmlFor="estimated_cost">
                 Estimated Cost
+                <span>*</span>
               </label>
 
-              <input
-                id="estimated_cost"
-                name="estimated_cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={
-                  form.estimated_cost
-                }
-                onChange={
-                  handleChange
-                }
-                placeholder="e.g. 50000"
-                disabled={
-                  isSubmitting
-                }
-              />
+              <div className="alternative-input-wrapper">
+                <span className="currency-symbol">
+                  ₹
+                </span>
 
+                <input
+                  id="estimated_cost"
+                  name="estimated_cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.estimated_cost}
+                  onChange={handleChange}
+                  placeholder="e.g. 50000"
+                  disabled={isSubmitting}
+                />
+              </div>
             </div>
 
-            <div className="form-group">
-
+            <div className="alternative-field">
               <label htmlFor="feasibility_score">
                 Feasibility Score
+                <span>*</span>
               </label>
 
-              <select
-                id="feasibility_score"
-                name="feasibility_score"
-                value={
-                  form.feasibility_score
-                }
-                onChange={
-                  handleChange
-                }
-                disabled={
-                  isSubmitting
-                }
-              >
+              <div className="alternative-select-wrapper">
+                <Gauge size={17} />
 
-                <option value="1">
-                  1 - Very Low
-                </option>
+                <select
+                  id="feasibility_score"
+                  name="feasibility_score"
+                  value={
+                    form.feasibility_score
+                  }
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                >
+                  <option value="1">
+                    1 - Very Low
+                  </option>
 
-                <option value="2">
-                  2 - Low
-                </option>
+                  <option value="2">
+                    2 - Low
+                  </option>
 
-                <option value="3">
-                  3 - Medium
-                </option>
+                  <option value="3">
+                    3 - Medium
+                  </option>
 
-                <option value="4">
-                  4 - High
-                </option>
+                  <option value="4">
+                    4 - High
+                  </option>
 
-                <option value="5">
-                  5 - Very High
-                </option>
-
-              </select>
-
+                  <option value="5">
+                    5 - Very High
+                  </option>
+                </select>
+              </div>
             </div>
 
-            <div className="form-group">
-
+            <div className="alternative-field">
               <label htmlFor="risk_level">
                 Risk Level
+                <span>*</span>
               </label>
 
-              <select
-                id="risk_level"
-                name="risk_level"
-                value={
-                  form.risk_level
-                }
-                onChange={
-                  handleChange
-                }
-                disabled={
-                  isSubmitting
-                }
-              >
+              <div className="alternative-select-wrapper">
+                <ShieldAlert size={17} />
 
-                {riskLevels.map(
-                  (risk) => (
-                    <option
-                      key={risk}
-                      value={risk}
-                    >
-                      {risk}
-                    </option>
-                  ),
-                )}
-
-              </select>
-
+                <select
+                  id="risk_level"
+                  name="risk_level"
+                  value={form.risk_level}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                >
+                  {riskLevels.map(
+                    (risk) => (
+                      <option
+                        key={risk}
+                        value={risk}
+                      >
+                        {risk}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
             </div>
-
           </div>
 
           {formError && (
             <div
-              className="auth-error"
+              className="alternatives-form-error"
               role="alert"
             >
+              <ShieldAlert size={17} />
               {formError}
             </div>
           )}
 
-          <div
-            className="form-actions"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              marginTop: "8px",
-              flexWrap: "wrap",
-            }}
-          >
-
+          <div className="alternatives-form-actions">
             <button
               type="submit"
               disabled={isSubmitting}
-              style={submitButtonStyle}
+              className="alternatives-submit-button"
             >
-
-              <Save size={18} />
+              {isSubmitting ? (
+                <RefreshCw
+                  size={18}
+                  className="alternatives-spin"
+                />
+              ) : (
+                <Save size={18} />
+              )}
 
               {isSubmitting
                 ? editingAlternativeId !==
@@ -979,7 +980,6 @@ export default function Alternatives() {
                     null
                   ? "Update Alternative"
                   : "Add Alternative"}
-
             </button>
 
             {editingAlternativeId !==
@@ -989,32 +989,23 @@ export default function Alternatives() {
                 onClick={
                   handleCancelEdit
                 }
-                disabled={
-                  isSubmitting
-                }
-                style={
-                  cancelButtonStyle
-                }
+                disabled={isSubmitting}
+                className="alternatives-cancel-button"
               >
-
                 <X size={18} />
-
                 Cancel Edit
-
               </button>
             )}
-
           </div>
-
         </form>
-
       </section>
 
-      <section className="alternative-list-section">
-
-        <div className="page-section-header">
-
+      <section className="alternatives-list-section">
+        <div className="alternatives-list-header">
           <div>
+            <p className="alternatives-section-eyebrow">
+              Decision Options
+            </p>
 
             <h2>
               Existing Alternatives
@@ -1023,390 +1014,351 @@ export default function Alternatives() {
             <p>
               {alternatives.length}{" "}
               alternative
-              {alternatives.length ===
-              1
+              {alternatives.length === 1
                 ? ""
                 : "s"}{" "}
               added to this decision.
             </p>
-
           </div>
 
-          {alternatives.length >=
-            2 && (
-
+          {alternatives.length >= 2 && (
             <button
-              className="primary-button"
+              type="button"
+              className="alternatives-compare-button"
               onClick={() =>
                 setShowComparison(
                   (current) =>
                     !current,
                 )
               }
-              style={
-                compareButtonStyle
-              }
             >
-
               {showComparison ? (
                 <>
                   <X size={18} />
-
                   Close Comparison
                 </>
               ) : (
                 <>
-                  <Scale
-                    size={18}
-                  />
-
+                  <Scale size={18} />
                   Compare Alternatives
                 </>
               )}
-
             </button>
-
           )}
-
         </div>
 
         {showComparison &&
-          alternatives.length >=
-            2 && (
+          alternatives.length >= 2 && (
+            <section className="alternatives-comparison-card">
+              <div className="comparison-header">
+                <div className="comparison-title-area">
+                  <div className="comparison-icon">
+                    <Scale size={21} />
+                  </div>
 
-          <section className="alternative-comparison-card">
+                  <div>
+                    <h2>
+                      Alternative Comparison
+                    </h2>
 
-            <div className="details-card-header">
+                    <p>
+                      Compare all available
+                      alternatives side by
+                      side.
+                    </p>
+                  </div>
+                </div>
 
-              <div className="details-icon">
-                <Scale
-                  size={22}
-                />
+                <span className="comparison-count">
+                  {alternatives.length} options
+                </span>
               </div>
 
-              <div>
+              <div className="comparison-table-container">
+                <table className="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>
+                        Criteria
+                      </th>
 
-                <h2>
-                  Alternative Comparison
-                </h2>
-
-                <p>
-                  Compare all available
-                  alternatives side by
-                  side.
-                </p>
-
-              </div>
-
-            </div>
-
-            <div className="comparison-table-wrapper">
-
-              <table className="comparison-table">
-
-                <thead>
-
-                  <tr>
-
-                    <th>
-                      Criteria
-                    </th>
-
-                    {alternatives.map(
-                      (
-                        alternative,
-                      ) => (
-                        <th
-                          key={
-                            alternative.id
-                          }
-                        >
-                          {
-                            alternative.name
-                          }
-                        </th>
-                      ),
-                    )}
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  <tr>
-
-                    <th>
-                      Description
-                    </th>
-
-                    {alternatives.map(
-                      (
-                        alternative,
-                      ) => (
-                        <td
-                          key={
-                            alternative.id
-                          }
-                        >
-                          {
-                            alternative.description
-                          }
-                        </td>
-                      ),
-                    )}
-
-                  </tr>
-
-                  <tr>
-
-                    <th>
-                      Estimated Cost
-                    </th>
-
-                    {alternatives.map(
-                      (
-                        alternative,
-                      ) => (
-                        <td
-                          key={
-                            alternative.id
-                          }
-                        >
-
-                          <strong>
-                            {formatCost(
-                              alternative.estimated_cost,
-                            )}
-                          </strong>
-
-                        </td>
-                      ),
-                    )}
-
-                  </tr>
-
-                  <tr>
-
-                    <th>
-                      Feasibility
-                    </th>
-
-                    {alternatives.map(
-                      (
-                        alternative,
-                      ) => (
-                        <td
-                          key={
-                            alternative.id
-                          }
-                        >
-
-                          <strong>
-                            {
-                              alternative.feasibility_score
+                      {alternatives.map(
+                        (alternative) => (
+                          <th
+                            key={
+                              alternative.id
                             }
-                            /5
-                          </strong>
+                          >
+                            <div className="comparison-alternative-name">
+                              {
+                                alternative.name
+                              }
+                            </div>
 
-                        </td>
-                      ),
-                    )}
+                            <span>
+                              Alternative #
+                              {
+                                alternative.id
+                              }
+                            </span>
+                          </th>
+                        ),
+                      )}
+                    </tr>
+                  </thead>
 
-                  </tr>
+                  <tbody>
+                    <tr>
+                      <th>
+                        Description
+                      </th>
 
-                  <tr>
-
-                    <th>
-                      Risk
-                    </th>
-
-                    {alternatives.map(
-                      (
-                        alternative,
-                      ) => (
-                        <td
-                          key={
-                            alternative.id
-                          }
-                        >
-
-                          <strong>
-                            {
-                              alternative.risk_level
+                      {alternatives.map(
+                        (alternative) => (
+                          <td
+                            key={
+                              alternative.id
                             }
-                          </strong>
+                          >
+                            {
+                              alternative.description
+                            }
+                          </td>
+                        ),
+                      )}
+                    </tr>
 
-                        </td>
-                      ),
-                    )}
+                    <tr>
+                      <th>
+                        Estimated Cost
+                      </th>
 
-                  </tr>
+                      {alternatives.map(
+                        (alternative) => (
+                          <td
+                            key={
+                              alternative.id
+                            }
+                          >
+                            <div className="comparison-metric-value">
+                              <span className="currency-symbol">
+                                ₹
+                              </span>
 
-                  <tr>
+                              {formatCost(
+                                alternative.estimated_cost,
+                              )}
+                            </div>
+                          </td>
+                        ),
+                      )}
+                    </tr>
 
-                    <th>
-                      Pros
-                    </th>
+                    <tr>
+                      <th>
+                        Feasibility
+                      </th>
 
-                    {alternatives.map(
-                      (
-                        alternative,
-                      ) => (
-                        <td
-                          key={
-                            alternative.id
-                          }
-                        >
-                          {
-                            alternative.pros
-                          }
-                        </td>
-                      ),
-                    )}
+                      {alternatives.map(
+                        (alternative) => (
+                          <td
+                            key={
+                              alternative.id
+                            }
+                          >
+                            <div className="comparison-feasibility">
+                              <strong>
+                                {
+                                  alternative.feasibility_score
+                                }
+                                /5
+                              </strong>
 
-                  </tr>
+                              <span>
+                                {getFeasibilityLabel(
+                                  alternative.feasibility_score,
+                                )}
+                              </span>
+                            </div>
+                          </td>
+                        ),
+                      )}
+                    </tr>
 
-                  <tr>
+                    <tr>
+                      <th>
+                        Risk
+                      </th>
 
-                    <th>
-                      Cons
-                    </th>
+                      {alternatives.map(
+                        (alternative) => (
+                          <td
+                            key={
+                              alternative.id
+                            }
+                          >
+                            <span
+                              className={`comparison-risk ${getRiskClass(
+                                alternative.risk_level,
+                              )}`}
+                            >
+                              <span />
+                              {
+                                alternative.risk_level
+                              }
+                            </span>
+                          </td>
+                        ),
+                      )}
+                    </tr>
 
-                    {alternatives.map(
-                      (
-                        alternative,
-                      ) => (
-                        <td
-                          key={
-                            alternative.id
-                          }
-                        >
-                          {
-                            alternative.cons
-                          }
-                        </td>
-                      ),
-                    )}
+                    <tr>
+                      <th>
+                        Pros
+                      </th>
 
-                  </tr>
+                      {alternatives.map(
+                        (alternative) => (
+                          <td
+                            key={
+                              alternative.id
+                            }
+                          >
+                            {
+                              alternative.pros
+                            }
+                          </td>
+                        ),
+                      )}
+                    </tr>
 
-                </tbody>
+                    <tr>
+                      <th>
+                        Cons
+                      </th>
 
-              </table>
-
-            </div>
-
-            <div className="comparison-summary">
-
-              <h3>
-                Comparison Summary
-              </h3>
-
-              <div className="comparison-summary-grid">
-
-                <div>
-
-                  <span>
-                    Lowest Cost
-                  </span>
-
-                  <strong>
-                    {
-                      alternatives.reduce(
-                        (
-                          lowest,
-                          current,
-                        ) =>
-                          current.estimated_cost <
-                          lowest.estimated_cost
-                            ? current
-                            : lowest,
-                        alternatives[0],
-                      ).name
-                    }
-                  </strong>
-
-                </div>
-
-                <div>
-
-                  <span>
-                    Highest Feasibility
-                  </span>
-
-                  <strong>
-                    {
-                      alternatives.reduce(
-                        (
-                          highest,
-                          current,
-                        ) =>
-                          current.feasibility_score >
-                          highest.feasibility_score
-                            ? current
-                            : highest,
-                        alternatives[0],
-                      ).name
-                    }
-                  </strong>
-
-                </div>
-
-                <div>
-
-                  <span>
-                    Lowest Risk
-                  </span>
-
-                  <strong>
-                    {
-                      alternatives.reduce(
-                        (
-                          lowest,
-                          current,
-                        ) =>
-                          getRiskRank(
-                            current.risk_level,
-                          ) <
-                          getRiskRank(
-                            lowest.risk_level,
-                          )
-                            ? current
-                            : lowest,
-                        alternatives[0],
-                      ).name
-                    }
-                  </strong>
-
-                </div>
-
+                      {alternatives.map(
+                        (alternative) => (
+                          <td
+                            key={
+                              alternative.id
+                            }
+                          >
+                            {
+                              alternative.cons
+                            }
+                          </td>
+                        ),
+                      )}
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
-            </div>
+              <div className="comparison-summary">
+                <div className="comparison-summary-heading">
+                  <CheckCircle2
+                    size={19}
+                  />
 
-          </section>
+                  <h3>
+                    Comparison Summary
+                  </h3>
+                </div>
 
-        )}
+                <div className="comparison-summary-grid">
+                  <div>
+                    <span>
+                      Lowest Cost
+                    </span>
+
+                    <strong>
+                      {
+                        alternatives.reduce(
+                          (
+                            lowest,
+                            current,
+                          ) =>
+                            current.estimated_cost <
+                            lowest.estimated_cost
+                              ? current
+                              : lowest,
+                          alternatives[0],
+                        ).name
+                      }
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Highest Feasibility
+                    </span>
+
+                    <strong>
+                      {
+                        alternatives.reduce(
+                          (
+                            highest,
+                            current,
+                          ) =>
+                            current.feasibility_score >
+                            highest.feasibility_score
+                              ? current
+                              : highest,
+                          alternatives[0],
+                        ).name
+                      }
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>
+                      Lowest Risk
+                    </span>
+
+                    <strong>
+                      {
+                        alternatives.reduce(
+                          (
+                            lowest,
+                            current,
+                          ) =>
+                            getRiskRank(
+                              current.risk_level,
+                            ) <
+                            getRiskRank(
+                              lowest.risk_level,
+                            )
+                              ? current
+                              : lowest,
+                          alternatives[0],
+                        ).name
+                      }
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
         {isLoading ? (
+          <section className="alternatives-state-card">
+            <div className="alternatives-loading-spinner" />
 
-          <section className="decision-loading">
-
-            <div className="loading-spinner" />
+            <h3>
+              Loading alternatives
+            </h3>
 
             <p>
-              Loading alternatives...
+              Retrieving available
+              decision options...
             </p>
-
           </section>
-
-        ) : alternatives.length ===
-          0 ? (
-
-          <section className="decision-empty">
-
-            <Plus size={42} />
+        ) : alternatives.length === 0 ? (
+          <section className="alternatives-empty-state">
+            <div className="alternatives-empty-icon">
+              <Scale size={28} />
+            </div>
 
             <h2>
               No alternatives yet
@@ -1416,52 +1368,43 @@ export default function Alternatives() {
               Add possible solutions
               using the form above.
             </p>
-
           </section>
-
         ) : (
-
-          <div className="alternative-grid">
-
+          <div className="alternatives-grid">
             {alternatives.map(
               (alternative) => (
-
                 <article
                   key={
                     alternative.id
                   }
-                  className="alternative-card"
+                  className="alternatives-item-card"
                 >
+                  <div className="alternatives-item-top">
+                    <div className="alternative-item-title-area">
+                      <div className="alternative-item-icon">
+                        <Scale size={19} />
+                      </div>
 
-                  <div className="alternative-card-header">
+                      <div>
+                        <h3>
+                          {
+                            alternative.name
+                          }
+                        </h3>
 
-                    <div>
-
-                      <h3>
-                        {
-                          alternative.name
-                        }
-                      </h3>
-
-                      <span>
-                        Alternative #
-                        {
-                          alternative.id
-                        }
-                      </span>
-
+                        <span>
+                          Alternative #
+                          {
+                            alternative.id
+                          }
+                        </span>
+                      </div>
                     </div>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        alignItems:
-                          "center",
-                      }}
-                    >
-
+                    <div className="alternative-item-actions">
                       <button
+                        type="button"
+                        className="alternative-edit-button"
                         onClick={() =>
                           handleEdit(
                             alternative,
@@ -1471,21 +1414,16 @@ export default function Alternatives() {
                         disabled={
                           isSubmitting
                         }
-                        style={
-                          editButtonStyle
-                        }
                       >
-
                         <Edit3
-                          size={17}
+                          size={16}
                         />
-
                         Edit
-
                       </button>
 
                       <button
-                        className="danger-button"
+                        type="button"
+                        className="alternative-delete-button"
                         onClick={() =>
                           handleDelete(
                             alternative.id,
@@ -1496,113 +1434,117 @@ export default function Alternatives() {
                           isSubmitting
                         }
                       >
-
                         <Trash2
-                          size={17}
+                          size={16}
                         />
-
                       </button>
-
                     </div>
-
                   </div>
 
-                  <div className="alternative-description">
-                    {
-                      alternative.description
-                    }
+                  <div className="alternative-item-description">
+                    <p>
+                      {
+                        alternative.description
+                      }
+                    </p>
                   </div>
 
-                  <div className="alternative-comparison">
-
-                    <div>
-
-                      <strong>
+                  <div className="alternative-pros-cons">
+                    <div className="alternative-pro-box">
+                      <span className="alternative-detail-label">
                         Pros
-                      </strong>
+                      </span>
 
                       <p>
                         {
                           alternative.pros
                         }
                       </p>
-
                     </div>
 
-                    <div>
-
-                      <strong>
+                    <div className="alternative-con-box">
+                      <span className="alternative-detail-label">
                         Cons
-                      </strong>
+                      </span>
 
                       <p>
                         {
                           alternative.cons
                         }
                       </p>
-
                     </div>
-
                   </div>
 
                   <div className="alternative-metrics">
+                    <div className="alternative-metric">
+                      <div className="alternative-metric-icon">
+                        <span className="currency-symbol">
+                          ₹
+                        </span>
+                      </div>
 
-                    <div>
+                      <div>
+                        <span>
+                          Estimated Cost
+                        </span>
 
-                      <span>
-                        Estimated Cost
-                      </span>
-
-                      <strong>
-                        {formatCost(
-                          alternative.estimated_cost,
-                        )}
-                      </strong>
-
+                        <strong>
+                          {formatCost(
+                            alternative.estimated_cost,
+                          )}
+                        </strong>
+                      </div>
                     </div>
 
-                    <div>
+                    <div className="alternative-metric">
+                      <div className="alternative-metric-icon">
+                        <Gauge size={16} />
+                      </div>
 
-                      <span>
-                        Feasibility
-                      </span>
+                      <div>
+                        <span>
+                          Feasibility
+                        </span>
 
-                      <strong>
-                        {
-                          alternative.feasibility_score
-                        }
-                        /5
-                      </strong>
-
+                        <strong>
+                          {
+                            alternative.feasibility_score
+                          }
+                          /5
+                        </strong>
+                      </div>
                     </div>
 
-                    <div>
+                    <div className="alternative-metric">
+                      <div className="alternative-metric-icon">
+                        <ShieldAlert
+                          size={16}
+                        />
+                      </div>
 
-                      <span>
-                        Risk
-                      </span>
+                      <div>
+                        <span>
+                          Risk
+                        </span>
 
-                      <strong>
-                        {
-                          alternative.risk_level
-                        }
-                      </strong>
-
+                        <strong
+                          className={`risk-text ${getRiskClass(
+                            alternative.risk_level,
+                          )}`}
+                        >
+                          {
+                            alternative.risk_level
+                          }
+                        </strong>
+                      </div>
                     </div>
-
                   </div>
-
                 </article>
-
               ),
             )}
-
           </div>
-
         )}
-
       </section>
-
     </main>
   );
 }

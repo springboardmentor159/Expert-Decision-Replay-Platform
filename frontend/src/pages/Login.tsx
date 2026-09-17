@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, LogIn } from "lucide-react";
+import axios from "axios";
 import { useAuth } from "../context/useAuth";
 
 export default function Login() {
@@ -42,25 +43,29 @@ export default function Login() {
       await login(trimmedEmail, password);
 
       navigate(from, { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login error:", err);
 
-      const status = err?.response?.status;
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
 
-      if (status === 401) {
-        setError("Invalid email or password.");
-      } else if (status === 403) {
-        setError("You do not have permission to log in.");
-      } else if (status === 404) {
-        setError("User account could not be found.");
-      } else if (status === 422) {
-        setError("Please check the entered information.");
-      } else if (status >= 500) {
-        setError("Server error. Please try again later.");
-      } else if (err?.request) {
-        setError(
-          "Unable to connect to the server. Make sure the FastAPI backend is running.",
-        );
+        if (status === 401) {
+          setError("Invalid email or password.");
+        } else if (status === 403) {
+          setError("You do not have permission to log in.");
+        } else if (status === 404) {
+          setError("User account could not be found.");
+        } else if (status === 422) {
+          setError("Please check the entered information.");
+        } else if (status !== undefined && status >= 500) {
+          setError("Server error. Please try again later.");
+        } else if (err.request) {
+          setError(
+            "Unable to connect to the server. Make sure the FastAPI backend is running.",
+          );
+        } else {
+          setError("Login failed. Please try again.");
+        }
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
