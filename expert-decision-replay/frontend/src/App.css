@@ -1,0 +1,22 @@
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #f4f6f9;
+  color: #1f2937;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+.app h1 {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+
+.app p {
+  font-size: 18px;
+  color: #4b5563;
+}

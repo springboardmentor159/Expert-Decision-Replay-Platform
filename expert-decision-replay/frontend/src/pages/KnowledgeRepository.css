@@ -1,0 +1,460 @@
+/* =========================================
+   KNOWLEDGE REPOSITORY
+   ========================================= */
+
+.knowledge-page {
+  padding: 28px 32px 40px;
+  min-height: 100%;
+  background: #f5f7fb;
+}
+
+/* =========================================
+   HEADER
+   ========================================= */
+
+.knowledge-header {
+  margin-bottom: 24px;
+}
+
+.knowledge-breadcrumb {
+  font-size: 13px;
+  color: #7b8798;
+  margin-bottom: 6px;
+}
+
+.knowledge-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #172554;
+}
+
+.knowledge-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* =========================================
+   FILTER CARD
+   ========================================= */
+
+.knowledge-filter-card {
+  background: #ffffff;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 26px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.05);
+}
+
+.filter-card-title {
+  margin-bottom: 20px;
+}
+
+.filter-card-title h2 {
+  margin: 0;
+  color: #172554;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.filter-card-title p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* =========================================
+   FILTER GRID
+   ========================================= */
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 7px;
+}
+
+.filter-field input,
+.filter-field select {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  border: 1px solid #d7deea;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #334155;
+  background: #ffffff;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.filter-field input::placeholder {
+  color: #a0aabc;
+}
+
+.filter-field input:focus,
+.filter-field select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* =========================================
+   BUTTONS
+   ========================================= */
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.search-btn,
+.clear-btn {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s ease;
+}
+
+.search-btn {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.search-btn:hover {
+  background: #1d4ed8;
+}
+
+.clear-btn {
+  background: #eef2f7;
+  color: #475569;
+}
+
+.clear-btn:hover {
+  background: #e2e8f0;
+}
+
+/* =========================================
+   ERROR
+   ========================================= */
+
+.knowledge-error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+/* =========================================
+   LOADING / EMPTY
+   ========================================= */
+
+.knowledge-message {
+  background: #ffffff;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+  padding: 45px 20px;
+  text-align: center;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+}
+
+.knowledge-message h3 {
+  margin: 10px 0 6px;
+  font-size: 17px;
+  color: #334155;
+}
+
+.knowledge-message p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.empty-icon {
+  font-size: 32px;
+}
+
+/* =========================================
+   SPINNER
+   ========================================= */
+
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
+  border: 3px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: knowledge-spin 0.8s linear infinite;
+}
+
+@keyframes knowledge-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================
+   RESULTS
+   ========================================= */
+
+.knowledge-results {
+  margin-top: 8px;
+}
+
+.results-header {
+  margin-bottom: 16px;
+}
+
+.results-header h2 {
+  margin: 0;
+  font-size: 19px;
+  color: #172554;
+  font-weight: 700;
+}
+
+.results-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* =========================================
+   GRID
+   ========================================= */
+
+.knowledge-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* =========================================
+   CARD
+   ========================================= */
+
+.knowledge-card {
+  background: #ffffff;
+  border: 1px solid #e3e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 0;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.knowledge-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.09);
+}
+
+/* =========================================
+   CARD HEADER
+   ========================================= */
+
+.knowledge-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.decision-heading {
+  min-width: 0;
+}
+
+.decision-number {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.knowledge-card-header h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+/* =========================================
+   STATUS
+   ========================================= */
+
+.status-badge {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status-approved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status-draft {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-default {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* =========================================
+   DESCRIPTION
+   ========================================= */
+
+.knowledge-description {
+  min-height: 62px;
+  margin-bottom: 16px;
+}
+
+.knowledge-description p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =========================================
+   DETAILS
+   ========================================= */
+
+.knowledge-details {
+  border-top: 1px solid #edf1f6;
+  border-bottom: 1px solid #edf1f6;
+  padding: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.detail-item span {
+  color: #7b8798;
+  font-size: 12px;
+}
+
+.detail-item strong {
+  color: #334155;
+  font-size: 12px;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* =========================================
+   CARD FOOTER
+   ========================================= */
+
+.knowledge-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.decision-id {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.knowledge-card-footer button {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.knowledge-card-footer button:hover {
+  color: #1d4ed8;
+}
+
+.knowledge-card-footer button span {
+  margin-left: 5px;
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+
+@media (max-width: 1100px) {
+  .knowledge-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .knowledge-page {
+    padding: 20px 16px 30px;
+  }
+
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .knowledge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .knowledge-header h1 {
+    font-size: 24px;
+  }
+}

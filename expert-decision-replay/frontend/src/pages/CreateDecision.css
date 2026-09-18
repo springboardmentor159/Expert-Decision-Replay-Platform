@@ -1,0 +1,85 @@
+.create-decision-page {
+  min-height: 100vh;
+  background: #f4f7fb;
+  padding: 30px;
+  box-sizing: border-box;
+}
+
+.create-decision-card {
+  max-width: 700px;
+  margin: 0 auto;
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.create-decision-card h1 {
+  margin-top: 0;
+  color: #1f2937;
+}
+
+.create-decision-card p {
+  color: #6b7280;
+}
+
+.create-decision-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+.create-decision-card label {
+  color: #374151;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.create-decision-card input,
+.create-decision-card textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.create-decision-card input:focus,
+.create-decision-card textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.create-decision-card button {
+  margin-top: 15px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.create-decision-card button:hover {
+  background: #1d4ed8;
+}
+
+.success-message {
+  margin-top: 20px;
+  color: #15803d !important;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .create-decision-page {
+    padding: 20px;
+  }
+
+  .create-decision-card {
+    padding: 20px;
+  }
+}
