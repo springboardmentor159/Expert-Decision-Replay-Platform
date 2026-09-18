@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -19,7 +19,7 @@ class DecisionUpdate(BaseModel):
 
 
 class DecisionStatusUpdate(BaseModel):
-    status: str
+    status: Literal["Draft", "Under Review", "Approved", "Rejected", "Archived"]
 
 
 class DecisionResponse(BaseModel):
@@ -35,3 +35,23 @@ class DecisionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DecisionSearchResponse(BaseModel):
+    id: int
+    title: str
+    category: str
+    status: str
+    tags: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PaginatedDecisionResponse(BaseModel):
+    items: list[DecisionSearchResponse]
+    page: int
+    page_size: int
+    total: int

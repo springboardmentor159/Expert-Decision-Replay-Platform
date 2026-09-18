@@ -55,6 +55,7 @@ class DiscussionThread(Base):
         "User",
         back_populates="discussion_threads"
     )
+
     replies = relationship(
         "ThreadReply",
         back_populates="thread",

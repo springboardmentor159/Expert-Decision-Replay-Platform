@@ -52,20 +52,37 @@ router = APIRouter(
 )
 
 
-VALID_SORT_FIELDS = {
+# ============================================================
+# SORTING CONFIGURATION
+# ============================================================
+
+VALID_DECISION_SORT_FIELDS = {
     "created_date",
     "updated_date",
     "title",
+}
+
+VALID_APPROVAL_SORT_FIELDS = {
     "approval_date",
+}
+
+VALID_TEAM_SORT_FIELDS = {
     "team_name",
 }
 
+VALID_AUDIT_SORT_FIELDS = {
+    "created_date",
+}
 
 VALID_SORT_ORDERS = {
     "asc",
     "desc",
 }
 
+
+# ============================================================
+# STATUS CONFIGURATION
+# ============================================================
 
 VALID_DECISION_STATUSES = {
     "Draft",
@@ -75,13 +92,16 @@ VALID_DECISION_STATUSES = {
     "Archived",
 }
 
-
 VALID_APPROVAL_STATUSES = {
     "Pending",
     "Approved",
     "Rejected",
 }
 
+
+# ============================================================
+# COMMON VALIDATION HELPERS
+# ============================================================
 
 def validate_date_range(
     date_from: Optional[datetime],
@@ -100,14 +120,19 @@ def validate_date_range(
 def validate_sorting(
     sort_by: str,
     sort_order: str,
+    allowed_fields: set[str],
+    report_name: str,
 ):
-    if sort_by not in VALID_SORT_FIELDS:
+    if sort_by not in allowed_fields:
+        allowed_values = ", ".join(
+            sorted(allowed_fields)
+        )
+
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                "Invalid sort_by. Allowed values: "
-                "created_date, updated_date, title, "
-                "approval_date, team_name"
+                f"Invalid {report_name} sort_by. "
+                f"Allowed values: {allowed_values}"
             ),
         )
 
@@ -143,8 +168,7 @@ def validate_decision_status(
 ):
     if (
         decision_status is not None
-        and decision_status
-        not in VALID_DECISION_STATUSES
+        and decision_status not in VALID_DECISION_STATUSES
     ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -161,8 +185,7 @@ def validate_approval_status(
 ):
     if (
         approval_status is not None
-        and approval_status
-        not in VALID_APPROVAL_STATUSES
+        and approval_status not in VALID_APPROVAL_STATUSES
     ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -236,6 +259,8 @@ def decision_report(
     validate_sorting(
         sort_by,
         sort_order,
+        VALID_DECISION_SORT_FIELDS,
+        "decision report",
     )
 
     validate_decision_status(
@@ -244,6 +269,7 @@ def decision_report(
 
     return get_decision_report(
         db=db,
+        current_user=current_user,
         category=category,
         status=decision_status,
         created_by=created_by,
@@ -315,6 +341,8 @@ def approval_report(
     validate_sorting(
         sort_by,
         sort_order,
+        VALID_APPROVAL_SORT_FIELDS,
+        "approval report",
     )
 
     validate_approval_status(
@@ -333,6 +361,7 @@ def approval_report(
         page_size=page_size,
         sort_by=sort_by,
         sort_order=sort_order,
+        current_user=current_user,
     )
 
 
@@ -359,7 +388,9 @@ def team_report(
         default=None,
         alias="status",
     ),
-    category: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(
+        default=None,
+    ),
     page: int = Query(
         default=1,
         ge=1,
@@ -378,7 +409,14 @@ def team_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    validate_report_access(current_user)
+    if current_user.role not in {
+        "Manager",
+        "Administrator",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager or Administrator access required",
+        )
 
     validate_date_range(
         date_from,
@@ -388,6 +426,8 @@ def team_report(
     validate_sorting(
         sort_by,
         sort_order,
+        VALID_TEAM_SORT_FIELDS,
+        "team report",
     )
 
     validate_decision_status(
@@ -405,6 +445,7 @@ def team_report(
         page_size=page_size,
         sort_by=sort_by,
         sort_order=sort_order,
+        current_user=current_user,
     )
 
 
@@ -421,7 +462,9 @@ def audit_report(
         default=None,
         ge=1,
     ),
-    action: Optional[str] = Query(default=None),
+    action: Optional[str] = Query(
+        default=None,
+    ),
     entity_type: Optional[str] = Query(
         default=None,
     ),
@@ -464,23 +507,12 @@ def audit_report(
         date_to,
     )
 
-    if sort_by != "created_date":
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "Invalid sort_by. "
-                "Allowed value: created_date"
-            ),
-        )
-
-    if sort_order not in VALID_SORT_ORDERS:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "sort_order must be either "
-                "'asc' or 'desc'"
-            ),
-        )
+    validate_sorting(
+        sort_by,
+        sort_order,
+        VALID_AUDIT_SORT_FIELDS,
+        "audit report",
+    )
 
     return get_audit_report(
         db=db,
@@ -494,6 +526,7 @@ def audit_report(
         page_size=page_size,
         sort_by=sort_by,
         sort_order=sort_order,
+        current_user=current_user,
     )
 
 
@@ -505,7 +538,9 @@ def audit_report(
     "/decisions/export/excel"
 )
 def export_decisions_excel(
-    category: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(
+        default=None,
+    ),
     decision_status: Optional[str] = Query(
         default=None,
         alias="status",
@@ -514,18 +549,32 @@ def export_decisions_excel(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
-    tags: Optional[str] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
+    tags: Optional[str] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     validate_report_access(current_user)
-    validate_date_range(date_from, date_to)
-    validate_decision_status(decision_status)
+
+    validate_date_range(
+        date_from,
+        date_to,
+    )
+
+    validate_decision_status(
+        decision_status,
+    )
 
     report = get_decision_report(
         db=db,
+        current_user=current_user,
         category=category,
         status=decision_status,
         created_by=created_by,
@@ -584,7 +633,9 @@ def export_decisions_excel(
     "/decisions/export/pdf"
 )
 def export_decisions_pdf(
-    category: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(
+        default=None,
+    ),
     decision_status: Optional[str] = Query(
         default=None,
         alias="status",
@@ -593,18 +644,32 @@ def export_decisions_pdf(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
-    tags: Optional[str] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
+    tags: Optional[str] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     validate_report_access(current_user)
-    validate_date_range(date_from, date_to)
-    validate_decision_status(decision_status)
+
+    validate_date_range(
+        date_from,
+        date_to,
+    )
+
+    validate_decision_status(
+        decision_status,
+    )
 
     report = get_decision_report(
         db=db,
+        current_user=current_user,
         category=category,
         status=decision_status,
         created_by=created_by,
@@ -664,7 +729,9 @@ def export_decisions_pdf(
     "/approvals/export/excel"
 )
 def export_approvals_excel(
-    approval_status: Optional[str] = Query(default=None),
+    approval_status: Optional[str] = Query(
+        default=None,
+    ),
     reviewer_id: Optional[int] = Query(
         default=None,
         ge=1,
@@ -677,14 +744,25 @@ def export_approvals_excel(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     validate_report_access(current_user)
-    validate_date_range(date_from, date_to)
-    validate_approval_status(approval_status)
+
+    validate_date_range(
+        date_from,
+        date_to,
+    )
+
+    validate_approval_status(
+        approval_status,
+    )
 
     report = get_approval_report(
         db=db,
@@ -698,6 +776,7 @@ def export_approvals_excel(
         page_size=10000,
         sort_by="approval_date",
         sort_order="desc",
+        current_user=current_user,
     )
 
     columns = [
@@ -745,7 +824,9 @@ def export_approvals_excel(
     "/approvals/export/pdf"
 )
 def export_approvals_pdf(
-    approval_status: Optional[str] = Query(default=None),
+    approval_status: Optional[str] = Query(
+        default=None,
+    ),
     reviewer_id: Optional[int] = Query(
         default=None,
         ge=1,
@@ -758,14 +839,25 @@ def export_approvals_pdf(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     validate_report_access(current_user)
-    validate_date_range(date_from, date_to)
-    validate_approval_status(approval_status)
+
+    validate_date_range(
+        date_from,
+        date_to,
+    )
+
+    validate_approval_status(
+        approval_status,
+    )
 
     report = get_approval_report(
         db=db,
@@ -779,6 +871,7 @@ def export_approvals_pdf(
         page_size=10000,
         sort_by="approval_date",
         sort_order="desc",
+        current_user=current_user,
     )
 
     columns = [
@@ -831,19 +924,39 @@ def export_teams_excel(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
     decision_status: Optional[str] = Query(
         default=None,
         alias="status",
     ),
-    category: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    validate_report_access(current_user)
-    validate_date_range(date_from, date_to)
-    validate_decision_status(decision_status)
+    if current_user.role not in {
+        "Manager",
+        "Administrator",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager or Administrator access required",
+        )
+
+    validate_date_range(
+        date_from,
+        date_to,
+    )
+
+    validate_decision_status(
+        decision_status,
+    )
 
     report = get_team_report(
         db=db,
@@ -856,6 +969,7 @@ def export_teams_excel(
         page_size=10000,
         sort_by="team_name",
         sort_order="asc",
+        current_user=current_user,
     )
 
     columns = [
@@ -903,19 +1017,39 @@ def export_teams_pdf(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
     decision_status: Optional[str] = Query(
         default=None,
         alias="status",
     ),
-    category: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    validate_report_access(current_user)
-    validate_date_range(date_from, date_to)
-    validate_decision_status(decision_status)
+    if current_user.role not in {
+        "Manager",
+        "Administrator",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager or Administrator access required",
+        )
+
+    validate_date_range(
+        date_from,
+        date_to,
+    )
+
+    validate_decision_status(
+        decision_status,
+    )
 
     report = get_team_report(
         db=db,
@@ -928,6 +1062,7 @@ def export_teams_pdf(
         page_size=10000,
         sort_by="team_name",
         sort_order="asc",
+        current_user=current_user,
     )
 
     columns = [
@@ -976,14 +1111,22 @@ def export_audit_excel(
         default=None,
         ge=1,
     ),
-    action: Optional[str] = Query(default=None),
-    entity_type: Optional[str] = Query(default=None),
+    action: Optional[str] = Query(
+        default=None,
+    ),
+    entity_type: Optional[str] = Query(
+        default=None,
+    ),
     entity_id: Optional[int] = Query(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -993,7 +1136,10 @@ def export_audit_excel(
             detail="Administrator access required",
         )
 
-    validate_date_range(date_from, date_to)
+    validate_date_range(
+        date_from,
+        date_to,
+    )
 
     report = get_audit_report(
         db=db,
@@ -1007,6 +1153,7 @@ def export_audit_excel(
         page_size=10000,
         sort_by="created_date",
         sort_order="desc",
+        current_user=current_user,
     )
 
     columns = [
@@ -1055,14 +1202,22 @@ def export_audit_pdf(
         default=None,
         ge=1,
     ),
-    action: Optional[str] = Query(default=None),
-    entity_type: Optional[str] = Query(default=None),
+    action: Optional[str] = Query(
+        default=None,
+    ),
+    entity_type: Optional[str] = Query(
+        default=None,
+    ),
     entity_id: Optional[int] = Query(
         default=None,
         ge=1,
     ),
-    date_from: Optional[datetime] = Query(default=None),
-    date_to: Optional[datetime] = Query(default=None),
+    date_from: Optional[datetime] = Query(
+        default=None,
+    ),
+    date_to: Optional[datetime] = Query(
+        default=None,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1072,7 +1227,10 @@ def export_audit_pdf(
             detail="Administrator access required",
         )
 
-    validate_date_range(date_from, date_to)
+    validate_date_range(
+        date_from,
+        date_to,
+    )
 
     report = get_audit_report(
         db=db,
@@ -1086,6 +1244,7 @@ def export_audit_pdf(
         page_size=10000,
         sort_by="created_date",
         sort_order="desc",
+        current_user=current_user,
     )
 
     columns = [

@@ -9,14 +9,14 @@ def log_activity(
     action: str,
     entity_type: str,
     entity_id: int,
-    description: str
+    description: str,
 ):
     activity = Activity(
         user_id=user_id,
         action=action,
         entity_type=entity_type,
         entity_id=entity_id,
-        description=description
+        description=description,
     )
 
     db.add(activity)

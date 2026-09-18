@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from app.core.security import verify_password, create_access_token
+from app.core.security import create_access_token, hash_password, verify_password
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.audit_log import AuditAction, AuditEntityType
+from app.schemas.user import UserRegistration, UserResponse
 from app.services.audit_service import log_audit
 
 
@@ -13,6 +14,41 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(
+    user_data: UserRegistration,
+    db: Session = Depends(get_db),
+):
+    """Public registration creates a standard Employee account.
+
+    Privileged roles are assigned by authenticated administrators through
+    the user-management endpoints.
+    """
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+
+    existing_employee = db.query(User).filter(User.employee_id == user_data.employee_id).first()
+    if existing_employee:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Employee ID already registered")
+
+    new_user = User(
+        full_name=user_data.full_name.strip(),
+        email=user_data.email,
+        role="Employee",
+        password=hash_password(user_data.password),
+        employee_id=user_data.employee_id.strip(),
+        department=user_data.department.strip(),
+        designation=user_data.designation.strip(),
+        phone_number=user_data.phone_number.strip(),
+    )
+    db.add(new_user)
+    db.flush()
+    log_audit(db, new_user.id, AuditAction.CREATE, AuditEntityType.USER, new_user.id, "Employee account registered", new_value={"email": new_user.email, "role": new_user.role}, request_method="POST", endpoint="/auth/register")
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
 
 @router.post("/login")

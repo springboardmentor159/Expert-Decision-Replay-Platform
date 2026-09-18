@@ -80,6 +80,61 @@ def employee_dashboard(
     }
 
 
+# REVIEWER DASHBOARD
+@router.get("/reviewer")
+def reviewer_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "Reviewer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Reviewer access required",
+        )
+
+    from app.models.approval import Approval
+
+    assigned = db.query(Approval).filter(Approval.reviewer_id == current_user.id)
+    pending = assigned.filter(Approval.status.in_(["Pending", "Under Review"]))
+    reviewed = assigned.filter(Approval.status.in_(["Approved", "Rejected"]))
+
+    recent_activities = (
+        db.query(Activity)
+        .filter(Activity.user_id == current_user.id)
+        .order_by(Activity.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    approved_reviews = assigned.filter(Approval.status == "Approved").count()
+    rejected_reviews = assigned.filter(Approval.status == "Rejected").count()
+    pending_reviews = pending.count()
+
+    return {
+        "total_decisions": assigned.with_entities(Approval.decision_id).distinct().count(),
+        "total_assigned": assigned.count(),
+        "pending_reviews": pending_reviews,
+        "completed_reviews": reviewed.count(),
+        "approved_reviews": approved_reviews,
+        "rejected_reviews": rejected_reviews,
+        "draft_decisions": 0,
+        "under_review": pending_reviews,
+        "approved_decisions": approved_reviews,
+        "rejected_decisions": rejected_reviews,
+        "recent_activities": [
+            {
+                "id": activity.id,
+                "action": activity.action,
+                "entity_type": activity.entity_type,
+                "entity_id": activity.entity_id,
+                "description": activity.description,
+                "created_at": activity.created_at,
+            }
+            for activity in recent_activities
+        ],
+    }
+
+
 # MANAGER DASHBOARD
 @router.get("/manager")
 def manager_dashboard(
